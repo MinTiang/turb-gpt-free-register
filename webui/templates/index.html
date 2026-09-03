@@ -3497,7 +3497,6 @@ function _codexAction(r) {
     : '重新跑一次 Codex 授权（会消耗 1 封邮箱 OTP + 1 个接码短信）';
   return `<button data-codex-retry="${esc(r.email)}" title="${esc(costTitle)}">${label}</button>`;
 }
-}
 function _tokenCellV2(r) {
   const live = r.live_check_status || '';
   const liveErr = r.live_check_error || '';

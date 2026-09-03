@@ -101,7 +101,7 @@ def _absolute_auth_url(url: str) -> str:
 # 步骤 1：platform authorize（grok2api _platform_authorize 移植）
 # ============================================================
 
-def _platform_authorize(session: BrowserSession, email: str, screen_hint: str = "login") -> tuple[str, str]:
+def _platform_authorize(session: BrowserSession, email: str, screen_hint: str = "login_or_signup") -> tuple[str, str]:
     """
     GET platform authorize URL 并跟随重定向，返回 (final_url, 落点页面类型)。
 
@@ -109,6 +109,13 @@ def _platform_authorize(session: BrowserSession, email: str, screen_hint: str = 
     issuer/client_id/audience/redirect_uri/device_id/screen_hint/max_age/login_hint/
     scope/response_type/response_mode/state/nonce/code_challenge(S256)/auth0Client。
     """
+    # grok2api 在 GET 前就置 oai-did cookie（两个域），让 device_id 参数 / cookie / 后续
+    # POST 的 oai-device-id 头保持同一设备；缺这一步会导致 sentinel 会话不连续（409）。
+    for domain in (".auth.openai.com", "auth.openai.com"):
+        try:
+            session.session.cookies.set("oai-did", session.device_id, domain=domain, path="/")
+        except Exception:
+            continue
     code_verifier, code_challenge = proto._generate_pkce()
     params = {
         "issuer": _AUTH_BASE,
@@ -237,15 +244,24 @@ def _authorize_continue_login(session: BrowserSession, email: str) -> dict:
 
 def _post_platform_json(session: BrowserSession, url: str, payload: dict, referer: str,
                         sentinel_header: str | None = None, so_header: str | None = None):
-    """发 platform /api/accounts/* 的 JSON POST（复用 proto._post_json 的头组装）。"""
-    return proto._post_json(
-        session,
-        url,
-        payload,
-        referer=referer,
-        sentinel_header=sentinel_header,
-        so_header=so_header,
-    )
+    """
+    发 platform /api/accounts/* 的 JSON POST。
+
+    与 grok2api 的 _json_headers 对齐：除 auth JSON 头外，额外补齐 oai-* 设备上下文头
+    （重点是 oai-device-id，须与 authorize GET 置的 oai-did cookie / device_id 参数一致），
+    否则 sentinel 登录会话会因设备不连续返回 409 "sign-in session is no longer valid"。
+    """
+    headers = session.get_auth_headers(referer=referer)
+    if sentinel_header:
+        headers["openai-sentinel-token"] = sentinel_header
+    if so_header:
+        headers["openai-sentinel-so-token"] = so_header
+    # grok2api _json_headers 只带 oai-device-id；这里补齐 oai 设备上下文头以维持设备连续性。
+    try:
+        session._attach_oai_context_headers(headers)
+    except Exception:
+        headers["oai-device-id"] = getattr(session, "device_id", "")
+    return session.post(url, headers=headers, data=json.dumps(payload), allow_redirects=False)
 
 
 # ============================================================
@@ -677,7 +693,7 @@ def run_platform_codex_oauth(
         network_preflight(session)
         human_delay("navigate")
         otp_after_ts = time.time()
-        code_verifier, final_url = _platform_authorize(session, email, screen_hint="login")
+        code_verifier, final_url = _platform_authorize(session, email, screen_hint="login_or_signup")
         human_delay("navigate")
 
         callback = _extract_callback_params(final_url)
