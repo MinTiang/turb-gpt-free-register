@@ -1357,6 +1357,11 @@ def run_codex_oauth(
         oauth_driver = str(getattr(_codex_cfg, "CODEX_OAUTH_DRIVER", "protocol") or "protocol").strip().lower()
         if oauth_driver == "same_as_registration":
             oauth_driver = str(getattr(_roxy_cfg, "REGISTRATION_DRIVER", "protocol") or "protocol").strip().lower()
+        if oauth_driver in ("platform", "platform_free", "grok2api"):
+            # platform 免接码驱动（grok2api 移植）：纯协议流程，本地 PKCE + 换 token + 上传 CPA auth-files，
+            # 忽略 CODEX_AUTH_URL_SOURCE。
+            from core.codex_platform_oauth import run_platform_codex_oauth
+            return run_platform_codex_oauth(email, otp_provider=otp_provider, proxy=proxy, force=True)
         if oauth_driver in ("roxy", "roxybrowser", "fingerprint", "browser"):
             from core.roxy_codex_oauth import run_roxy_codex_oauth
             return run_roxy_codex_oauth(email, otp_provider=otp_provider, proxy=proxy, force=True)
@@ -1389,7 +1394,7 @@ def run_codex_oauth(
                     except Exception:
                         pass
         if oauth_driver not in ("protocol", "api", "http"):
-            raise RuntimeError(f"[Codex] 不支持的 CODEX_OAUTH_DRIVER={oauth_driver!r}，可选 protocol / roxy / cloak / browser_use / skyvern")
+            raise RuntimeError(f"[Codex] 不支持的 CODEX_OAUTH_DRIVER={oauth_driver!r}，可选 platform / protocol / roxy / cloak / browser_use / skyvern")
     except ImportError:
         # 没装 selenium / 未提供 roxy 配置时继续走协议模式，保持旧行为。
         pass

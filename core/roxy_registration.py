@@ -2299,19 +2299,27 @@ def run_roxy_registration(
         try:
             from config import codex as _codex_cfg
             if bool(getattr(_codex_cfg, "ENABLE_CODEX_AUTO", False)):
-                # 注册流程本身已创建 Roxy 一号一环境。这里不能再新建第二个 Roxy 环境；
-                # 复用当前注册窗口，先清理 Cookie/session/localStorage/cache，再开始 Codex 授权。
-                from core.roxy_codex_oauth import run_roxy_codex_oauth
-                logger.info("[Roxy注册][Codex] ENABLE_CODEX_AUTO=True，复用当前注册 Roxy 窗口执行 Codex 授权，不创建新环境")
-                _check_manual_stop()
-                codex_result = run_roxy_codex_oauth(
-                    email,
-                    reuse_existing_profile=True,
-                    existing_driver=driver,
-                    existing_opened=opened,
-                    force=True,
-                    clear_existing_state=True,
-                )
+                oauth_driver = str(getattr(_codex_cfg, "CODEX_OAUTH_DRIVER", "") or "").strip().lower()
+                if oauth_driver in ("platform", "platform_free", "grok2api"):
+                    # platform 免接码为纯协议流程，不复用 Roxy 窗口，走统一分发
+                    from core.codex_oauth import run_codex_oauth
+                    logger.info("[Roxy注册][Codex] CODEX_OAUTH_DRIVER=platform，走免接码协议授权，不创建新环境")
+                    _check_manual_stop()
+                    codex_result = run_codex_oauth(email, force=True)
+                else:
+                    # 注册流程本身已创建 Roxy 一号一环境。这里不能再新建第二个 Roxy 环境；
+                    # 复用当前注册窗口，先清理 Cookie/session/localStorage/cache，再开始 Codex 授权。
+                    from core.roxy_codex_oauth import run_roxy_codex_oauth
+                    logger.info("[Roxy注册][Codex] ENABLE_CODEX_AUTO=True，复用当前注册 Roxy 窗口执行 Codex 授权，不创建新环境")
+                    _check_manual_stop()
+                    codex_result = run_roxy_codex_oauth(
+                        email,
+                        reuse_existing_profile=True,
+                        existing_driver=driver,
+                        existing_opened=opened,
+                        force=True,
+                        clear_existing_state=True,
+                    )
                 _traffic_checkpoint()
             else:
                 logger.info("[Roxy注册][Codex] ENABLE_CODEX_AUTO=False，注册后跳过 Codex OAuth")

@@ -3483,7 +3483,12 @@ function _codexAction(r) {
   }
   if (s === 'deactivated') return '';
   const label = s === 'success' ? '重新补跑 Codex' : '补跑 Codex';
-  return `<button data-codex-retry="${esc(r.email)}" title="重新跑一次 Codex 授权（会消耗 1 封邮箱 OTP + 1 个接码短信）">${label}</button>`;
+  const platformMode = (CONFIG.find(f => f.key === 'CODEX_OAUTH_DRIVER') || {}).value === 'platform';
+  const costTitle = platformMode
+    ? '重新跑一次 Codex 授权（platform 免接码，仅消耗 1 封邮箱 OTP）'
+    : '重新跑一次 Codex 授权（会消耗 1 封邮箱 OTP + 1 个接码短信）';
+  return `<button data-codex-retry="${esc(r.email)}" title="${esc(costTitle)}">${label}</button>`;
+}
 }
 function _tokenCellV2(r) {
   const live = r.live_check_status || '';
@@ -3892,7 +3897,11 @@ async function onAccountsBodyClick(e) {
   const btn = e.target.closest('[data-codex-retry]');
   if (!btn) return;
   const email = btn.dataset.codexRetry;
-  if (!confirm(`重新跑 Codex 授权？\n\n${email}\n\n将消耗：\n  • 1 封邮箱 OTP（自动收）\n  • 1 个接码短信（约 $0.13）\n\n补跑会在后台进行（~1-2 分钟），完成后状态自动更新。`)) return;
+  const platformMode = (CONFIG.find(f => f.key === 'CODEX_OAUTH_DRIVER') || {}).value === 'platform';
+  const costText = platformMode
+    ? '  • 1 封邮箱 OTP（自动收，无需接码）'
+    : '  • 1 封邮箱 OTP（自动收）\n  • 1 个接码短信（约 $0.13）';
+  if (!confirm(`重新跑 Codex 授权？\n\n${email}\n\n将消耗：\n${costText}\n\n补跑会在后台进行（~1-2 分钟），完成后状态自动更新。`)) return;
   btn.disabled = true;
   try {
     const r = await api('/api/codex/retry', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email}) });
@@ -4779,11 +4788,13 @@ async function retrySelectedCodex() {
   const selectedAccounts = ids.map(id => ACCOUNTS.find(a => Number(a.id) === Number(id))).filter(Boolean);
   const retryingCount = selectedAccounts.filter(a => (a.codex_status || '') === 'retrying').length;
   const deactivatedCount = selectedAccounts.filter(a => (a.live_check_status || '') === 'deactivated').length;
+  const platformMode = (CONFIG.find(f => f.key === 'CODEX_OAUTH_DRIVER') || {}).value === 'platform';
+  const costLine = platformMode ? '将按账号消耗邮箱 OTP（platform 免接码，不消耗接码短信）。' : '将按账号消耗邮箱 OTP 和接码短信。';
   let msg = `批量补跑选中的 ${ids.length} 个账号 Codex 授权？
 
 并发线程数：${workers}
 
-将按账号消耗邮箱 OTP 和接码短信。`;
+${costLine}`;
   if (retryingCount || deactivatedCount) msg += `
 
 其中：补跑中 ${retryingCount} 个、已废号 ${deactivatedCount} 个会自动跳过。`;
@@ -6005,6 +6016,7 @@ function renderMixedConfigSectionV2(name, fields, intro) {
 
 function codexOauthDriverChoices() {
   return [
+    { value: 'platform', label: '免接码(platform)' },
     { value: 'protocol', label: '纯协议授权' },
     { value: 'roxy', label: 'RoxyBrowser' },
     { value: 'cloak', label: '本地指纹浏览器' },
@@ -6040,7 +6052,7 @@ function renderCodexOauthDriverField() {
   return `
     <label class="fld config-select-v2-field">
       Codex 授权驱动
-      <span class="hint">选择 Codex 授权所用的自动化方式</span>
+      <span class="hint">选择 Codex 授权方式；platform 免接码不消耗接码短信（仅 1 封邮箱 OTP）</span>
       <div class="config-ep-select" id="${wrapId}">
         <button type="button" class="config-ep-select-btn" data-ep-toggle="${wrapId}">${esc(label)}</button>
         <div class="config-ep-select-menu" role="listbox">${items}</div>
