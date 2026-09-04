@@ -59,6 +59,33 @@ _PHONE_REQUIRED_HINT = (
     "请把 CODEX_OAUTH_DRIVER 切回 protocol / roxy / cloak / browser_use / skyvern 等接码驱动后补跑"
 )
 
+# 命中这些落点说明 OpenAI 要求重新登录（登录态不足/不存在），免验证提取无意义，直接转邮箱 OTP 登录兜底
+_LOGIN_REQUIRED_PATHS = (
+    "/email-verification",
+    "/log-in",
+    "/login",
+    "/create-account",
+    "/create-account/password",
+    "/signup",
+    "/sign-in",
+)
+
+
+class _SigninSessionInvalidError(RuntimeError):
+    """
+    passwordless 登录会话失效（409 invalid_state：sign-in session is no longer valid）。
+
+    对齐 grok2api _passwordless_login 的判定：捕获后重置 auth.openai.com cookie 并
+    重新发起一次 platform authorize，再走一轮提交邮箱/发码/校验，避免把一次性会话
+    失效误判为账号/流程错误。
+    """
+
+
+def _is_signin_session_invalid_body(body: str) -> bool:
+    """判定 409 响应体是否属于"sign-in session is no longer valid"式会话失效。"""
+    text = str(body or "").lower()
+    return "invalid_state" in text or "sign-in session is no longer valid" in text
+
 
 def _platform_cfg(key: str, default: str = "") -> str:
     """读 platform 协议常量；支持 WebUI 热加载（config.reload_all()）。"""
@@ -196,8 +223,9 @@ def _authorize_continue_login(session: BrowserSession, email: str) -> dict:
     """
     POST authorize/continue 提交邮箱进入登录验证，返回响应 JSON。
 
-    409（登录会话过期）时清 cookie + 重新 authorize（screen_hint=login_or_signup）再发一次，
-    对照 grok2api 同名方法的 409 处理。
+    409 invalid_state（登录会话失效）时抛 _SigninSessionInvalidError，由调用方
+    _passwordless_login_branch 统一做「重置 cookie + 重新 authorize(login_or_signup)
+    + 重走一轮」并同步取回最新 code_verifier（此处不内联重试，避免丢 verifier）。
     passwordless 被禁时抛错并提示切回接码驱动。
     """
     sentinel_resp = request_sentinel_token(session, "authorize_continue")
@@ -212,22 +240,12 @@ def _authorize_continue_login(session: BrowserSession, email: str) -> dict:
         sentinel_header=sentinel_header,
         so_header=so_header,
     )
-    if getattr(resp, "status_code", 0) == 409:
-        logger.warning("[Codex][Platform] 登录会话过期（409），重置 cookie 后重新发起授权")
-        _reset_auth_cookies(session)
-        _platform_authorize(session, email, screen_hint="login_or_signup")
-        sentinel_resp = request_sentinel_token(session, "authorize_continue")
-        sentinel_header, so_header = build_sentinel_header(session, sentinel_resp, "authorize_continue")
-        resp = _post_platform_json(
-            session,
-            f"{_AUTH_BASE}/api/accounts/authorize/continue",
-            payload,
-            referer=f"{_AUTH_BASE}/log-in?usernameKind=email",
-            sentinel_header=sentinel_header,
-            so_header=so_header,
-        )
     status = int(getattr(resp, "status_code", 0) or 0)
     if status != 200:
+        if status == 409 and _is_signin_session_invalid_body(resp.text or ""):
+            raise _SigninSessionInvalidError(
+                f"[Codex][Platform] 提交邮箱时登录会话失效 status={status}: {(resp.text or '')[:300]}"
+            )
         raise RuntimeError(
             f"[Codex][Platform] 提交邮箱失败 status={status}: {(resp.text or '')[:300]}"
         )
@@ -278,6 +296,10 @@ def _send_passwordless_otp(session: BrowserSession) -> None:
     )
     status = int(getattr(resp, "status_code", 0) or 0)
     if status not in (200, 201, 204):
+        if status == 409 and _is_signin_session_invalid_body(resp.text or ""):
+            raise _SigninSessionInvalidError(
+                f"[Codex][Platform] passwordless 发码时登录会话失效 status={status}: {(resp.text or '')[:300]}"
+            )
         raise RuntimeError(
             f"[Codex][Platform] passwordless 发码失败 status={status}: {(resp.text or '')[:300]}"
         )
@@ -307,6 +329,10 @@ def _validate_platform_otp(session: BrowserSession, code: str) -> dict:
     )
     status = int(getattr(resp, "status_code", 0) or 0)
     if status != 200:
+        if status == 409 and _is_signin_session_invalid_body(resp.text or ""):
+            raise _SigninSessionInvalidError(
+                f"[Codex][Platform] 校验邮箱 OTP 时登录会话失效 status={status}: {(resp.text or '')[:300]}"
+            )
         error_code = _extract_error_code(resp)
         if error_code in ("account_deactivated", "account_deleted", "account_banned"):
             raise AccountUnusableError(
@@ -324,6 +350,76 @@ def _validate_platform_otp(session: BrowserSession, code: str) -> dict:
         )
     logger.info("[Codex][Platform] 邮箱 OTP 验证通过")
     return proto._resp_json(resp)
+
+
+# ============================================================
+# 步骤 4.5：passwordless 登录兜底（grok2api _passwordless_login 移植）
+# ============================================================
+
+def _passwordless_login_branch(
+    session: BrowserSession,
+    email: str,
+    otp_provider,
+    code_verifier: str,
+) -> tuple[dict, str]:
+    """
+    已注册账号的 passwordless 登录兜底：authorize/continue → send-otp → 等邮箱 OTP
+    （最多 3 次机会，重发=passwordless/send-otp）→ email-otp/validate。
+
+    遇 409 invalid_state（"sign-in session is no longer valid"，常见于全新 session 重登录
+    或复用登录态跨 client 授权被拒）时，按 grok2api _passwordless_login 惯例重置
+    auth.openai.com cookie 并重新 platform authorize（login_or_signup）后重来一轮。
+
+    Returns:
+        (email-otp/validate 响应 JSON, 最终生效的 code_verifier)。token 交换必须使用
+        最后一次 authorize 生成的 code_verifier，故由本函数一并返回。
+    """
+    max_email_otp_attempts = 3
+    for round_index in range(2):
+        verifier = code_verifier
+        if round_index:
+            logger.warning(
+                "[Codex][Platform] passwordless 登录会话失效（409），重置 cookie 后重新发起登录授权"
+            )
+            _reset_auth_cookies(session)
+            verifier, _final_url = _platform_authorize(session, email, screen_hint="login_or_signup")
+            human_delay("navigate")
+        try:
+            _authorize_continue_login(session, email)
+            human_delay("form")
+
+            _send_passwordless_otp(session)
+            code = None
+            otp_after_ts = time.time()
+            for email_otp_attempt in range(1, max_email_otp_attempts + 1):
+                logger.info(f"[Codex][Platform] 等待邮箱 OTP：{email}（第 {email_otp_attempt}/{max_email_otp_attempts} 次）")
+                try:
+                    code = otp_provider(email, after_ts=otp_after_ts)
+                    break
+                except Exception as exc:
+                    if email_otp_attempt >= max_email_otp_attempts:
+                        raise
+                    logger.warning(
+                        "[Codex][Platform] 一直未收到邮箱 OTP，重发后继续等待（下一轮 %s/%s）：%s: %s",
+                        email_otp_attempt + 1, max_email_otp_attempts,
+                        type(exc).__name__, str(exc)[:180],
+                    )
+                    otp_after_ts = time.time()
+                    _send_passwordless_otp(session)
+                    human_delay("api")
+            logger.info(f"[Codex][Platform] 邮箱 OTP 收到：{code}")
+            human_delay("otp_input")
+
+            data = _validate_platform_otp(session, code)
+            return data, verifier
+        except _SigninSessionInvalidError:
+            if round_index == 0:
+                continue
+            raise
+    raise RuntimeError(
+        "[Codex][Platform] passwordless 登录会话持续失效（409），"
+        "请把 CODEX_OAUTH_DRIVER 切回 protocol / roxy 等接码驱动后补跑"
+    )
 
 
 # ============================================================
@@ -666,13 +762,19 @@ def run_platform_codex_oauth(
     otp_provider=None,
     proxy: str | None = None,
     force: bool = False,
+    session=None,
 ) -> dict:
     """
     Platform OAuth 免接码 Codex 授权（移植自 grok2api）。
 
-    全新 BrowserSession → platform authorize(login) → authorize/continue →
-    passwordless 发码 → 邮箱 OTP → consent/workspace/org 提取 callback code →
-    本地换 token → SQLite 落库 → multipart 上传 CPA auth-files。
+    优先复用注册流程已登录的 BrowserSession（session 参数）：authorize(screen_hint=login)
+    直接放行 → consent/workspace/org 提取 callback code → 本地换 token，全程零验证码；
+    未传 session（或登录态不足以直接放行）时，降级 passwordless 邮箱 OTP 登录兜底
+    （仅消耗 1 封邮箱 OTP，不触手机验证码；409 会话失效自动重置重试）。
+
+    Args:
+        session: 注册流程保留下来的已登录 BrowserSession（protocol 驱动注册后传入）。
+                 为 None 时内部新建全新 BrowserSession，从重登录开始走邮箱 OTP 兜底。
 
     Returns:
         与 proto._codex_result 同形态 dict。任何异常都被吞掉转 failed/deactivated，不向上抛。
@@ -685,48 +787,44 @@ def run_platform_codex_oauth(
     if otp_provider is None:
         from core.email_provider import wait_for_otp as otp_provider
 
-    session = BrowserSession(proxy=proxy, fingerprint_seed=f"account:{email.lower()}")
+    reuse_logged_in = session is not None
+    if not reuse_logged_in:
+        session = BrowserSession(proxy=proxy, fingerprint_seed=f"account:{email.lower()}")
     try:
-        logger.info(f"[Codex][Platform] 开始免接码授权（全新 session）：{email}")
+        screen_hint = "login" if reuse_logged_in else "login_or_signup"
+        if reuse_logged_in:
+            logger.info(f"[Codex][Platform] 开始免接码授权（复用注册登录态）：{email}")
+        else:
+            logger.info(f"[Codex][Platform] 开始免接码授权（全新 session）：{email}")
 
         # 1. 代理预检 + platform authorize（login_hint 可能直接触发发码，先记录收信边界）
-        network_preflight(session)
+        #    复用已登录会话时跳过预检/新会话建立，保持与注册一致的 device_id / 代理 / cookie。
+        if not reuse_logged_in:
+            network_preflight(session)
         human_delay("navigate")
-        otp_after_ts = time.time()
-        code_verifier, final_url = _platform_authorize(session, email, screen_hint="login_or_signup")
+        code_verifier, final_url = _platform_authorize(session, email, screen_hint=screen_hint)
         human_delay("navigate")
 
         callback = _extract_callback_params(final_url)
-        if not callback:
-            # 2. 提交邮箱进入登录验证
-            _authorize_continue_login(session, email)
-            human_delay("form")
-
-            # 3. passwordless 发码 + 收邮箱 OTP（3 次机会，重发=passwordless/send-otp）
-            _send_passwordless_otp(session)
-            code = None
-            max_email_otp_attempts = 3
-            for email_otp_attempt in range(1, max_email_otp_attempts + 1):
-                logger.info(f"[Codex][Platform] 等待邮箱 OTP：{email}（第 {email_otp_attempt}/{max_email_otp_attempts} 次）")
+        if not callback and reuse_logged_in:
+            # 1.5 已登录会话 authorize 后通常直接放行；未直出 code 时尝试
+            #     consent/workspace/org 提取链（免验证路径）。落点若要求重新登录则跳过，
+            #     避免在未登录会话上打 workspace/organization/select。
+            if _url_path(final_url) not in _LOGIN_REQUIRED_PATHS:
                 try:
-                    code = otp_provider(email, after_ts=otp_after_ts)
-                    break
+                    callback = _extract_platform_callback(session, final_url)
+                    logger.info("[Codex][Platform] 从登录态落点直接提取到 callback（免验证路径）")
                 except Exception as exc:
-                    if email_otp_attempt >= max_email_otp_attempts:
-                        raise
+                    callback = None
                     logger.warning(
-                        "[Codex][Platform] 一直未收到邮箱 OTP，重发后继续等待（下一轮 %s/%s）：%s: %s",
-                        email_otp_attempt + 1, max_email_otp_attempts,
-                        type(exc).__name__, str(exc)[:180],
+                        "[Codex][Platform] 登录态落点未直接给出 callback（%s: %s），转入邮箱 OTP 登录兜底",
+                        type(exc).__name__, str(exc)[:150],
                     )
-                    otp_after_ts = time.time()
-                    _send_passwordless_otp(session)
-                    human_delay("api")
-            logger.info(f"[Codex][Platform] 邮箱 OTP 收到：{code}")
-            human_delay("otp_input")
-
-            # 4. 校验 OTP → continue_url
-            data = _validate_platform_otp(session, code)
+        if not callback:
+            # 2. passwordless 邮箱 OTP 登录兜底（含 409 会话失效重置重试）
+            data, code_verifier = _passwordless_login_branch(
+                session, email, otp_provider, code_verifier=code_verifier,
+            )
             human_delay("api")
             continue_url = str((data or {}).get("continue_url") or "").strip() \
                 or f"{_AUTH_BASE}/sign-in-with-chatgpt/platform/consent"
@@ -736,7 +834,7 @@ def run_platform_codex_oauth(
             if "/add-phone" in path or "/phone-verification" in path:
                 raise RuntimeError(_PHONE_REQUIRED_HINT)
 
-            # 5. 提取 callback code（continue_url → consent → workspace → organization）
+            # 3. 提取 callback code（continue_url → consent → workspace → organization）
             callback = _extract_platform_callback(session, continue_url)
 
         code = str(callback.get("code") or "").strip()

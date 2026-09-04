@@ -1328,18 +1328,21 @@ def run_codex_oauth(
     proxy: str | None = None,
     force: bool = False,
     _cpa_reauth_round: int = 1,
+    session=None,
 ) -> dict:
     """
-    注册成功后的 Codex OAuth 授权入口（全新 session + 接码方案）。
+    注册成功后的 Codex OAuth 授权入口。
 
-    不复用注册的 session：内部新建干净 BrowserSession，从头登录该邮箱，
-    走 邮箱 OTP → 手机短信验证 → 选 workspace → 拿 code → 换 token → 落盘。
+    platform 免接码驱动优先复用注册流程保留下来的已登录 BrowserSession（对齐 grok2api
+    extract_platform_oauth_credentials：同一登录会话再发一次 platform authorize，零邮箱验证码）。
+    传 session=None 时回退为「全新 session 重登录」，兜底消耗 1 封邮箱 OTP（其余驱动同）。
 
     Args:
         email: 已注册成功的账号邮箱
         otp_provider: 邮箱 OTP 获取回调 fn(email, after_ts)->code，默认用 wait_for_otp
         proxy: 代理（不传从 PROXY_POOL 抽）
         force: True 时跳过 ENABLE_CODEX_AUTO 开关限制，供手动补跑使用
+        session: 可选，注册流程已登录的 BrowserSession（protocol 驱动注册后传入，platform 免接码复用其登录态）
 
     Returns:
         结构化结果 dict。任何异常都被吞掉转 status=failed，不向上抛，不影响注册主流程。
@@ -1350,7 +1353,8 @@ def run_codex_oauth(
         return _codex_result(status="skipped", message="email 为空")
 
     # Codex OAuth 支持多种驱动：
-    # protocol：原纯协议；roxy/cloak/browser_use：用真实浏览器跑页面并捕获 localhost callback。
+    # platform：grok2api 免接码移植（复用已登录 session 或全新重登），protocol：原纯协议；
+    # roxy/cloak/browser_use：用真实浏览器跑页面并捕获 localhost callback。
     try:
         from config import codex as _codex_cfg
         from config import roxybrowser as _roxy_cfg
@@ -1361,7 +1365,7 @@ def run_codex_oauth(
             # platform 免接码驱动（grok2api 移植）：纯协议流程，本地 PKCE + 换 token + 上传 CPA auth-files，
             # 忽略 CODEX_AUTH_URL_SOURCE。
             from core.codex_platform_oauth import run_platform_codex_oauth
-            return run_platform_codex_oauth(email, otp_provider=otp_provider, proxy=proxy, force=True)
+            return run_platform_codex_oauth(email, otp_provider=otp_provider, proxy=proxy, force=True, session=session)
         if oauth_driver in ("roxy", "roxybrowser", "fingerprint", "browser"):
             from core.roxy_codex_oauth import run_roxy_codex_oauth
             return run_roxy_codex_oauth(email, otp_provider=otp_provider, proxy=proxy, force=True)
