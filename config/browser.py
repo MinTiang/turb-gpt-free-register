@@ -20,20 +20,21 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 
-def _latest_chrome_major(default: str = "149") -> str:
-    """兼容旧模块导入；默认按 2026-07-19 抓包里的 Chrome 149 画像。"""
+def _latest_chrome_major(default: str = "146") -> str:
+    """兼容旧模块导入；必须与 curl_cffi 实际 TLS impersonate 版本一致。"""
     return default
 
 
-CHROME_MAJOR = "149"
-CHROME_FULL_VERSION = "149.0.0.0"
+CHROME_MAJOR = "146"
+CHROME_FULL_VERSION = "146.0.0.0"
 
 SAFARI_VERSION = ""
 SAFARI_WEBKIT_VERSION = "537.36"
 MAC_OS_UA_VERSION = "10_15_7"
 
 # ---------- curl_cffi 模拟浏览器 ----------
-# curl_cffi 0.15 当前最高内置到 chrome146；HTTP/JS 画像按抓包补齐到 Chrome/149。
+# curl_cffi 0.15 当前最高内置到 chrome146。UA、Client Hints、JS navigator
+# 必须同步为 146；不能出现 TLS=146、HTTP/JS=149 的跨版本拼接指纹。
 IMPERSONATE = "chrome146"
 
 # ---------- 桌面 Chrome 画像 ----------
@@ -49,8 +50,8 @@ USER_AGENT = (
     f"Chrome/{CHROME_FULL_VERSION} Safari/{SAFARI_WEBKIT_VERSION}"
 )
 
-SEC_CH_UA = '"Google Chrome";v="149", "Chromium";v="149", "Not)A;Brand";v="24"'
-SEC_CH_UA_FULL_VERSION_LIST = '"Google Chrome";v="149.0.0.0", "Chromium";v="149.0.0.0", "Not)A;Brand";v="24.0.0.0"'
+SEC_CH_UA = '"Google Chrome";v="146", "Chromium";v="146", "Not)A;Brand";v="24"'
+SEC_CH_UA_FULL_VERSION_LIST = '"Google Chrome";v="146.0.0.0", "Chromium";v="146.0.0.0", "Not)A;Brand";v="24.0.0.0"'
 SEC_CH_UA_PLATFORM = '"macOS"'
 SEC_CH_UA_PLATFORM_VERSION = '"15.7.0"'
 SEC_CH_UA_MOBILE = "?0"
@@ -122,6 +123,20 @@ BROWSER_JS_COVERAGE_MAX_ENTRIES: int = 1000
 COUNTRY_LOCALE_PROFILE_MAP = {
     "JP": "jp", "CN": "cn", "HK": "hk", "TW": "tw", "US": "us", "CA": "us",
     "SG": "sg", "GB": "gb", "AU": "gb", "DE": "de", "FR": "fr", "NL": "nl",
+    "VN": "vn",
+}
+
+# 没有专用完整画像的出口国家，至少自动匹配浏览器语言。时区仍直接采用 IP
+# 地理接口返回值；这样切换代理国家时不会退回固定的 ja-JP/Asia-Tokyo。
+COUNTRY_LANGUAGE_TAG_MAP = {
+    "TH": "th-TH", "ID": "id-ID", "MY": "ms-MY", "PH": "en-PH",
+    "KR": "ko-KR", "IN": "en-IN", "BR": "pt-BR", "MX": "es-MX",
+    "ES": "es-ES", "IT": "it-IT", "PT": "pt-PT", "PL": "pl-PL",
+    "RU": "ru-RU", "TR": "tr-TR", "AE": "ar-AE", "SA": "ar-SA",
+    "ZA": "en-ZA", "NZ": "en-NZ", "IE": "en-IE", "AT": "de-AT",
+    "CH": "de-CH", "BE": "nl-BE", "SE": "sv-SE", "NO": "nb-NO",
+    "DK": "da-DK", "FI": "fi-FI", "CZ": "cs-CZ", "RO": "ro-RO",
+    "HU": "hu-HU", "GR": "el-GR", "IL": "he-IL", "UA": "uk-UA",
 }
 
 BROWSER_LOCALE_PROFILES = {
@@ -135,6 +150,7 @@ BROWSER_LOCALE_PROFILES = {
     "de": {"navigator_language": "de-DE", "navigator_languages": ["de-DE"], "accept_language": "de-DE,de;q=0.9,en-US;q=0.8,en;q=0.7", "timezone_iana": "Europe/Berlin", "timezone_offset_minutes": 2 * 60, "timezone_name": "Central European Summer Time"},
     "fr": {"navigator_language": "fr-FR", "navigator_languages": ["fr-FR"], "accept_language": "fr-FR,fr;q=0.9,en-US;q=0.8,en;q=0.7", "timezone_iana": "Europe/Paris", "timezone_offset_minutes": 2 * 60, "timezone_name": "Central European Summer Time"},
     "nl": {"navigator_language": "nl-NL", "navigator_languages": ["nl-NL"], "accept_language": "nl-NL,nl;q=0.9,en-US;q=0.8,en;q=0.7", "timezone_iana": "Europe/Amsterdam", "timezone_offset_minutes": 2 * 60, "timezone_name": "Central European Summer Time"},
+    "vn": {"navigator_language": "vi-VN", "navigator_languages": ["vi-VN", "vi", "en-US", "en"], "accept_language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7", "timezone_iana": "Asia/Ho_Chi_Minh", "timezone_offset_minutes": 7 * 60, "timezone_name": "Indochina Time"},
 }
 
 TIMEZONE_NAME_BY_IANA = {
@@ -151,6 +167,8 @@ TIMEZONE_NAME_BY_IANA = {
     "Europe/Berlin": "Central European Summer Time",
     "Europe/Paris": "Central European Summer Time",
     "Europe/Amsterdam": "Central European Summer Time",
+    "Asia/Ho_Chi_Minh": "Indochina Time",
+    "Asia/Bangkok": "Indochina Time",
 }
 
 
@@ -173,14 +191,36 @@ def _locale_profile_key_from_geo(geo: dict | None) -> str:
 
 def _build_locale_from_geo(geo: dict | None) -> dict:
     key = _locale_profile_key_from_geo(geo)
+    resolved_profile = key
     locale = dict(BROWSER_LOCALE_PROFILES.get(key, BROWSER_LOCALE_PROFILES[BROWSER_LOCALE_PROFILE]))
     if geo and AUTO_BROWSER_LOCALE_FROM_IP:
+        country = str(geo.get("country") or geo.get("country_code") or "").upper()
+        # 专用画像覆盖常见国家；其余已知国家动态生成语言字段。若地理接口
+        # 返回了未知国家，也使用中性的 en-US，而不是泄漏本机默认日语画像。
+        if country not in COUNTRY_LOCALE_PROFILE_MAP:
+            language_tag = COUNTRY_LANGUAGE_TAG_MAP.get(country, "en-US")
+            resolved_profile = f"geo:{country.lower() or 'unknown'}"
+            base_language = language_tag.split("-", 1)[0]
+            languages = [language_tag]
+            if base_language != language_tag:
+                languages.append(base_language)
+            if base_language != "en":
+                languages.extend(["en-US", "en"])
+                accept_language = f"{language_tag},{base_language};q=0.9,en-US;q=0.8,en;q=0.7"
+            else:
+                languages.append("en")
+                accept_language = f"{language_tag},en;q=0.9"
+            locale.update({
+                "navigator_language": language_tag,
+                "navigator_languages": list(dict.fromkeys(languages)),
+                "accept_language": accept_language,
+            })
         tz = str(geo.get("timezone") or "").strip()
         if tz:
             locale["timezone_iana"] = tz
             locale["timezone_offset_minutes"] = _offset_minutes_for_timezone(tz, int(locale["timezone_offset_minutes"]))
             locale["timezone_name"] = TIMEZONE_NAME_BY_IANA.get(tz, locale.get("timezone_name", ""))
-    locale["locale_profile"] = key
+    locale["locale_profile"] = resolved_profile
     return locale
 
 

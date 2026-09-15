@@ -169,7 +169,13 @@ from config.email import (
 )
 
 # ---------- 2FA ----------
-from config.twofa import ENABLE_2FA
+from config.twofa import (
+    ENABLE_2FA,
+    TWOFA_REAUTH_MAX_ATTEMPTS,
+    TWOFA_REAUTH_RETRY_DELAY,
+    TWOFA_WORKERS,
+    TWOFA_QUEUE_LIMIT,
+)
 
 
 # ---------- 热加载支持 ----------
@@ -276,5 +282,6 @@ __all__ = [
     "REMAIL_API_BASE", "REMAIL_API_KEY", "REMAIL_PROJECT_ID", "REMAIL_EMAIL_SUFFIX", "REMAIL_SERVICE_MODE",
     "REMAIL_SUPPLY_POLICY", "REMAIL_ORDER_WAIT_SECONDS", "REMAIL_REQUEST_TIMEOUT",
     # twofa
-    "ENABLE_2FA",
+    "ENABLE_2FA", "TWOFA_REAUTH_MAX_ATTEMPTS", "TWOFA_REAUTH_RETRY_DELAY",
+    "TWOFA_WORKERS", "TWOFA_QUEUE_LIMIT",
 ]

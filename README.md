@@ -48,12 +48,13 @@ ChatGPT / OpenAI 账号自动注册与 Codex OAuth 授权工具。当前项目�
 - Cloudflare 域名邮箱 + QQ 邮箱 IMAP 收信（`cloudflare_domain`）
 - Cloudflare Worker 临时邮箱：自动创建 + JWT 取码（`cloudflare`，兼容 cloudflare_temp_email）
 - 通用 API 邮箱：`email----取码地址`
+- 通用 IMAP 邮箱池：每行 `邮箱----IMAP密码` 或 `邮箱:IMAP密码`，服务器、端口和 SSL 在导入界面统一配置
 - GPTMail 临时邮箱 API：运行时随机生成邮箱并自动收取验证码
 - Remail 开放 API：按项目下单短效邮箱并自动收取验证码（`remail`）
 - `EMAIL_SOURCE` 支持多个来源组合，例如：
 
 ```python
-EMAIL_SOURCE = "outlook,generic_api"
+EMAIL_SOURCE = "outlook,generic_api,imap"
 ```
 
 - MailNest-迈巢：Outlook 临时邮箱
@@ -80,7 +81,7 @@ EMAIL_SOURCE = "outlook,generic_api"
 - 实时查看任务日志。
 - 动态调整注册线程数，提交后新任务立即使用最新值。
 - 批量补跑 Codex，补跑线程数每次提交即时生效。
-- 管理账号、邮箱池、Codex 凭证；账号页支持复制全部/选中整行，邮箱池列表展示导入时间、已用时间和状态。
+- 管理账号、邮箱池、Codex 凭证；账号页支持单个/批量换绑邮箱并指定新邮箱来源，换绑后同时展示原邮箱与当前邮箱，支持查看换绑日志，并自动查活刷新 AT。
 - 邮箱池导入默认不创建账号；勾选“导入后默认视为注册成功账号”后，会将邮箱池标记为已用并同步显示在账号页，可直接批量补跑 Codex。
 - Roxy/Cloak 浏览器注册完成后统计整个浏览器会话的上传、下载和总流量，任务列表与账号扩展信息均会保存结果；Browser Use/Skyvern 云端浏览器不启用本地流量监听、资源拦截或 JS 覆盖率采集。
 - 配置页支持热加载，保存后无需重启。
@@ -266,6 +267,27 @@ EMAIL_SOURCE = "generic_api"
 
 ```python
 EMAIL_SOURCE = "outlook,generic_api,mailnest"
+```
+
+#### 通用 IMAP 邮箱
+
+在 WebUI「邮箱池 → 导入」选择“通用 IMAP 取码邮箱”，每行格式：
+
+```text
+email----imap_password
+email:imap_password
+```
+
+- 在导入类型选择“通用 IMAP 取码邮箱”后，填写统一的 IMAP 服务器、端口和 SSL 配置。
+- IMAP 登录用户名固定使用对应邮箱地址，无需额外配置。
+- 端口通常为 `993`，SSL 默认启用。
+- 示例：`user@example.com----app-password`
+- 默认读取 `INBOX`，可在「配置 → 邮箱 / OTP → 通用 IMAP」修改。
+
+将邮箱来源设置为：
+
+```python
+EMAIL_SOURCE = "imap"
 ```
 
 #### GPTMail 临时邮箱
