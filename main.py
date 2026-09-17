@@ -17,7 +17,7 @@ from config import email as _email_cfg
 from config import roxybrowser as _roxy_cfg
 from config import openai_protocol as _protocol_cfg
 from core.session import BrowserSession
-from core.chatgpt_auth import get_providers, get_csrf_token, signin_openai
+from core.chatgpt_auth import get_providers, get_csrf_token, signin_openai, navigate_login_with
 from core.openai_auth import (
     follow_authorize,
     request_sentinel_token,
@@ -167,9 +167,12 @@ def run_registration(
     """
     执行完整的 ChatGPT 注册流程（OTP-only，无密码）。
 
-    OpenAI 当前默认流程：signin 时携带 login_hint+screen_hint=login_or_signup
+    OpenAI 当前默认流程（2026-09-17 抓包对齐）：
+    首页预热 → /auth/login_with?screen_hint=signup&login_hint=... 文档导航
+    → providers/csrf → signin(screen_hint=signup)
     → follow_authorize 重定向链自动落到 /email-verification 并触发 OTP 发送
-    → 用户输入验证码 → validate_email_otp → about-you 提交昵称生日 → 完成。
+    → sentinel(email_otp_validate) + validate_email_otp → about-you 提交昵称生日
+    → create_account → OAuth 回调建立登录态。
 
     Args:
         email: 注册邮箱
@@ -182,6 +185,7 @@ def run_registration(
     #   protocol     = 原有纯协议（curl_cffi）
     #   roxy         = RoxyBrowser 指纹浏览器 + Selenium
     #   cloak        = CloakBrowser + Playwright/Selenium 适配层
+    #   patchright   = 本地 Patchright（Playwright 反检测分支）+ Selenium 适配层
     #   browser_use  = Browser Use Cloud stealth Chromium + Playwright
     #   skyvern      = Skyvern Browser Sessions + Playwright
     driver_mode = str(getattr(_roxy_cfg, "REGISTRATION_DRIVER", "protocol") or "protocol").strip().lower()
@@ -199,6 +203,17 @@ def run_registration(
     if driver_mode in ("cloak", "cloakbrowser"):
         from core.cloakbrowser_registration import run_cloak_registration
         return run_cloak_registration(
+            email=email,
+            name=name,
+            birthday=birthday or generate_random_birthday(),
+            proxy=proxy,
+            otp_code=otp_code,
+            batch_dir=batch_dir,
+            on_email_acquired=on_email_acquired,
+        )
+    if driver_mode in ("patchright", "local", "localbrowser", "pr"):
+        from core.patchright_registration import run_patchright_registration
+        return run_patchright_registration(
             email=email,
             name=name,
             birthday=birthday or generate_random_birthday(),
@@ -231,7 +246,7 @@ def run_registration(
         )
     if driver_mode not in ("protocol", "api", "http"):
         raise RuntimeError(
-            f"不支持的 REGISTRATION_DRIVER={driver_mode!r}，可选 protocol / roxy / cloak / browser_use / skyvern"
+            f"不支持的 REGISTRATION_DRIVER={driver_mode!r}，可选 protocol / roxy / cloak / patchright / browser_use / skyvern"
         )
 
     # 纯协议驱动没有“邮箱输入框”可等待，因此在创建 BrowserSession 前领取。
@@ -284,16 +299,21 @@ def run_registration(
             human_delay("navigate")
 
         # ==================== 阶段1: ChatGPT 认证 ====================
+        # 2026-09-17 抓包对齐：真实浏览器先经 /auth/login_with 文档导航再发
+        # providers/csrf/signin，三者 referer 都是这条 login_with URL。
+        login_with_url = navigate_login_with(session, email)
+        human_delay("navigate")
+
         # 步骤1: 获取 providers
-        providers = get_providers(session)
+        providers = get_providers(session, referer=login_with_url)
         human_delay("api")
 
         # 步骤2: 获取 CSRF token
-        csrf_token = get_csrf_token(session)
+        csrf_token = get_csrf_token(session, referer=login_with_url)
         human_delay("api")
 
-        # 步骤3: 发起 OAuth signin
-        authorize_url = signin_openai(session, csrf_token, email)
+        # 步骤3: 发起 OAuth signin（注册链路固定 screen_hint=signup，对齐抓包）
+        authorize_url = signin_openai(session, csrf_token, email, referer=login_with_url, screen_hint="signup")
         human_delay("api")
 
         # 记录"OTP 触发"前的时间戳，自动取信箱时只看此后的邮件，
@@ -302,7 +322,7 @@ def run_registration(
 
         # ==================== 阶段2: OpenAI Auth ====================
         # 步骤4: 跟随 authorize URL（建立 auth.openai.com 的 cookies）
-        # 由于步骤3已携带 login_hint + screen_hint=login_or_signup，
+        # 由于步骤3已携带 login_hint + screen_hint=signup，
         # 重定向链会直接走到 /email-verification 并自动触发 OTP 发送，
         # 不需要 /create-account/password、register_user、单独 send_email_otp 调用。
         follow_authorize(session, authorize_url)
@@ -329,13 +349,13 @@ def run_registration(
 
             human_delay("otp_input")
             try:
-                # HAR 对齐：2026-07-19 抓包中的 email-otp/validate 未携带 Sentinel。
-                # 保留开关，必要时可切回旧逻辑。
+                # 2026-09-17 抓包：email-otp/validate 携带 sentinel-token +
+                # so-token，flow 固定为 email_otp_validate。
                 sentinel_header_9 = None
                 so_header_9 = None
                 if getattr(_protocol_cfg, "SEND_SENTINEL_ON_EMAIL_OTP_VALIDATE", False):
-                    sentinel_resp_9 = request_sentinel_token(session, "authorize_continue")
-                    sentinel_header_9, so_header_9 = build_sentinel_header(session, sentinel_resp_9, "authorize_continue")
+                    sentinel_resp_9 = request_sentinel_token(session, "email_otp_validate")
+                    sentinel_header_9, so_header_9 = build_sentinel_header(session, sentinel_resp_9, "email_otp_validate")
                     human_delay("challenge")
 
                 # 步骤10: 提交验证码

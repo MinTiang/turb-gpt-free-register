@@ -36,6 +36,66 @@ _COUNTRY_NAME_TO_CODE = {
     "GERMANY": "DE", "FRANCE": "FR", "NETHERLANDS": "NL", "BRAZIL": "BR",
 }
 
+# Chrome/Edge 的 HTTP/2 线序（头发送顺序）。curl_cffi 不会重排用户头，而 CF
+# 会按 h2 指纹核验顺序：2026-09-18 实测同一节点，sec-ch-ua 排在
+# accept-language 之后（旧写法）会被托管质询，按本表排序后稳定 200。
+# 结构：0-9 client hints；10 user-agent；11 upgrade-insecure-requests；
+# 12 accept；14 content-type；16 origin；20-23 sec-fetch-*；30 referer；
+# 44+ 自定义上下文头；90+ accept-encoding/language；94 priority。
+_HEADER_WIRE_ORDER = {
+    "sec-ch-ua": 0,
+    "sec-ch-ua-mobile": 1,
+    "sec-ch-ua-platform": 2,
+    "sec-ch-ua-full-version-list": 3,
+    "sec-ch-ua-platform-version": 4,
+    "sec-ch-ua-arch": 5,
+    "sec-ch-ua-bitness": 6,
+    "sec-ch-ua-model": 7,
+    "upgrade-insecure-requests": 9,
+    "user-agent": 10,
+    "accept": 12,
+    "content-type": 14,
+    "content-length": 15,
+    "origin": 16,
+    "sec-fetch-dest": 20,
+    "sec-fetch-mode": 21,
+    "sec-fetch-site": 22,
+    "sec-fetch-user": 23,
+    "referer": 30,
+    "x-access-flow-invocation-id": 44,
+    "x-openai-document-navigation-id": 45,
+    "traceparent": 46,
+    "tracestate": 47,
+    "x-datadog-sampling-priority": 48,
+    "x-datadog-trace-id": 49,
+    "x-datadog-parent-id": 50,
+    "x-datadog-origin": 51,
+    "openai-sentinel-token": 52,
+    "openai-sentinel-so-token": 53,
+    "openai-sentinel-proof-token": 54,
+    "oai-client-build-number": 55,
+    "oai-client-version": 56,
+    "oai-device-id": 57,
+    "oai-language": 58,
+    "oai-session-id": 59,
+    "x-openai-target-path": 60,
+    "x-openai-target-route": 61,
+    "accept-encoding": 90,
+    "accept-language": 92,
+    "priority": 94,
+}
+_HEADER_ORDER_DEFAULT = 62
+
+
+def _chrome_wire_order(headers: dict | None) -> dict | None:
+    """把请求头稳定排序成 Chrome 线序；未知自定义头保持在 referer 之后的固定区段。"""
+    if not headers:
+        return headers
+    return dict(sorted(
+        headers.items(),
+        key=lambda item: _HEADER_WIRE_ORDER.get(str(item[0]).lower(), _HEADER_ORDER_DEFAULT),
+    ))
+
 
 def _seed_uuid(seed: str, salt: str) -> str:
     text = f"{salt}:{seed}".strip()
@@ -192,19 +252,42 @@ class BrowserSession:
         if issues:
             logger.warning("[指纹] 浏览器画像存在不一致: %s", "; ".join(issues))
 
-        # 让 HTTP Cookie、OAuth 参数 ext-oai-did、Sentinel 里的 id 三者一致。
-        # 浏览器里 oai-did 通常会作为一方 Cookie 存在；协议层主动补齐可减少同一会话内
-        # “头部/参数/JS 指纹有设备 ID，但 Cookie Jar 为空”的不一致。
-        for domain in ("chatgpt.com", "auth.openai.com", "sentinel.openai.com"):
-            self.session.cookies.set("oai-did", self.device_id, domain=domain, path="/")
-        # 参考真实前端会话：语言不仅体现在 Accept-Language/oai-language，也写入
-        # 同一个 Cookie Jar，避免代理为 JP 但 Cookie 仍泄漏默认地区。
-        locale = self.navigator_language()
-        for domain in ("chatgpt.com", "auth.openai.com"):
-            self.session.cookies.set("oai-locale", locale, domain=domain, path="/")
+        # oai-did Cookie 不预置：2026-09-18 实测，真实流程里 oai-did 由
+        # chatgpt.com 首页 Set-Cookie 下发（capture.har 首页响应可见），冷会话
+        # 手工预置该 Cookie 会被 CF 托管质询。首页加载成功后由
+        # adopt_server_device_id() 把服务端分配值采纳为会话 device_id，
+        # 并同步到 auth/sentinel 域，保证 Cookie、OAuth ext-oai-did、
+        # Sentinel id 三者一致。
 
         # Cloudflare 状态只能来自真实响应 Set-Cookie；这里仅记录变化，不主动伪造/覆盖。
         self._cf_cookie_seen = self.cf_cookie_snapshot()
+
+    def adopt_server_device_id(self) -> str:
+        """采纳 chatgpt.com 首页 Set-Cookie 下发的 oai-did 为会话设备 ID。
+
+        真实浏览器首个请求不带 oai-did，服务端在下发时同时完成 CF 校验；
+        之后所有请求（Cookie、OAuth ext-oai-did、Sentinel id）都使用该值。
+        """
+        server_did = ""
+        try:
+            for cookie in self.session.cookies.jar:
+                if getattr(cookie, "name", "") == "oai-did":
+                    domain = str(getattr(cookie, "domain", "") or "").lower()
+                    if "chatgpt.com" in domain:
+                        server_did = str(getattr(cookie, "value", "") or "")
+                        break
+        except Exception:
+            server_did = ""
+        if not server_did or server_did == self.device_id:
+            return self.device_id
+        self.device_id = server_did
+        for domain in ("auth.openai.com", "sentinel.openai.com"):
+            try:
+                self.session.cookies.set("oai-did", self.device_id, domain=domain, path="/")
+            except Exception:
+                pass
+        logger.info("[指纹] 已采纳服务端下发的 oai-did=%s…", self.device_id[:8])
+        return self.device_id
 
     def cf_cookie_snapshot(self) -> dict:
         """返回当前 CookieJar 中的 Cloudflare 关键 Cookie 摘要，便于确认同 IP/同会话连续性。"""
@@ -419,6 +502,9 @@ class BrowserSession:
         headers = {
             "User-Agent": str(profile.get("user_agent") or USER_AGENT),
             "accept-language": str(profile.get("accept_language") or ACCEPT_LANGUAGE),
+            # 显式声明：不写的话 curl_cffi 会把默认 accept-encoding 追加到
+            # 头列表最末尾（priority 之后），破坏 Chrome 线序触发 CF 质询。
+            "accept-encoding": "gzip, deflate, br, zstd",
         }
 
         # Safari 不发送 Chromium Client Hints；Chrome/Chromium 画像才补 sec-ch-*。
@@ -712,6 +798,40 @@ class BrowserSession:
         self.blocked_until = 0.0
         self.blocked_reason = ""
 
+    def rebuild_transport(self, keep_session_cookies: bool = True) -> None:
+        """重建底层 TLS 会话（新握手），逻辑身份保持不变。
+
+        CF 托管质询会把“污染”的 __cf_bm 绑在当前 TLS 会话上：带着质询响应
+        种下的 Cookie 重试会持续 403。放弃传输层重新握手相当于浏览器里
+        “新开一个干净连接”。keep_session_cookies=True 时保留非 CF 的业务
+        Cookie（NextAuth state、oai-did 等），只丢弃 Cloudflare 系 Cookie。
+        """
+        saved = []
+        if keep_session_cookies:
+            try:
+                for cookie in self.session.cookies.jar:
+                    name = getattr(cookie, "name", "")
+                    if name and name not in _CF_COOKIE_NAMES:
+                        saved.append((
+                            name,
+                            str(getattr(cookie, "value", "") or ""),
+                            str(getattr(cookie, "domain", "") or ""),
+                            str(getattr(cookie, "path", "") or "/"),
+                        ))
+            except Exception:
+                saved = []
+        self.session = Session(impersonate=IMPERSONATE)
+        if self.proxy:
+            self.session.proxies = {"http": self.proxy, "https": self.proxy}
+        self.session.timeout = REQUEST_TIMEOUT
+        try:
+            for name, value, domain, path in saved:
+                self.session.cookies.set(name, value, domain=domain, path=path or "/")
+        except Exception:
+            pass
+        self._cf_cookie_seen = {}
+        logger.info("[Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie %s 条）", len(saved))
+
     @staticmethod
     def _parse_retry_after(value: str | None) -> int:
         if not value:
@@ -737,6 +857,7 @@ class BrowserSession:
         """发送 GET 请求"""
         self._raise_if_circuit_open()
         headers = self._attach_openai_target_headers_for_url(url, headers)
+        headers = _chrome_wire_order(headers)
         resp = self.session.get(url, headers=headers, **kwargs)
         return self._observe_response_for_circuit_breaker(resp, url)
 
@@ -744,5 +865,6 @@ class BrowserSession:
         """发送 POST 请求"""
         self._raise_if_circuit_open()
         headers = self._attach_openai_target_headers_for_url(url, headers)
+        headers = _chrome_wire_order(headers)
         resp = self.session.post(url, headers=headers, **kwargs)
         return self._observe_response_for_circuit_breaker(resp, url)

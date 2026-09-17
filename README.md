@@ -1,12 +1,13 @@
 # Turb GPT Free Register
 
-ChatGPT / OpenAI 账号自动注册与 Codex OAuth 授权工具。当前项目支持三套注册驱动：
+ChatGPT / OpenAI 账号自动注册与 Codex OAuth 授权工具。当前项目支持多套注册驱动：
 
 - **protocol**：原纯协议注册，基于 `curl_cffi` + Sentinel/PoW。
 - **roxy**：RoxyBrowser 指纹浏览器 + Selenium 自动化注册，兼容新版页面流，例如 `create-account/password`、`about-you` 年龄/生日表单、地区本地化页面等。
 - **cloak**：CloakBrowser + Playwright 适配层自动化注册，支持免费 binary、无头模式、humanize、固定 fingerprint seed、代理 geoip。
-- **browser_use**：Browser Use Cloud stealth Chromium + Playwright（可选住宅代理，无需本机安装 Roxy）。
-- **skyvern**：Skyvern Browser Sessions 云端浏览器 + Playwright CDP。
+- **patchright**：本地 Patchright（Playwright 反检测分支）+ Selenium 适配层，浏览器在本机运行，**完全免费**，无需 license / API Key；默认使用本机已安装的正式 Chrome/Edge。
+- **browser_use**：Browser Use Cloud stealth Chromium + Playwright（可选住宅代理，无需本机安装 Roxy，按 credit 收费）。
+- **skyvern**：Skyvern Browser Sessions 云端浏览器 + Playwright CDP（收费）。
 
 项目提供 **CLI** 和 **本地 WebUI** 两种使用方式。日常推荐使用 WebUI。
 
@@ -27,6 +28,7 @@ ChatGPT / OpenAI 账号自动注册与 Codex OAuth 授权工具。当前项目�
   - `REGISTRATION_DRIVER = "protocol"`
   - `REGISTRATION_DRIVER = "roxy"`
   - `REGISTRATION_DRIVER = "cloak"`
+  - `REGISTRATION_DRIVER = "patchright"`
   - `REGISTRATION_DRIVER = "browser_use"`
   - `REGISTRATION_DRIVER = "skyvern"`
 - 支持 RoxyBrowser 一号一环境：自动创建、打开、关闭、删除 Roxy Profile。
@@ -415,7 +417,7 @@ REGISTRATION_DRIVER = "cloak"
 
 ```python
 CODEX_OAUTH_DRIVER = "same_as_registration"  # 跟随注册驱动
-# 或单独指定："protocol" / "roxy" / "cloak" / "browser_use"
+# 或单独指定："protocol" / "roxy" / "cloak" / "patchright" / "browser_use"
 ```
 
 CloakBrowser 专用配置在 `config/cloakbrowser.py`：
@@ -437,6 +439,53 @@ CLOAK_USER_DATA_DIR = ""        # 留空临时环境；填路径可持久化 pro
 - 如果你通过项目代理池使用代理，请在 `config/proxy.py` 的 `PROXY_POOL` 填写代理；如果你使用系统代理/VPN，也会按当前实际出口 IP 自动定位。
 - 免费版没有在项目侧限制窗口数；本项目每个注册任务会启动一个 CloakBrowser 实例，即一个实例一套指纹。
 - WebUI 中，`Codex授权驱动` 位于「CPA / Codex」分组，对应 `config/codex.py` 的 `CODEX_OAUTH_DRIVER`。
+
+#### 使用 Patchright 本地浏览器注册（免费）
+
+Patchright 是 Playwright 的反检测补丁分支，浏览器在本机运行，不依赖任何指纹浏览器客户端、license 或云端 API Key。先安装依赖并准备浏览器内核：
+
+```bash
+pip install patchright
+# 二选一：
+#   A. 本机已安装正式版 Chrome/Edge（推荐，无需额外下载，指纹即真实浏览器）；
+#      默认自动探测 chrome → msedge。
+#   B. 使用补丁版 Chromium：
+patchright install chromium
+```
+
+然后把注册驱动改为：
+
+```python
+REGISTRATION_DRIVER = "patchright"   # 或 "local"
+```
+
+Codex OAuth 也可跟随：
+
+```python
+CODEX_OAUTH_DRIVER = "same_as_registration"  # 或单独指定 "patchright"
+```
+
+Patchright 专用配置在 `config/localbrowser.py`：
+
+```python
+PATCHRIGHT_CHANNEL = ""            # 留空自动探测 chrome→msedge；也可强制 chrome / msedge / chromium
+PATCHRIGHT_EXECUTABLE_PATH = ""    # 显式浏览器路径；非空时优先于 CHANNEL
+PATCHRIGHT_HEADLESS = False        # False=显示窗口（过检更稳）；True=无头批量
+PATCHRIGHT_GEOIP = True            # 按当前出口 IP 自动匹配语言/时区
+PATCHRIGHT_LOCALE = ""             # 留空自动；也可强制如 ja-JP / en-US
+PATCHRIGHT_TIMEZONE = ""           # 留空自动；也可强制如 Asia/Tokyo
+PATCHRIGHT_USE_PROXY = True        # 把代理池/任务代理传给浏览器
+PATCHRIGHT_USER_DATA_DIR = ""      # 留空临时上下文；批量注册建议留空
+PATCHRIGHT_SELENIUM_TIMEOUT = 90   # 页面/元素等待超时（秒）
+PATCHRIGHT_KEEP_BROWSER_OPEN = False  # 调试时保留浏览器
+```
+
+说明：
+
+- Patchright 驱动与 Roxy/Cloak 共享同一套注册页面流程函数（邮箱、密码、OTP、生日/年龄、profile 页），输入走真实键盘事件。
+- 不要与 `playwright-stealth` 等注入式补丁叠加使用：Patchright 的反检测策略与注入式补丁冲突，叠加反而更容易被识别。
+- `PATCHRIGHT_HEADLESS=True` 走无头模式；如遇风控变严或验证码异常，先改回 `False` 显示窗口重试。
+- 其余代理行为与 Cloak 一致：代理池/系统代理均按当前实际出口 IP 自动定位语言与时区。
 
 #### 使用协议注册
 

@@ -49,7 +49,7 @@ EDITABLE_FIELDS = [
     },
     {
         "key": "REGISTRATION_DRIVER", "file": "roxybrowser.py", "type": "str", "group": "注册方式",
-        "label": "注册驱动", "help": "默认推荐 roxy；protocol=纯协议，容易封号不建议；roxy=RoxyBrowser；cloak=CloakBrowser；browser_use=Browser Use Cloud+Playwright；skyvern=Skyvern Browser Sessions+Playwright",
+        "label": "注册驱动", "help": "默认推荐 roxy；protocol=纯协议，容易封号不建议；roxy=RoxyBrowser；cloak=CloakBrowser；patchright=本地Patchright免费；browser_use=Browser Use Cloud+Playwright；skyvern=Skyvern Browser Sessions+Playwright",
     },
     {
         "key": "AUTO_PLAN_CHECK_AFTER_REGISTER", "file": "register.py", "type": "bool", "group": "注册方式",
@@ -100,6 +100,48 @@ EDITABLE_FIELDS = [
     {
         "key": "CLOAK_KEEP_BROWSER_OPEN", "file": "cloakbrowser.py", "type": "bool", "group": "CloakBrowser",
         "label": "保留Cloak浏览器", "help": "调试时开启，任务结束后不自动关闭",
+    },
+
+    # ---- Patchright 本地浏览器（免费） ----
+    {
+        "key": "PATCHRIGHT_CHANNEL", "file": "localbrowser.py", "type": "str", "group": "Patchright本地浏览器",
+        "label": "Patchright内核", "help": "chrome=本机正式Chrome（推荐）；msedge=本机Edge；chromium=补丁版Chromium（需 patchright install chromium）；留空自动探测",
+    },
+    {
+        "key": "PATCHRIGHT_EXECUTABLE_PATH", "file": "localbrowser.py", "type": "str", "group": "Patchright本地浏览器",
+        "label": "浏览器路径", "help": "显式指定浏览器可执行文件；非空时优先于内核选项",
+    },
+    {
+        "key": "PATCHRIGHT_HEADLESS", "file": "localbrowser.py", "type": "bool", "group": "Patchright本地浏览器",
+        "label": "Patchright无头", "help": "True=无头运行；False=显示浏览器窗口（过检更稳）",
+    },
+    {
+        "key": "PATCHRIGHT_GEOIP", "file": "localbrowser.py", "type": "bool", "group": "Patchright本地浏览器",
+        "label": "Patchright按出口定位", "help": "按当前出口 IP 自动匹配时区/语言；支持显式代理、系统代理/VPN",
+    },
+    {
+        "key": "PATCHRIGHT_LOCALE", "file": "localbrowser.py", "type": "str", "group": "Patchright本地浏览器",
+        "label": "Patchright语言", "help": "留空自动；日本可填 ja-JP，美国 en-US",
+    },
+    {
+        "key": "PATCHRIGHT_TIMEZONE", "file": "localbrowser.py", "type": "str", "group": "Patchright本地浏览器",
+        "label": "Patchright时区", "help": "留空自动；日本可填 Asia/Tokyo，美国 America/Los_Angeles",
+    },
+    {
+        "key": "PATCHRIGHT_USE_PROXY", "file": "localbrowser.py", "type": "bool", "group": "Patchright本地浏览器",
+        "label": "Patchright使用代理", "help": "把本项目传入或代理池抽取的代理传给浏览器",
+    },
+    {
+        "key": "PATCHRIGHT_USER_DATA_DIR", "file": "localbrowser.py", "type": "str", "group": "Patchright本地浏览器",
+        "label": "Patchright用户目录", "help": "留空使用临时上下文；批量注册建议留空",
+    },
+    {
+        "key": "PATCHRIGHT_SELENIUM_TIMEOUT", "file": "localbrowser.py", "type": "int", "group": "Patchright本地浏览器",
+        "label": "Patchright超时", "help": "页面和元素等待超时时间，秒",
+    },
+    {
+        "key": "PATCHRIGHT_KEEP_BROWSER_OPEN", "file": "localbrowser.py", "type": "bool", "group": "Patchright本地浏览器",
+        "label": "保留Patchright浏览器", "help": "调试时开启，任务结束后不自动关闭",
     },
 
     # ---- Browser Use Cloud ----

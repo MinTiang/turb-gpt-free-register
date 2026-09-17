@@ -11,7 +11,7 @@ class _Session:
 
 
 class ChatgptAuthContextTests(unittest.TestCase):
-    def test_ensure_authorize_context_matches_20260914_capture_shape(self):
+    def test_ensure_authorize_context_default_login_or_signup(self):
         url = "https://auth.openai.com/api/accounts/authorize?client_id=app_x&state=s"
         out = _ensure_authorize_context(url, _Session(), "user@example.com")
         qs = parse_qs(urlparse(out).query)
@@ -22,6 +22,25 @@ class ChatgptAuthContextTests(unittest.TestCase):
         self.assertEqual(qs["login_hint"], ["user@example.com"])
         self.assertEqual(qs["ccaps"], ["login_methods chatgpt_login_finalizer_v1"])
         self.assertEqual(qs["auth_return_target_category"], ["chatgpt_home"])
+
+    def test_ensure_authorize_context_signup_matches_20260917_capture(self):
+        """注册链路 screen_hint=signup，对齐 2026-09-17 真机抓包 authorize 形态。"""
+        url = "https://auth.openai.com/api/accounts/authorize?client_id=app_x&state=s"
+        out = _ensure_authorize_context(url, _Session(), "user@example.com", screen_hint="signup")
+        qs = parse_qs(urlparse(out).query)
+        self.assertEqual(qs["screen_hint"], ["signup"])
+        self.assertEqual(qs["ccaps"], ["login_methods chatgpt_login_finalizer_v1"])
+        self.assertEqual(qs["auth_return_target_category"], ["chatgpt_home"])
+
+    def test_ensure_authorize_context_keeps_existing_screen_hint(self):
+        """NextAuth 已返回 screen_hint 时不覆盖，只兜底缺失字段。"""
+        url = (
+            "https://auth.openai.com/api/accounts/authorize?client_id=app_x"
+            "&screen_hint=login&state=s"
+        )
+        out = _ensure_authorize_context(url, _Session(), "user@example.com", screen_hint="signup")
+        qs = parse_qs(urlparse(out).query)
+        self.assertEqual(qs["screen_hint"], ["login"])
 
 
 if __name__ == "__main__":

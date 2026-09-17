@@ -1442,8 +1442,30 @@ def run_codex_oauth(
                         driver.quit()
                     except Exception:
                         pass
+        if oauth_driver in ("patchright", "local", "localbrowser", "pr"):
+            from config import localbrowser as _local_cfg
+            from core.patchright_driver import build_patchright_driver
+            from core.roxy_codex_oauth import run_roxy_codex_oauth
+            driver, opened = build_patchright_driver(proxy=proxy)
+            try:
+                return run_roxy_codex_oauth(
+                    email,
+                    otp_provider=otp_provider,
+                    proxy=proxy,
+                    force=True,
+                    existing_driver=driver,
+                    existing_opened=opened,
+                    reuse_existing_profile=True,
+                    clear_existing_state=True,
+                )
+            finally:
+                if not bool(getattr(_local_cfg, "PATCHRIGHT_KEEP_BROWSER_OPEN", False)):
+                    try:
+                        driver.quit()
+                    except Exception:
+                        pass
         if oauth_driver not in ("protocol", "api", "http"):
-            raise RuntimeError(f"[Codex] 不支持的 CODEX_OAUTH_DRIVER={oauth_driver!r}，可选 protocol / roxy / cloak / browser_use / skyvern")
+            raise RuntimeError(f"[Codex] 不支持的 CODEX_OAUTH_DRIVER={oauth_driver!r}，可选 protocol / roxy / cloak / patchright / browser_use / skyvern")
     except ImportError:
         # 没装 selenium / 未提供 roxy 配置时继续走协议模式，保持旧行为。
         pass

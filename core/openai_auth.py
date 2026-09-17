@@ -21,6 +21,11 @@ from core.sentinel_runner import generate_sentinel_token
 logger = logging.getLogger(__name__)
 
 
+# 2026-09-17 抓包：新版页面所有 sentinel/req 的 p[5]（脚本来源）都是
+# frame.html 加载的无版本 sdk.js，不再抽样带版本号的 /sentinel/<sv>/sdk.js。
+_FRAME_SDK_SRC = "https://sentinel.openai.com/backend-api/sentinel/sdk.js"
+
+
 def _rotate_document_navigation_id(session: BrowserSession) -> None:
     rotate = getattr(session, "rotate_document_navigation_id", None)
     if callable(rotate):
@@ -215,7 +220,10 @@ def _request_with_proxy_retry(session: BrowserSession, label: str, fn):
             last_exc = exc
             if not _is_retryable_authorize_error(exc) or attempt >= max_attempts:
                 raise
-            _reset_retryable_circuit(session)
+            if _is_cf_challenge_exc(exc):
+                _reset_after_challenge(session)
+            else:
+                _reset_retryable_circuit(session)
             backoff = retry_delay * (2 ** (attempt - 1))
             logger.warning(
                 "[%s] 代理链路临时失败 (%s/%s): %s: %s，保留当前会话，%.1fs 后重试",
@@ -225,31 +233,107 @@ def _request_with_proxy_retry(session: BrowserSession, label: str, fn):
     raise last_exc if last_exc else RuntimeError(f"{label} 重试耗尽但无异常记录")
 
 
+def _is_cf_challenge_response(resp) -> bool:
+    """识别 Cloudflare 托管质询（cf-mitigated: challenge）——协议层无法执行 JS 过检。"""
+    try:
+        headers = getattr(resp, "headers", {}) or {}
+        return int(getattr(resp, "status_code", 0) or 0) in (403, 429) and str(
+            headers.get("cf-mitigated") or ""
+        ).lower() == "challenge"
+    except Exception:
+        return False
+
+
+def _is_cf_challenge_exc(exc: Exception) -> bool:
+    """异常形态的 CF 托管质询（raise_for_status 抛出的 HTTPError 携带响应）。"""
+    response = getattr(exc, "response", None)
+    if response is None:
+        return False
+    try:
+        headers = getattr(response, "headers", {}) or {}
+        return int(getattr(response, "status_code", 0) or 0) in (403, 429) and str(
+            headers.get("cf-mitigated") or ""
+        ).lower() == "challenge"
+    except Exception:
+        return False
+
+
+def _reset_after_challenge(session: BrowserSession) -> None:
+    """质询后重建传输层：被质询响应种下的 __cf_bm 会绑定污染状态，必须整体丢弃。"""
+    rebuild = getattr(session, "rebuild_transport", None)
+    if callable(rebuild):
+        try:
+            rebuild()
+        except Exception:
+            pass
+    _reset_retryable_circuit(session)
+
+
 def network_preflight(session: BrowserSession) -> None:
     """
     注册前网络预检：只建立边缘节点/cookie/基础连通性，不携带邮箱、不触发 OTP。
 
     这样真正会“烧邮箱”的 authorize 重定向发生前，已经确认当前代理、TLS
-    impersonate、ChatGPT/Auth/Sentinel 三段链路都可达。
+    impersonate、ChatGPT 链路可达。
+
+    2026-09-17 实测：CF 会按出口 IP 信誉对 document 路由下发托管质询
+    （cf-mitigated: challenge），同一会话的 API 路由却正常放行。质询无法在
+    协议层解决，因此预热被质询时只记录警告并继续主链路，不视为致命失败；
+    代理完全不可达等网络错误仍然直接抛出。
     """
-    # 成功 Roxy 链路在 OAuth authorize 前只访问 ChatGPT 登录页；提前直打
-    # auth/log-in 和 Sentinel frame 会制造浏览器中不存在的跨站访问序列。
     timeout = max(1.0, float(getattr(_protocol_cfg, "OPENAI_PREFLIGHT_TIMEOUT", 12.0)))
     checks = [
-        ("chatgpt-auth-login", lambda: session.get(
-            "https://chatgpt.com/auth/login",
-            # 成功浏览器样本是地址栏级顶层导航：无 Referer、
-            # Sec-Fetch-Site=none。伪造同源 Referer/缓存刷新头会触发 CF challenge。
+        ("chatgpt-home", lambda: session.get(
+            "https://chatgpt.com/",
             headers=session.get_chatgpt_navigate_headers(referer=""),
             allow_redirects=True,
             timeout=timeout,
         )),
     ]
+    max_attempts, retry_delay = _proxy_retry_config()
     for label, fn in checks:
-        resp = _request_with_proxy_retry(session, f"预检:{label}", fn)
-        observe = getattr(session, "observe_chatgpt_document", None)
-        if callable(observe):
-            observe(resp)
+        challenged = False
+        last_exc: Exception | None = None
+        for attempt in range(1, max_attempts + 1):
+            _check_stop_requested()
+            try:
+                resp = fn()
+                if _is_cf_challenge_response(resp):
+                    challenged = True
+                    # 质询 403 会种下被污染的 __cf_bm，必须重建传输层再重试。
+                    _reset_after_challenge(session)
+                    logger.warning(
+                        "[预检:%s] 首页导航被 CF 托管质询 (%s/%s)，将依赖后续 API 路由继续",
+                        label, attempt, max_attempts,
+                    )
+                    _interruptible_sleep(retry_delay * attempt)
+                    continue
+                resp.raise_for_status()
+                observe = getattr(session, "observe_chatgpt_document", None)
+                if callable(observe):
+                    observe(resp)
+                adopt = getattr(session, "adopt_server_device_id", None)
+                if callable(adopt):
+                    adopt()
+                logger.info("[预检:%s] 通过 (%s/%s)", label, attempt, max_attempts)
+                break
+            except Exception as exc:
+                if _is_transient_network_error(exc) and attempt < max_attempts:
+                    backoff = retry_delay * (2 ** (attempt - 1))
+                    logger.warning(
+                        "[预检:%s] 代理链路临时失败 (%s/%s): %s: %s，%.1fs 后重试",
+                        label, attempt, max_attempts, type(exc).__name__, str(exc)[:140], backoff,
+                    )
+                    _interruptible_sleep(backoff)
+                    continue
+                last_exc = exc
+                break
+        else:
+            # 全部尝试都被质询：不中断主流程，API 路由通常仍可用。
+            if challenged:
+                continue
+        if last_exc:
+            raise last_exc
 
 
 def follow_authorize(session: BrowserSession, authorize_url: str) -> str:
@@ -284,13 +368,18 @@ def follow_authorize(session: BrowserSession, authorize_url: str) -> str:
                 raise
             if attempt >= max_attempts:
                 break
-            # 首次 403 常会同时刷新 __cf_bm；保留同一个 BrowserSession/Cookie
-            # Jar，只清掉本地熔断后重试，不能重建会话丢掉该 Cookie。
-            _reset_retryable_circuit(session)
+            if _is_cf_challenge_exc(exc):
+                # 质询响应种下的 __cf_bm 会绑定污染状态，必须重建传输层；
+                # 此时 authorize 链尚未推进，不存在需要保留的 auth 会话 Cookie。
+                _reset_after_challenge(session)
+            else:
+                # 普通临时 403/网络错误：保留同一个 BrowserSession/Cookie Jar
+                # （首次 403 常会同时刷新 __cf_bm），只清掉本地熔断后重试。
+                _reset_retryable_circuit(session)
             backoff = retry_delay * (2 ** (attempt - 1))
             logger.warning(
                 f"[步骤4] authorize 临时失败 ({type(exc).__name__}: {str(exc)[:120]})，"
-                f"保留当前 session/deviceId/CF Cookie，{backoff:.1f}s 后重试..."
+                f"{backoff:.1f}s 后重试..."
             )
             time.sleep(backoff)
 
@@ -342,11 +431,9 @@ def request_sentinel_token(session: BrowserSession, flow: str) -> dict:
     )
     profile = dict(getattr(session, "browser_profile", None) or {})
     profile["build_id"] = None
-    # frame.html 自身位于 /backend-api/，但真实 SDK 在生成 p[5] 时抽到的是
-    # 带版本号的 /sentinel/<sv>/sdk.js。密码 iframe 与后续顶层 context 相同。
-    profile["script_src_samples"] = [
-        f"https://sentinel.openai.com/sentinel/{__import__('config', fromlist=['SENTINEL_SV']).SENTINEL_SV}/sdk.js"
-    ]
+    # 2026-09-17 抓包：top_level 与 iframe context 的 p[5] 一致，均为
+    # frame.html 加载的无版本 backend-api/sentinel/sdk.js。
+    profile["script_src_samples"] = [_FRAME_SDK_SRC]
     context_p = getattr(session, "_sentinel_context_p", None)
     if not isinstance(context_p, dict):
         context_p = {}
@@ -423,10 +510,7 @@ def request_password_sentinel_bundle(session: BrowserSession) -> dict:
 
     profile = dict(getattr(session, "browser_profile", None) or {})
     profile["build_id"] = None
-    from config import SENTINEL_SV
-    profile["script_src_samples"] = [
-        f"https://sentinel.openai.com/sentinel/{SENTINEL_SV}/sdk.js"
-    ]
+    profile["script_src_samples"] = [_FRAME_SDK_SRC]
     sid = getattr(session, "sentinel_iframe_sid", session.device_id)
     # 浏览器样本的三条 req 携带完全相同的 p，而不是每个 flow 重新随机一次。
     p = generate_requirements_token(sid, profile=profile)

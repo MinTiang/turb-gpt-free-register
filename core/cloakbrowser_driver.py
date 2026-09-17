@@ -12,6 +12,39 @@ from config import cloakbrowser as _cfg
 
 logger = logging.getLogger(__name__)
 
+# Selenium Keys 私有区按键码 → Playwright 键名；send_keys 收到这些字符时
+# 必须按真实按键处理，绝不能当作文本写入输入框。
+_SELENIUM_KEY_NAMES = {
+    "\ue003": "Backspace", "\ue004": "Tab", "\ue006": "Enter", "\ue007": "Enter",
+    "\ue008": "Shift", "\ue009": "Control", "\ue00a": "Alt", "\ue00b": "Pause",
+    "\ue00c": "Escape", "\ue00d": "Space", "\ue00e": "PageUp", "\ue00f": "PageDown",
+    "\ue010": "End", "\ue011": "Home", "\ue012": "ArrowLeft", "\ue013": "ArrowUp",
+    "\ue014": "ArrowRight", "\ue015": "ArrowDown", "\ue016": "Insert", "\ue017": "Delete",
+    "\ue03d": "Meta",
+}
+_SELENIUM_FKEY_FIRST, _SELENIUM_FKEY_LAST = "\ue031", "\ue03c"
+_SELENIUM_MODIFIERS = {"\ue008", "\ue009", "\ue00a", "\ue03d"}
+
+
+def _selenium_key_name(ch: str) -> str | None:
+    if ch in _SELENIUM_KEY_NAMES:
+        return _SELENIUM_KEY_NAMES[ch]
+    if _SELENIUM_FKEY_FIRST <= ch <= _SELENIUM_FKEY_LAST:
+        return f"F{ord(ch) - ord(_SELENIUM_FKEY_FIRST) + 1}"
+    return None
+
+
+def _select_all_shortcut() -> str:
+    # Selenium 的 CONTROL/COMMAND 全选要映射成宿主系统认识的真实组合键；
+    # 固定 Meta+A 在 Windows/Linux 宿主上等于 Win 键+A，不会选中任何文本。
+    try:
+        import platform
+        if platform.system().lower() == "darwin":
+            return "Meta+A"
+    except Exception:
+        pass
+    return "Control+A"
+
 
 @dataclass
 class CloakOpenResult:
@@ -73,8 +106,97 @@ class CloakElement:
         except Exception:
             # 部分非 input 元素不支持 fill，回退键盘清空。
             self.click()
-            self.page.keyboard.press("Meta+A")
+            self.page.keyboard.press(_select_all_shortcut())
             self.page.keyboard.press("Backspace")
+
+    def _focus_for_typing(self) -> None:
+        # Selenium 的 send_keys 不点击元素；这里只在目标未持焦点的场合补一次
+        # 点击，避免逐字符输入时每次 send_keys 都重复点击。
+        try:
+            focused = bool(self._eval(
+                "el => !!el && (el === document.activeElement || el.contains(document.activeElement))"
+            ))
+        except Exception:
+            focused = False
+        if focused:
+            return
+        try:
+            self.click()
+        except Exception:
+            try:
+                if self.locator is not None:
+                    self.locator.focus(timeout=3000)
+                else:
+                    self.handle.focus()
+            except Exception:
+                pass
+
+    def _send_key_chord(self, text: str) -> None:
+        """把 Selenium 按键序列（含私有区按键码）翻译成真实键盘事件。
+
+        Selenium 语义里 CONTROL/COMMAND 后跟字符是组合键；项目内实际只用
+        到 `全选`（mod+a），统一映射成宿主可识别的 Ctrl+A / Meta+A。
+        """
+        self._focus_for_typing()
+        keyboard = self.page.keyboard
+        buffer = ""
+        pending_modifier = ""
+        for ch in text:
+            key_name = _selenium_key_name(ch)
+            if key_name is not None and ch in _SELENIUM_MODIFIERS:
+                if buffer:
+                    keyboard.type(buffer, delay=0)
+                    buffer = ""
+                pending_modifier = key_name
+                continue
+            if pending_modifier:
+                # 修饰键后的第一个字符按组合键处理（项目内主要是全选 mod+a）。
+                if buffer:
+                    keyboard.type(buffer, delay=0)
+                    buffer = ""
+                if ch.lower() == "a":
+                    keyboard.press(_select_all_shortcut())
+                else:
+                    keyboard.press(f"{pending_modifier}+{(key_name or ch).upper()}")
+                pending_modifier = ""
+                continue
+            if key_name is None:
+                buffer += ch
+                continue
+            if buffer:
+                keyboard.type(buffer, delay=0)
+                buffer = ""
+            keyboard.press(key_name)
+        if buffer:
+            try:
+                keyboard.type(buffer, delay=0)
+            except Exception:
+                pass
+
+    def send_keys(self, *values: str) -> None:
+        text = "".join(str(v or "") for v in values)
+        if not text:
+            return
+        if any("\ue000" <= ch <= "\ue0ff" for ch in text):
+            # 含 Selenium 按键码：走真实键盘事件，禁止 fill（fill 会把按键码
+            # 当文本写入，且整值替换会吞掉已输入内容）。
+            self._send_key_chord(text)
+            return
+        self._focus_for_typing()
+        try:
+            # 逐字符真实键盘事件：追加在光标处，触发 keydown/keypress/input，
+            # 语义与 Selenium send_keys 一致；人工节奏由上层 humanize 控制。
+            self.page.keyboard.type(text, delay=0)
+        except Exception:
+            # 键盘输入失败时整值 fill 兜底；fill 是替换语义，仅在
+            # 一次性写入完整内容时才正确。
+            try:
+                if self.locator is not None:
+                    self.locator.fill(text, timeout=10000)
+                else:
+                    self.handle.fill(text, timeout=10000)
+            except Exception:
+                pass
 
     @property
     def tag_name(self) -> str:
@@ -82,29 +204,6 @@ class CloakElement:
             return str(self._eval("el => el.tagName.toLowerCase()") or "")
         except Exception:
             return ""
-
-    def send_keys(self, *values: str) -> None:
-        # 兼容 Selenium: el.send_keys(Keys.COMMAND, 'a')。
-        text = "".join(str(v or "") for v in values)
-        lower = text.lower()
-        try:
-            self.click()
-        except Exception:
-            pass
-        if "\ue03d" in text or "\ue009" in text or "command" in lower or "control" in lower:
-            # Selenium Keys.CONTROL/COMMAND 编码可能传入私有区字符；这里按全选处理。
-            try:
-                self.page.keyboard.press("Meta+A")
-            except Exception:
-                self.page.keyboard.press("Control+A")
-            return
-        try:
-            if self.locator is not None:
-                self.locator.fill(text, timeout=10000)
-            else:
-                self.handle.fill(text, timeout=10000)
-        except Exception:
-            self.page.keyboard.type(text, delay=35)
 
     def get_attribute(self, name: str) -> str | None:
         try:
@@ -121,6 +220,19 @@ class _SwitchTo:
 
     def window(self, handle: str) -> None:
         self._driver._switch_window(handle)
+
+    @property
+    def active_element(self) -> CloakElement:
+        # Selenium 语义：当前持有焦点的元素；供 switch_to.active_element.send_keys 使用。
+        handle = self._driver.page.evaluate_handle("() => document.activeElement")
+        element = None
+        try:
+            element = handle.as_element()
+        except Exception:
+            element = None
+        if element is None:
+            raise RuntimeError("当前页面没有持有焦点的元素")
+        return CloakElement(self._driver.page, handle=element)
 
 
 class CloakSeleniumDriver:

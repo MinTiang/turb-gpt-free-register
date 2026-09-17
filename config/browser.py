@@ -20,42 +20,43 @@ from datetime import datetime
 from zoneinfo import ZoneInfo
 
 
-def _latest_chrome_major(default: str = "146") -> str:
+def _latest_chrome_major(default: str = "153") -> str:
     """兼容旧模块导入；必须与 curl_cffi 实际 TLS impersonate 版本一致。"""
     return default
 
 
-CHROME_MAJOR = "146"
-CHROME_FULL_VERSION = "146.0.0.0"
+# 2026-09-17 真机抓包对齐：Windows 11 + Microsoft Edge 153 + zh-CN。
+# curl_cffi 0.15 的 TLS impersonate 最高是 chrome146；Chromium/Edge 同源
+# BoringSSL，JA3/JA4 在近年版本间无差异，TLS 继续用 chrome146，HTTP 头与
+# JS 画像统一声明 153，避免出现跨品牌拼接（Edge UA + Chrome Client Hints）。
+CHROME_MAJOR = "153"
+CHROME_FULL_VERSION = "153.0.0.0"
 
 SAFARI_VERSION = ""
 SAFARI_WEBKIT_VERSION = "537.36"
-MAC_OS_UA_VERSION = "10_15_7"
 
 # ---------- curl_cffi 模拟浏览器 ----------
-# curl_cffi 0.15 当前最高内置到 chrome146。UA、Client Hints、JS navigator
-# 必须同步为 146；不能出现 TLS=146、HTTP/JS=149 的跨版本拼接指纹。
 IMPERSONATE = "chrome146"
 
-# ---------- 桌面 Chrome 画像 ----------
+# ---------- 桌面 Edge / Windows 画像 ----------
 BROWSER_FAMILY = "chrome"
-BROWSER_OS = "macOS"
+BROWSER_OS = "Windows"
 # OS 相关字段必须和 UA / Client Hints / JS navigator 三方一致。
-NAVIGATOR_PLATFORM = "MacIntel"
-NAVIGATOR_VENDOR = "Google Inc."
-USER_AGENT_DATA_PLATFORM = "macOS"
+NAVIGATOR_PLATFORM = "Win32"
+NAVIGATOR_VENDOR = "Google Inc."  # Edge 的 navigator.vendor 同样是 Google Inc.
+USER_AGENT_DATA_PLATFORM = "Windows"
 USER_AGENT = (
-    f"Mozilla/5.0 (Macintosh; Intel Mac OS X {MAC_OS_UA_VERSION}) "
+    f"Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
     f"AppleWebKit/{SAFARI_WEBKIT_VERSION} (KHTML, like Gecko) "
-    f"Chrome/{CHROME_FULL_VERSION} Safari/{SAFARI_WEBKIT_VERSION}"
+    f"Chrome/{CHROME_FULL_VERSION} Safari/{SAFARI_WEBKIT_VERSION} Edg/{CHROME_FULL_VERSION}"
 )
 
-SEC_CH_UA = '"Google Chrome";v="146", "Chromium";v="146", "Not)A;Brand";v="24"'
-SEC_CH_UA_FULL_VERSION_LIST = '"Google Chrome";v="146.0.0.0", "Chromium";v="146.0.0.0", "Not)A;Brand";v="24.0.0.0"'
-SEC_CH_UA_PLATFORM = '"macOS"'
-SEC_CH_UA_PLATFORM_VERSION = '"15.7.0"'
+SEC_CH_UA = '"Microsoft Edge";v="153", "Not_A Brand";v="8", "Chromium";v="153"'
+SEC_CH_UA_FULL_VERSION_LIST = '"Microsoft Edge";v="153.0.0.0", "Chromium";v="153.0.0.0", "Not_A Brand";v="8.0.0.0"'
+SEC_CH_UA_PLATFORM = '"Windows"'
+SEC_CH_UA_PLATFORM_VERSION = '"15.0.0"'
 SEC_CH_UA_MOBILE = "?0"
-SEC_CH_UA_ARCH = '"arm"'
+SEC_CH_UA_ARCH = '"x86"'
 SEC_CH_UA_BITNESS = '"64"'
 SEC_CH_UA_MODEL = '""'
 SEND_CLIENT_HINTS = True
@@ -233,9 +234,9 @@ TIMEZONE_OFFSET_MINUTES = int(_LOCALE["timezone_offset_minutes"])
 TIMEZONE_NAME = _LOCALE["timezone_name"]
 
 # ---------- Sentinel / JS VM 环境 ----------
-SCREEN_WIDTH = 1680
-SCREEN_HEIGHT = 1050
-HARDWARE_CONCURRENCY = 6
+SCREEN_WIDTH = 1920
+SCREEN_HEIGHT = 1080
+HARDWARE_CONCURRENCY = 16
 JS_HEAP_SIZE_LIMIT = 4395630592
 DEVICE_MEMORY = 8
 
@@ -289,19 +290,25 @@ WINDOW_FEATURE_FLAGS = {
 # ---------- HTTP 超时 ----------
 REQUEST_TIMEOUT = 30
 
-# HAR 参考画像：Default-all-domains-1784468371563.json 解码 p[0]/p[2]/p[16] 得出。
-HAR_CAPTURE_BASE_PROFILE = {"screen_width": 1680, "screen_height": 1050, "hardware_concurrency": 6, "device_memory": 8, "js_heap_size_limit": 4395630592, "device_pixel_ratio": 2}
-
-# 常见 macOS Chrome 桌面画像池。同一 session 内保持不变；不同 session 随机分散。
-# HAR_CAPTURE_BASE_PROFILE 只是候选之一，不全局固定。
+# 常见 Windows 桌面画像池（2026-09-17 抓包机型：16 逻辑核 / heap 4GB / dpr 1）。
+# 同一 session 内保持不变；不同 session 随机分散。
 BROWSER_PROFILE_POOL = [
-    HAR_CAPTURE_BASE_PROFILE,
-    {"screen_width": 1440, "screen_height": 900,  "hardware_concurrency": 8,  "device_memory": 8, "js_heap_size_limit": 4294967296, "device_pixel_ratio": 2},
-    {"screen_width": 1512, "screen_height": 982,  "hardware_concurrency": 8,  "device_memory": 8, "js_heap_size_limit": 4294967296, "device_pixel_ratio": 2},
-    {"screen_width": 1680, "screen_height": 1050, "hardware_concurrency": 8,  "device_memory": 8, "js_heap_size_limit": 4294967296, "device_pixel_ratio": 2},
-    {"screen_width": 1728, "screen_height": 1117, "hardware_concurrency": 10, "device_memory": 8, "js_heap_size_limit": 4294967296, "device_pixel_ratio": 2},
-    {"screen_width": 1800, "screen_height": 1169, "hardware_concurrency": 10, "device_memory": 8, "js_heap_size_limit": 4294967296, "device_pixel_ratio": 2},
-    {"screen_width": 2056, "screen_height": 1329, "hardware_concurrency": 12, "device_memory": 8, "js_heap_size_limit": 4294967296, "device_pixel_ratio": 2},
+    {"screen_width": 1920, "screen_height": 1080, "hardware_concurrency": 16, "device_memory": 8, "js_heap_size_limit": 4395630592, "device_pixel_ratio": 1},
+    {"screen_width": 2560, "screen_height": 1440, "hardware_concurrency": 16, "device_memory": 8, "js_heap_size_limit": 4395630592, "device_pixel_ratio": 1},
+    {"screen_width": 1920, "screen_height": 1080, "hardware_concurrency": 24, "device_memory": 8, "js_heap_size_limit": 4395630592, "device_pixel_ratio": 1},
+    {"screen_width": 1536, "screen_height": 864,  "hardware_concurrency": 12, "device_memory": 8, "js_heap_size_limit": 4294967296, "device_pixel_ratio": 1.25},
+    {"screen_width": 1920, "screen_height": 1200, "hardware_concurrency": 12, "device_memory": 8, "js_heap_size_limit": 4294967296, "device_pixel_ratio": 1},
+    {"screen_width": 1366, "screen_height": 768,  "hardware_concurrency": 8,  "device_memory": 8, "js_heap_size_limit": 4294967296, "device_pixel_ratio": 1},
+]
+
+# 常见 Windows GPU（WebGL UNMASKED_RENDERER）。dpr>1 的画像多为缩放笔记本，
+# 倾向核显；台式机分辨率配独显/核显都可能。
+_WEBGL_GPU_PROFILES = [
+    {"vendor": "Google Inc. (Intel)", "renderer": "ANGLE (Intel, Intel(R) UHD Graphics 770 (0x00009BC0) Direct3D11 vs_5_0 ps_5_0, D3D11)"},
+    {"vendor": "Google Inc. (Intel)", "renderer": "ANGLE (Intel, Intel(R) Iris(R) Xe Graphics (0x00009A49) Direct3D11 vs_5_0 ps_5_0, D3D11)"},
+    {"vendor": "Google Inc. (NVIDIA)", "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 3060 (0x00002503) Direct3D11 vs_5_0 ps_5_0, D3D11)"},
+    {"vendor": "Google Inc. (NVIDIA)", "renderer": "ANGLE (NVIDIA, NVIDIA GeForce RTX 4060 (0x00002882) Direct3D11 vs_5_0 ps_5_0, D3D11)"},
+    {"vendor": "Google Inc. (AMD)", "renderer": "ANGLE (AMD, AMD Radeon(TM) Graphics (0x0000164E) Direct3D11 vs_5_0 ps_5_0, D3D11)"},
 ]
 
 
@@ -354,13 +361,9 @@ def build_browser_environment(geo: dict | None = None, base_profile: dict | None
     profile.setdefault("outer_height", int(profile["screen_avail_height"]))
     profile.setdefault("viewport_width", int(profile["outer_width"]))
     profile.setdefault("viewport_height", max(0, int(profile["outer_height"]) - 87))
-    cores = int(profile.get("hardware_concurrency", 8))
-    chip = "Apple M2 Max" if cores >= 12 else "Apple M2 Pro" if cores >= 10 else "Apple M2"
-    profile.setdefault("webgl_vendor", "Google Inc. (Apple)")
-    profile.setdefault(
-        "webgl_renderer",
-        f"ANGLE (Apple, ANGLE Metal Renderer: {chip}, Unspecified Version)",
-    )
+    gpu = random.choice(_WEBGL_GPU_PROFILES)
+    profile.setdefault("webgl_vendor", gpu["vendor"])
+    profile.setdefault("webgl_renderer", gpu["renderer"])
     return profile
 
 
@@ -381,13 +384,13 @@ def validate_browser_profile(profile: dict) -> list[str]:
             issues.append("Safari 不应发送 Chromium Client Hints")
     elif f"Chrome/{profile.get('chrome_full_version')}" not in ua:
         issues.append("UA 与 chrome_full_version 不一致")
-    if profile.get("browser_os") == "macOS":
-        if "Macintosh; Intel Mac OS X" not in ua:
-            issues.append("macOS 画像但 UA 不是 Macintosh")
-        if str(profile.get("navigator_platform") or "") != "MacIntel":
-            issues.append("macOS 画像但 navigator.platform 不是 MacIntel")
-        if "macOS" not in str(profile.get("sec_ch_ua_platform") or ""):
-            issues.append("macOS 画像但 sec-ch-ua-platform 不是 macOS")
+    if profile.get("browser_os") == "Windows":
+        if "Windows NT 10.0" not in ua:
+            issues.append("Windows 画像但 UA 不是 Windows NT 10.0")
+        if str(profile.get("navigator_platform") or "") != "Win32":
+            issues.append("Windows 画像但 navigator.platform 不是 Win32")
+        if "Windows" not in str(profile.get("sec_ch_ua_platform") or ""):
+            issues.append("Windows 画像但 sec-ch-ua-platform 不是 Windows")
     if not profile.get("navigator_language"):
         issues.append("navigator_language 为空")
     languages = profile.get("navigator_languages") or []
