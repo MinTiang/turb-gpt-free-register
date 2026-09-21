@@ -1,0 +1,4 @@
+# shell 脚本强制 LF:Windows 检出若转 CRLF,Docker COPY 进容器的入口脚本会报 /bin/sh^M
+*.sh text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
