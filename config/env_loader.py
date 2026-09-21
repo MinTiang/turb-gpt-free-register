@@ -162,7 +162,18 @@ def write_env_values(updates: dict[str, str]) -> list[str]:
     text = "\n".join(out_lines).rstrip() + "\n"
     tmp = _ENV_PATH.with_suffix(".env.tmp")
     tmp.write_text(text, encoding="utf-8")
-    tmp.replace(_ENV_PATH)
+    try:
+        tmp.replace(_ENV_PATH)
+    except OSError as exc:
+        # .env 被单文件 bind 挂载进容器时(docker -v file:file),挂点不可原子替换
+        # (EBUSY);父目录不可写时改名同样失败(EACCES/EPERM)。退化为就地覆写
+        # 同一 inode,语义等价。
+        import errno
+        if exc.errno not in (errno.EBUSY, errno.EXDEV, errno.EACCES, errno.EPERM):
+            raise
+        with open(_ENV_PATH, "w", encoding="utf-8", newline="") as f:
+            f.write(text)
+        tmp.unlink(missing_ok=True)
 
     # 让当前进程立刻看到新值
     load_env(override=True)

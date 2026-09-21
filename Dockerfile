@@ -23,12 +23,13 @@ ARG APT_MIRROR=deb.debian.org
 
 # Node.js: sentinel 令牌走 node sentinel-runner.js(core/sentinel_runner.py)
 # ca-certificates/curl: 启动期下载浏览器二进制、cloakbrowser 地理库用。
-# 只装系统级依赖(apt 层):浏览器二进制留给 entrypoint 按需下载。
+# gosu: entrypoint 修正 bind 目录属主后降权到 app 用户。
+# 只装系统级依赖(apt 层):浏览器二进制留给首次使用时按需下载。
 COPY requirements.txt ./
 RUN sed -i "s|deb.debian.org|${APT_MIRROR}|g" /etc/apt/sources.list.d/debian.sources \
     && echo 'Acquire::Retries "5";' > /etc/apt/apt.conf.d/80-retries \
     && apt-get update \
-    && apt-get install -y --no-install-recommends ca-certificates curl nodejs \
+    && apt-get install -y --no-install-recommends ca-certificates curl nodejs gosu \
     && pip install --no-cache-dir -r requirements.txt \
     && playwright install-deps chromium \
     && rm -rf /var/lib/apt/lists/*
@@ -44,7 +45,9 @@ RUN mkdir -p /app/state /app/data /app/logs /app/run /app/注册日志 /home/app
     && ln -sf /app/state/turb.sqlite3 /app/turb.sqlite3 \
     && useradd -m -u 1000 app \
     && chown -R app:app /app /home/app /opt/ms-playwright
+# 不写 USER app:entrypoint 以 root 起步修正 bind 目录属主(Linux 宿主机上
+# docker 建的挂载目录是 root 属主,uid 1000 直写会 sqlite unable to open),
+# 修正后经 gosu 降权到 app 运行服务。
 
-USER app
 EXPOSE 5000
 ENTRYPOINT ["/app/docker-entrypoint.sh"]

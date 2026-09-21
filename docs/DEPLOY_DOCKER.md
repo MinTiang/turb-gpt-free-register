@@ -56,6 +56,10 @@ amd64/arm64 双平台并合成同一个多架构标签,推送 `ghcr.io/mintiang/
 
 ## 注意事项
 
+- **配置持久性**:配置页里落在 `.env` 的项经 bind 挂载持久保存(单文件 bind 挂载
+  不可原子改名,保存时自动降级为就地覆写);落在 `config/*.py` 的项写在容器内,
+  **重建/升级容器会丢**——重要配置一律用 .env 里的项
+
 - **国内网络构建**:apt 官方源(Fastly)常 502,本地构建切清华源——
   `APT_MIRROR=mirrors.tuna.tsinghua.edu.cn docker compose build`(GH Actions 用默认源即可)
 

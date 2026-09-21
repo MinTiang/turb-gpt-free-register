@@ -7,4 +7,19 @@
 #     (core/patchright_driver._ensure_chromium,落 /opt/ms-playwright 卷)
 set -e
 cd /app
-exec python web.py --host "${WEBUI_HOST:-0.0.0.0}" --port "${WEBUI_PORT:-5000}"
+
+run_webui() {
+    exec python web.py --host "${WEBUI_HOST:-0.0.0.0}" --port "${WEBUI_PORT:-5000}"
+}
+
+# root 起步时:先修正运行目录属主再降权到 app。
+# Linux 宿主机上 docker 创建的 bind 挂载目录属主是 root,uid 1000 直写会
+# sqlite "unable to open database file"——这里自愈,宿主机无需手工 chown。
+if [ "$(id -u)" = "0" ]; then
+    chown app:app \
+        /app/state /app/data /app/logs /app/run /app/注册日志 \
+        /home/app /home/app/.cloakbrowser /opt/ms-playwright /app/.env 2>/dev/null || true
+    exec gosu app python web.py --host "${WEBUI_HOST:-0.0.0.0}" --port "${WEBUI_PORT:-5000}"
+fi
+
+run_webui
