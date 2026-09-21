@@ -31,9 +31,9 @@ _GEO_CACHE_LOCK = threading.Lock()
 def clear_geo_cache() -> None:
     """清空出口地理缓存。
 
-    Clash 节点切换后出口 IP 变了,但所有节点共用本地代理口(127.0.0.1:7897),
-    缓存 key 相同会导致新会话拿到旧 IP 的语言/时区画像(指纹与 IP 矛盾)。
-    节点管理器每次切换节点后必须调用。
+    代理池换出口后 IP 变了，但本地代理口（如 127.0.0.1:7897）不变，
+    缓存 key 相同会导致新会话拿到旧 IP 的语言/时区画像（指纹与 IP 矛盾）。
+    调用方确认出口变化后应调用本函数。
     """
     with _GEO_CACHE_LOCK:
         _GEO_CACHE.clear()

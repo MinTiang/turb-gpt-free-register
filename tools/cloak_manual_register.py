@@ -47,7 +47,7 @@ def main() -> int:
     from core.outlook_client import pick_account
     from core.cloakbrowser_driver import build_cloak_driver
     from core.email_provider import wait_for_otp
-    import core.roxy_registration as R
+    import core.page_ops as R
     from core.humanize import delay as human_delay
 
     want_password = "--password" in sys.argv

@@ -28,7 +28,7 @@ from webui import config_editor
 
 logger = logging.getLogger(__name__)
 
-_POOL_SOURCE_VALUES = frozenset(("all", "outlook", "generic_api", "imap", "cloudflare_domain"))
+_POOL_SOURCE_VALUES = frozenset(("all", "outlook"))
 
 
 def _pool_source_arg(default: str = "outlook") -> str:
@@ -334,51 +334,21 @@ def create_app(auth_code: str | None = None) -> Flask:
     # ----------------------------------------------------------
     @app.get("/")
     def index():
-        requested_ui = (request.args.get("ui") or "").strip().lower()
-        if requested_ui in {"legacy", "modern"}:
-            ui_mode = requested_ui
-        else:
-            ui_mode = (request.cookies.get("ui_mode") or "modern").strip().lower()
-            if ui_mode not in {"legacy", "modern"}:
-                ui_mode = "modern"
-
-        template_name = "index_legacy.html" if ui_mode == "legacy" else "index.html"
-        resp = make_response(render_template(template_name))
-        if requested_ui in {"legacy", "modern"}:
-            resp.set_cookie("ui_mode", ui_mode, max_age=60 * 60 * 24 * 365, samesite="Lax")
-        return resp
+        # 单前端(原 legacy 版本):精简后只保留这一套模板。
+        return make_response(render_template("index.html"))
 
     # ----------------------------------------------------------
     # 统计概览
     # ----------------------------------------------------------
     @app.get("/api/summary")
     def api_summary():
-        from config import email as _email_cfg
-        from core.email_provider import parse_email_sources
-        pool = {"total": 0, "available": 0, "used": 0, "failed": 0}
-        for src in parse_email_sources(_email_cfg.EMAIL_SOURCE):
-            # GPTMail/MailNest/CloudMail 地址按需生成，不属于本地邮箱池。
-            if src in ("gptmail", "mailnest", "cloudmail", "cloudflare"):
-                continue
-            one = (
-                db.generic_api_email_pool_summary() if src == "generic_api"
-                else db.imap_email_pool_summary() if src == "imap"
-                else db.domain_email_pool_summary() if src == "cloudflare_domain"
-                else db.outlook_pool_summary()
-            )
-            for k in pool:
-                pool[k] += int(one.get(k, 0) or 0)
-        domain_pool = db.domain_email_pool_summary()
+        pool = db.outlook_pool_summary()
         return jsonify({
             "accounts": db.count_accounts(),
             "outlook_total": pool.get("total", 0),
             "outlook_available": pool.get("available", 0),
             "outlook_used": pool.get("used", 0),
             "outlook_failed": pool.get("failed", 0),
-            "domain_total": domain_pool.get("total", 0),
-            "domain_available": domain_pool.get("available", 0),
-            "domain_used": domain_pool.get("used", 0),
-            "domain_failed": domain_pool.get("failed", 0),
         })
 
     # ----------------------------------------------------------
@@ -503,59 +473,8 @@ def create_app(auth_code: str | None = None) -> Flask:
         return jsonify({"ok": True, "updated": True, "id": acc_id, "archived": archived})
 
     # ----------------------------------------------------------
-    # Clash 节点管理
+    # gpt-account-hub 推送
     # ----------------------------------------------------------
-    @app.get("/api/clash/nodes")
-    def api_clash_nodes():
-        """全部节点 + 质量状态 + 冷却/限额(页面节点管理表)。"""
-        try:
-            from core import clash_node_manager as cm
-            return jsonify({"ok": True, "nodes": cm.nodes_overview()})
-        except Exception as exc:
-            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
-
-    @app.post("/api/clash/check")
-    def api_clash_check():
-        """质量检测。Body {node?}: 指定节点或全量。"""
-        data = request.get_json(silent=True) or {}
-        try:
-            from core import clash_node_manager as cm
-            if data.get("node"):
-                result = cm.quality_check_node(str(data["node"]))
-                return jsonify({"ok": True, "results": [result]})
-            return jsonify({"ok": True, "results": cm.check_all_nodes()})
-        except Exception as exc:
-            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
-
-    @app.post("/api/clash/switch")
-    def api_clash_switch():
-        """手动切换分组选中节点。Body {node}。"""
-        data = request.get_json(silent=True) or {}
-        node = str(data.get("node") or "").strip()
-        if not node:
-            return jsonify({"ok": False, "error": "缺少 node"}), 400
-        try:
-            from core import clash_node_manager as cm
-            r = cm.switch_node(node, verify_ip=bool(data.get("verify", True)))
-            cm._record_quality(node, "unknown" if not r.get("ok") else "good",
-                               {"exit_ip": r.get("ip", ""), "manual": True} if r.get("ok") else {"error": r.get("error", "")})
-            return jsonify(r)
-        except Exception as exc:
-            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
-
-    @app.post("/api/clash/reset")
-    def api_clash_reset():
-        """重置节点状态。Body {node?, mode: cooldown|count|quality|all}。"""
-        data = request.get_json(silent=True) or {}
-        mode = str(data.get("mode") or "all")
-        if mode not in ("cooldown", "count", "quality", "all"):
-            return jsonify({"ok": False, "error": "mode 非法"}), 400
-        try:
-            from core import clash_node_manager as cm
-            return jsonify(cm.reset_node(data.get("node") or None, mode=mode))
-        except Exception as exc:
-            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
-
     @app.post("/api/accounts/hub-push")
     def api_accounts_hub_push():
         """手动推送账号到 gpt-account-hub。Body {email} 或 {account_ids:[...]}(批量)。"""
@@ -710,7 +629,7 @@ def create_app(auth_code: str | None = None) -> Flask:
         """给单个账号排队换绑邮箱。Body {source}."""
         data = request.get_json(silent=True) or {}
         source = str(data.get("source") or "").strip().lower()
-        allowed = {"outlook", "generic_api", "imap", "cloudflare_domain", "cloudflare", "gptmail", "mailnest", "cloudmail", "remail"}
+        allowed = {"outlook"}
         if source not in allowed:
             return jsonify({"ok": False, "error": "请选择有效的邮箱来源"}), 400
         acc = db.get_account(acc_id)
@@ -729,7 +648,7 @@ def create_app(auth_code: str | None = None) -> Flask:
         data = request.get_json(silent=True) or {}
         ids = data.get("account_ids") or data.get("ids") or []
         source = str(data.get("source") or "").strip().lower()
-        allowed = {"outlook", "generic_api", "imap", "cloudflare_domain", "cloudflare", "gptmail", "mailnest", "cloudmail", "remail"}
+        allowed = {"outlook"}
         if source not in allowed:
             return jsonify({"ok": False, "error": "请选择有效的邮箱来源"}), 400
         if not isinstance(ids, list) or not ids:
@@ -1702,63 +1621,24 @@ def create_app(auth_code: str | None = None) -> Flask:
     @app.post("/api/outlook/import")
     def api_outlook_import():
         """
-        粘贴文本导入邮箱素材。
+        粘贴文本导入邮箱素材（仅 Outlook）。
         Outlook：email----password----clientId----refreshToken
-        通用 API：email----code_url
-        通用 IMAP：email----password 或 email:password；服务器/端口/SSL 单独传入
         分隔符兼容 ---- 与 ====。
         """
         data = request.get_json(silent=True) or {}
         source = (data.get("source") or data.get("type") or "").strip()
-        if source not in ("outlook", "generic_api", "imap"):
-            return jsonify({"ok": False, "error": "导入时请选择具体类型：Outlook、通用 API 或通用 IMAP"}), 400
+        if source not in ("", "outlook"):
+            return jsonify({"ok": False, "error": "导入时请选择 Outlook 类型"}), 400
+        source = "outlook"
         text = data.get("text") or ""
         as_registered = bool(data.get("as_registered", False))
-        imap_server = str(data.get("imap_server") or "").strip()
-        try:
-            imap_port = int(data.get("imap_port") or 993)
-        except (TypeError, ValueError):
-            imap_port = 0
-        imap_ssl_raw = data.get("imap_ssl", True)
-        imap_ssl = imap_ssl_raw if isinstance(imap_ssl_raw, bool) else str(imap_ssl_raw).strip().lower() not in {"0", "false", "no", "off"}
-        if source == "imap" and (not imap_server or not (1 <= imap_port <= 65535)):
-            return jsonify({"ok": False, "error": "通用 IMAP 导入必须填写有效的服务器和端口"}), 400
         records = []
         for line in text.splitlines():
             line = line.strip()
             if not line or line.startswith("#"):
                 continue
-            if source == "imap":
-                if "----" in line:
-                    parts = line.split("----", 1)
-                elif "====" in line:
-                    parts = line.split("====", 1)
-                elif ":" in line:
-                    parts = line.split(":", 1)
-                else:
-                    continue
-            else:
-                parts = line.split("----") if "----" in line else line.split("====")
+            parts = line.split("----") if "----" in line else line.split("====")
             parts = [p.strip() for p in parts]
-            if source == "generic_api":
-                if len(parts) < 2:
-                    continue
-                records.append({
-                    "email": parts[0],
-                    "code_url": parts[1],
-                    "access_token": parts[2] if len(parts) > 2 else "",
-                    "totp_secret": parts[3] if len(parts) > 3 else "",
-                })
-                continue
-            if source == "imap":
-                if len(parts) < 2 or not parts[0] or not parts[1]:
-                    continue
-                records.append({
-                    "email": parts[0], "imap_password": parts[1],
-                    "imap_server": imap_server, "imap_port": imap_port,
-                    "imap_ssl": imap_ssl, "imap_username": "",
-                })
-                continue
             if len(parts) < 4:
                 continue
             records.append({
@@ -1770,16 +1650,9 @@ def create_app(auth_code: str | None = None) -> Flask:
                 "totp_secret": parts[5] if len(parts) > 5 else "",
             })
         if not records:
-            need = ("2 段：邮箱----取码地址" if source == "generic_api" else
-                    "邮箱----IMAP密码 或 邮箱:IMAP密码" if source == "imap" else
-                    "4 段：email----password----clientId----refreshToken")
-            return jsonify({"ok": False, "error": f"未解析到有效邮箱行（需 {need}，---- 或 ==== 分隔）"}), 400
+            return jsonify({"ok": False, "error": "未解析到有效邮箱行（需 4 段：email----password----clientId----refreshToken，---- 或 ==== 分隔）"}), 400
         if as_registered:
             inserted, skipped = db.import_registered_email_accounts(records, source=source)
-        elif source == "generic_api":
-            inserted, skipped = db.import_generic_api_emails(records)
-        elif source == "imap":
-            inserted, skipped = db.import_imap_emails(records)
         else:
             inserted, skipped = db.import_outlook_accounts(records)
         return jsonify({
@@ -1798,17 +1671,7 @@ def create_app(auth_code: str | None = None) -> Flask:
         status = (data.get("status") or "").strip()
         if not email or status not in ("available", "used", "failed", "disabled"):
             return jsonify({"ok": False, "error": "email 或 status 非法"}), 400
-        source = (data.get("source") or _pool_source_arg()).strip()
-        if source == "all":
-            source = "outlook"
-        if source == "generic_api":
-            db.release_generic_api_email(email, status=status, note=data.get("note"))
-        elif source == "imap":
-            db.release_imap_email(email, status=status, note=data.get("note"))
-        elif source == "cloudflare_domain":
-            db.release_domain_email(email, status=status, note=data.get("note"))
-        else:
-            db.release_outlook(email, status=status, note=data.get("note"))
+        db.release_outlook(email, status=status, note=data.get("note"))
         return jsonify({"ok": True})
 
     @app.post("/api/outlook/status-bulk")
@@ -1818,7 +1681,6 @@ def create_app(auth_code: str | None = None) -> Flask:
         items = data.get("items") or data.get("emails") or []
         status = (data.get("status") or "").strip()
         note = data.get("note")
-        default_source = (data.get("source") or _pool_source_arg()).strip()
         if status not in ("available", "used", "failed", "disabled"):
             return jsonify({"ok": False, "error": "status 非法"}), 400
         if not isinstance(items, list) or not items:
@@ -1832,13 +1694,9 @@ def create_app(auth_code: str | None = None) -> Flask:
         for raw_item in items:
             if isinstance(raw_item, dict):
                 email = (str(raw_item.get("email") or "")).strip()
-                item_source = (raw_item.get("source") or default_source or "outlook").strip()
             else:
                 email = (str(raw_item or "")).strip()
-                item_source = default_source
-            if item_source == "all":
-                item_source = "outlook"
-            key = f"{item_source}:{email.lower()}"
+            key = email.lower()
             if not email:
                 skipped.append({"email": raw_item, "reason": "邮箱为空"})
                 continue
@@ -1846,17 +1704,10 @@ def create_app(auth_code: str | None = None) -> Flask:
                 continue
             seen.add(key)
             try:
-                if item_source == "generic_api":
-                    db.release_generic_api_email(email, status=status, note=note)
-                elif item_source == "imap":
-                    db.release_imap_email(email, status=status, note=note)
-                elif item_source == "cloudflare_domain":
-                    db.release_domain_email(email, status=status, note=note)
-                else:
-                    db.release_outlook(email, status=status, note=note)
-                updated.append({"email": email, "source": item_source, "status": status})
+                db.release_outlook(email, status=status, note=note)
+                updated.append({"email": email, "source": "outlook", "status": status})
             except Exception as exc:
-                skipped.append({"email": email, "source": item_source, "reason": f"{type(exc).__name__}: {exc}"})
+                skipped.append({"email": email, "source": "outlook", "reason": f"{type(exc).__name__}: {exc}"})
         return jsonify({
             "ok": True,
             "updated": updated,
@@ -1945,34 +1796,6 @@ def create_app(auth_code: str | None = None) -> Flask:
             "deleted_count": len(deleted),
             "skipped": skipped,
         })
-
-    # ----------------------------------------------------------
-    # 域名邮箱池（Cloudflare 域名邮箱模式）
-    # ----------------------------------------------------------
-    @app.get("/api/domain-pool")
-    def api_domain_pool():
-        status = request.args.get("status") or None
-        limit = request.args.get("limit", default=500, type=int)
-        return jsonify(db.list_domain_email_pool(status=status, limit=limit))
-
-    @app.post("/api/domain-pool/status")
-    def api_domain_pool_status():
-        data = request.get_json(silent=True) or {}
-        email = (data.get("email") or "").strip()
-        status = (data.get("status") or "").strip()
-        if not email or status not in ("available", "used", "failed"):
-            return jsonify({"ok": False, "error": "email 或 status 非法"}), 400
-        db.release_domain_email(email, status=status, note=data.get("note"))
-        return jsonify({"ok": True})
-
-    @app.post("/api/domain-pool/delete")
-    def api_domain_pool_delete():
-        data = request.get_json(silent=True) or {}
-        email = (data.get("email") or "").strip()
-        if not email:
-            return jsonify({"ok": False, "error": "email 为空"}), 400
-        deleted = db.delete_domain_email(email)
-        return jsonify({"ok": True, "deleted": deleted})
 
     # ----------------------------------------------------------
     # Codex 授权账号（CPA 兼容凭证）
@@ -2615,7 +2438,6 @@ def create_app(auth_code: str | None = None) -> Flask:
         # 提交前先确认池里有足够可用邮箱，给前端一个温和提示（不阻断）
         from config import email as _email_cfg
         from config import register as _register_cfg
-        from core.email_provider import parse_email_sources
         if not bool(getattr(_email_cfg, "USE_EMAIL_SERVICE", True)):
             reg_email = str(getattr(_register_cfg, "REGISTER_EMAIL", "") or "").strip()
             if not reg_email:
@@ -2636,124 +2458,10 @@ def create_app(auth_code: str | None = None) -> Flask:
                 "warning": f"手动 OTP 模式：将使用 {reg_email}；验证码请在任务页提交",
                 "workers": workers,
             })
-        sources = parse_email_sources(_email_cfg.EMAIL_SOURCE)
-        if "gptmail" in sources:
-            api_key = str(getattr(_email_cfg, "GPTMAIL_API_KEY", "") or "").strip()
-            if not api_key:
-                return jsonify({
-                    "ok": False,
-                    "error": "已选择 gptmail 邮箱来源，请填写 GPTMail API Key（配置 → 邮箱 / OTP）。",
-                }), 400
-        if "cloudflare" in sources:
-            api_base = str(getattr(_email_cfg, "CLOUDFLARE_API_BASE", "") or "").strip()
-            if not api_base:
-                return jsonify({
-                    "ok": False,
-                    "error": "已选择 cloudflare 邮箱来源，请填写 Cloudflare API 地址（配置 → 邮箱 / OTP）。",
-                }), 400
-            auth_mode = str(getattr(_email_cfg, "CLOUDFLARE_AUTH_MODE", "none") or "none").strip().lower()
-            accounts_path = str(getattr(_email_cfg, "CLOUDFLARE_PATH_ACCOUNTS", "/api/new_address") or "").strip().lower()
-            api_key = str(getattr(_email_cfg, "CLOUDFLARE_API_KEY", "") or "").strip()
-            needs_key = auth_mode in ("x-admin-auth", "bearer", "x-api-key", "query-key") or accounts_path.rstrip("/").endswith("/admin/new_address")
-            if needs_key and not api_key:
-                return jsonify({
-                    "ok": False,
-                    "error": "Cloudflare admin/鉴权模式需要填写 Cloudflare API Key（配置 → 邮箱 / OTP）。",
-                }), 400
-        if "mailnest" in sources:
-            api_key = str(getattr(_email_cfg, "MAIL_NEST_API_KEY", "") or "").strip()
-            project_code = str(getattr(_email_cfg, "MAIL_NEST_PROJECT_CODE", "") or "").strip()
-            if not api_key:
-                return jsonify({
-                    "ok": False,
-                    "error": "已选择 mailnest 邮箱来源，请填写 MailNest API Key（配置 → 邮箱 / OTP）。",
-                }), 400
-            if not project_code:
-                return jsonify({
-                    "ok": False,
-                    "error": "已选择 mailnest 邮箱来源，请填写 MailNest 项目代码（配置 → 邮箱 / OTP）。",
-                }), 400
-        if "cloudmail" in sources:
-            api_base = str(getattr(_email_cfg, "CLOUDMAIL_API_BASE", "") or "").strip()
-            token = str(getattr(_email_cfg, "CLOUDMAIL_AUTH_TOKEN", "") or "").strip()
-            if not api_base:
-                return jsonify({
-                    "ok": False,
-                    "error": "已选择 cloudmail 邮箱来源，请填写 CloudMail API 地址（配置 → 邮箱 / OTP）。",
-                }), 400
-            if not token:
-                return jsonify({
-                    "ok": False,
-                    "error": "已选择 cloudmail 邮箱来源，请填写 CloudMail Token（配置 → 邮箱 / OTP）。",
-                }), 400
-        if "remail" in sources:
-            api_base = str(getattr(_email_cfg, "REMAIL_API_BASE", "") or "").strip()
-            api_key = str(getattr(_email_cfg, "REMAIL_API_KEY", "") or "").strip()
-            try:
-                project_id = int(getattr(_email_cfg, "REMAIL_PROJECT_ID", 2) or 0)
-            except (TypeError, ValueError):
-                project_id = 0
-            suffix = str(getattr(_email_cfg, "REMAIL_EMAIL_SUFFIX", "") or "").strip()
-            service_mode = str(getattr(_email_cfg, "REMAIL_SERVICE_MODE", "purchase") or "purchase").strip().lower()
-            if not api_base:
-                return jsonify({
-                    "ok": False,
-                    "error": "已选择 remail 邮箱来源，请填写 Remail API 地址（配置 → 邮箱 / OTP）。",
-                }), 400
-            if not api_key:
-                return jsonify({
-                    "ok": False,
-                    "error": "已选择 remail 邮箱来源，请填写 Remail API Key（配置 → 邮箱 / OTP）。",
-                }), 400
-            if project_id <= 0:
-                return jsonify({
-                    "ok": False,
-                    "error": "已选择 remail 邮箱来源，请填写 Remail 项目 ID（配置 → 邮箱 / OTP）。",
-                }), 400
-            if not suffix:
-                return jsonify({
-                    "ok": False,
-                    "error": "已选择 remail 邮箱来源，请填写 Remail 邮箱后缀（例如 outlook.com）。",
-                }), 400
-            if service_mode not in ("code", "purchase"):
-                return jsonify({
-                    "ok": False,
-                    "error": "Remail 服务模式只能填写 code 或 purchase（配置 → 邮箱 / OTP）。",
-                }), 400
-        if "gptmail" in sources or "mailnest" in sources or "cloudmail" in sources or "remail" in sources or "cloudflare" in sources:
-            # 临时邮箱在任务开始时动态生成，不需要本地邮箱池容量提示。
-            warning = ""
-        elif "cloudflare_domain" in sources:
-            pool = db.domain_email_pool_summary()
-            warning = ""
-            if sources == ["cloudflare_domain"] and pool.get("available", 0) < count:
-                warning = f"域名邮箱池仅 {pool.get('available', 0)} 个可用，少于任务数 {count}，不足的会自动生成"
-        elif sources == ["generic_api"]:
-            pool = db.generic_api_email_pool_summary()
-            warning = ""
-            if pool.get("available", 0) < count:
-                warning = f"通用 API 邮箱池仅 {pool.get('available', 0)} 个可用，少于任务数 {count}，不足的会失败"
-        elif sources == ["imap"]:
-            pool = db.imap_email_pool_summary()
-            warning = ""
-            if pool.get("available", 0) < count:
-                warning = f"通用 IMAP 邮箱池仅 {pool.get('available', 0)} 个可用，少于任务数 {count}，不足的会失败"
-        elif len(sources) > 1:
-            available = 0
-            if "outlook" in sources:
-                available += db.outlook_pool_summary().get("available", 0)
-            if "generic_api" in sources:
-                available += db.generic_api_email_pool_summary().get("available", 0)
-            if "imap" in sources:
-                available += db.imap_email_pool_summary().get("available", 0)
-            warning = ""
-            if available < count:
-                warning = f"多个邮箱池合计仅 {available} 个可用，少于任务数 {count}，不足的会失败"
-        else:
-            pool = db.outlook_pool_summary()
-            warning = ""
-            if pool.get("available", 0) < count:
-                warning = f"可用邮箱仅 {pool.get('available', 0)} 个，少于任务数 {count}，不足的会失败"
+        pool = db.outlook_pool_summary()
+        warning = ""
+        if pool.get("available", 0) < count:
+            warning = f"可用邮箱仅 {pool.get('available', 0)} 个，少于任务数 {count}，不足的会失败"
         jobs = svc.submit_registration(count=count, workers=workers)
         return jsonify({"ok": True, "submitted": len(jobs), "jobs": jobs, "warning": warning, "workers": workers})
 
@@ -2916,113 +2624,11 @@ def create_app(auth_code: str | None = None) -> Flask:
         })
 
     # ----------------------------------------------------------
-    # RoxyBrowser 辅助接口
-    # ----------------------------------------------------------
-    @app.get("/api/roxy/workspaces")
-    def api_roxy_workspaces():
-        try:
-            from core.roxybrowser_client import RoxyBrowserClient
-            result = RoxyBrowserClient().list_workspaces()
-            return jsonify(result)
-        except Exception as exc:
-            logger.exception("获取 Roxy 团队/工作区失败")
-            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
-
-    # ----------------------------------------------------------
     # 配置读写
     # ----------------------------------------------------------
     @app.get("/api/config")
     def api_config_get():
         return jsonify(config_editor.get_config())
-
-    @app.post("/api/cloudmail/gen-token")
-    def api_cloudmail_gen_token():
-        """手动生成 CloudMail Authorization Token，并把本次填写的 CloudMail 配置一并写入 .env。"""
-        data = request.get_json(silent=True) or {}
-        try:
-            from core.cloudmail_client import gen_token
-            from config.env_loader import write_env_values
-
-            api_base = (data.get("api_base") or "").strip()
-            admin_email = (data.get("email") or data.get("admin_email") or "").strip()
-            password = (data.get("password") or "").strip()
-            path = (data.get("path") or "/api/public/genToken").strip() or "/api/public/genToken"
-            token = gen_token(
-                email=admin_email,
-                password=password,
-                path=path,
-                base_url=api_base,
-            )
-            updates = {"CLOUDMAIL_AUTH_TOKEN": token}
-            # 生成 Token 时用户通常尚未点“保存配置”；这里同步保存本次填写的字段，
-            # 避免 loadConfig() 后 API 地址/账号/密码被旧 .env 值覆盖。
-            if api_base:
-                updates["CLOUDMAIL_API_BASE"] = api_base
-            if admin_email:
-                updates["CLOUDMAIL_ADMIN_EMAIL"] = admin_email
-            if password:
-                updates["CLOUDMAIL_PASSWORD"] = password
-            if path:
-                updates["CLOUDMAIL_TOKEN_PATH"] = path
-            written = write_env_values(updates)
-            try:
-                import config as _config_pkg
-                _config_pkg.reload_all()
-            except Exception:
-                logger.exception("CloudMail Token 写入后热加载失败")
-            return jsonify({
-                "ok": True,
-                "token": token,
-                "written": written,
-                "message": "CloudMail Token 已生成，且当前 CloudMail 配置已保存",
-            })
-        except Exception as exc:
-            logger.exception("生成 CloudMail Token 失败")
-            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 400
-
-    @app.post("/api/cloudmail/domains")
-    def api_cloudmail_domains():
-        """从 CloudMail 平台获取域名列表，并可写入 .env 作为本地缓存。"""
-        data = request.get_json(silent=True) or {}
-        try:
-            from core.cloudmail_client import fetch_domains
-            from config.env_loader import write_env_values
-
-            updates = {}
-            api_base = (data.get("api_base") or "").strip()
-            admin_email = (data.get("email") or data.get("admin_email") or "").strip()
-            password = (data.get("password") or "").strip()
-            token = (data.get("token") or "").strip()
-            if api_base:
-                updates["CLOUDMAIL_API_BASE"] = api_base
-            if admin_email:
-                updates["CLOUDMAIL_ADMIN_EMAIL"] = admin_email
-            if password:
-                updates["CLOUDMAIL_PASSWORD"] = password
-            if token:
-                updates["CLOUDMAIL_AUTH_TOKEN"] = token
-            if updates:
-                write_env_values(updates)
-                import config as _config_pkg
-                _config_pkg.reload_all()
-
-            domains = fetch_domains(force=True)
-            written = write_env_values({"CLOUDMAIL_DOMAINS": "\n".join(domains)})
-            try:
-                import config as _config_pkg
-                _config_pkg.reload_all()
-            except Exception:
-                logger.exception("CloudMail 域名写入后热加载失败")
-            return jsonify({
-                "ok": True,
-                "domains": domains,
-                "count": len(domains),
-                "written": written,
-                "message": f"已获取 {len(domains)} 个 CloudMail 可用域名并保存",
-            })
-        except Exception as exc:
-            logger.exception("获取 CloudMail 域名失败")
-            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 400
 
     @app.post("/api/config")
     def api_config_set():

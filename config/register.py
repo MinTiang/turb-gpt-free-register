@@ -7,6 +7,12 @@ CLI 走 main.py 时会优先读这里；Web 控制台批量注册时也会用同
 """
 from config.env_loader import apply_env_overrides
 
+# 注册驱动（精简后仅保留两种）：
+#   "protocol" = 纯协议注册（curl_cffi + Sentinel/PoW）
+#   "cloak"    = CloakBrowser 指纹浏览器 + Playwright 适配层
+# 原 roxy / patchright / browser_use / skyvern 驱动已移除。
+REGISTRATION_DRIVER: str = "protocol"
+
 # 注册邮箱（留空 + USE_EMAIL_SERVICE=True 时从 Outlook 池领取）
 REGISTER_EMAIL = ""
 
@@ -16,7 +22,7 @@ REGISTER_EMAIL = ""
 # 在 0.4-0.7h 内 100% 被清理(n=4,跨 IP/warmup 变量);无密码分支存活 2.9h+
 # (n=1, exp-007)。user/register 端点是协议会话的强标记信号。协议通道默认
 # 无密码;需要密码重登能力时,建议注册存活后经 password/add 补设密码。
-# 浏览器通道(cloak/roxy)真实执行 user/register,不受此影响,可自行开启。
+# 浏览器通道(cloak)真实执行 user/register,不受此影响,可自行开启。
 REGISTER_WITH_PASSWORD = False
 
 # 注册密码（留空则按强度规则随机生成；协议与浏览器驱动注册共用）
@@ -36,6 +42,7 @@ POST_REGISTER_DWELL_SECONDS_RANGE = "18,45"
 
 # ---- .env overrides for WebUI editable fields ----
 apply_env_overrides(globals(), {
+    'REGISTRATION_DRIVER': 'str',
     'REGISTER_EMAIL': 'str',
     'REGISTER_WITH_PASSWORD': 'bool',
     'REGISTER_NAME': 'str',

@@ -2,7 +2,6 @@ import unittest
 from unittest.mock import patch
 
 from core.browser_data_saver import BrowserDataSaver, configured_resource_types
-from core.roxybrowser_client import _apply_data_saver_open_args
 
 
 class _Request:
@@ -176,22 +175,6 @@ class BrowserDataSaverTests(unittest.TestCase):
 
         self.assertEqual(saver.snapshot()["data_saver_blocked_count"], 1)
         self.assertEqual(saver.snapshot()["data_saver_blocked_by_type"], {"image": 1})
-
-    def test_roxy_adds_early_image_switch_only_when_image_is_selected(self):
-        params = {"args": ["--lang=ja"]}
-        with patch("core.browser_data_saver._cfg.BROWSER_DATA_SAVER_MODE", True), patch(
-            "core.browser_data_saver._cfg.BROWSER_DATA_SAVER_BLOCKED_RESOURCE_TYPES", ["image", "media"]
-        ):
-            _apply_data_saver_open_args(params)
-        self.assertIn("--lang=ja", params["args"])
-        self.assertIn("--blink-settings=imagesEnabled=false", params["args"])
-
-        params = {"args": []}
-        with patch("core.browser_data_saver._cfg.BROWSER_DATA_SAVER_MODE", True), patch(
-            "core.browser_data_saver._cfg.BROWSER_DATA_SAVER_BLOCKED_RESOURCE_TYPES", ["media"]
-        ):
-            _apply_data_saver_open_args(params)
-        self.assertNotIn("--blink-settings=imagesEnabled=false", params["args"])
 
     def test_stylesheet_is_a_supported_optional_resource_type(self):
         with patch("core.browser_data_saver._cfg.BROWSER_DATA_SAVER_MODE", True), patch(

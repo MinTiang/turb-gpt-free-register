@@ -27,10 +27,10 @@ services:
       - app-reglogs:/app/注册日志
       # cloakbrowser 二进制缓存(首跑下载,数百 MB,持久化避免重复下载)
       - app-cloak:/home/app/.cloakbrowser
-      # playwright/patchright 浏览器二进制(首启 entrypoint 检测为空才下载)
+      # playwright 浏览器二进制(CloakBrowser 依赖,首启检测为空才下载)
       - app-pw:/opt/ms-playwright
-    # 容器内访问宿主机 Clash(7897/9097/1100x):.env 里把
-    # CLASH_PROXY_HOST/CLASH_API_URL/PROXY_POOL 的 127.0.0.1 改成 host.docker.internal
+    # 容器内访问宿主机本地代理(如 7897):.env 里把 PROXY_POOL 的
+    # 127.0.0.1 改成 host.docker.internal
     extra_hosts:
       - "host.docker.internal:host-gateway"
 

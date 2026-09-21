@@ -47,16 +47,13 @@ CODEX_REQUEST_TIMEOUT: int = 30
 # 注册成功后是否自动跑 Codex 授权（True=自动，False=跳过）
 ENABLE_CODEX_AUTO: bool = False
 
-# Codex OAuth 授权驱动：
+# Codex OAuth 授权驱动（精简后仅保留三种）：
 #   "platform" = platform OAuth 免接码授权（grok2api 移植，无需接码短信；
 #                忽略 CODEX_AUTH_URL_SOURCE，本地 PKCE 换 token 后直接上传 CPA auth-files）
 #   "protocol" = 原有 curl_cffi 协议授权
-#   "roxy"     = 调用 RoxyBrowser 指纹浏览器完成授权页面/手机验证/回调捕获
-#   "cloak"       = 调用 CloakBrowser 完成授权页面/手机验证/回调捕获
-#   "patchright"  = 调用本地 Patchright 浏览器完成授权页面/手机验证/回调捕获
-#   "browser_use" = 调用 Browser Use Cloud 完成授权页面/手机验证/回调捕获
-#   "same_as_registration" = 跟随 REGISTRATION_DRIVER
-CODEX_OAUTH_DRIVER: str = "roxy"
+#   "cloak"    = 调用 CloakBrowser 完成授权页面/手机验证/回调捕获
+#   "same_as_registration" = 跟随 REGISTRATION_DRIVER（protocol / cloak）
+CODEX_OAUTH_DRIVER: str = "cloak"
 
 # ============================================================
 # platform 免接码驱动协议常量（来源 grok2api services/register/openai_register.py 87-93 行，

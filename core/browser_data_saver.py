@@ -1,11 +1,10 @@
 # -*- coding: utf-8 -*-
 """浏览器注册流程的省流量资源拦截。
 
-省流量模式只拦截 Roxy/Cloak 本地指纹浏览器中的可选页面资源和配置中明确指定的
+省流量模式只拦截 Cloak 本地指纹浏览器中的可选页面资源和配置中明确指定的
 URL，默认不拦截 document/核心 script/stylesheet/xhr/fetch/websocket，避免影响登录、
-验证码和 session 写入。Playwright 可以按资源类型和 URL glob 精确拦截；Selenium/Roxy
-通过 Chrome CDP 的 URL glob 拦截常见扩展名资源及配置的 URL。Browser Use/Skyvern
-云端浏览器不安装本模块的拦截器。
+验证码和 session 写入。Playwright 可以按资源类型和 URL glob 精确拦截；Selenium
+通过 Chrome CDP 的 URL glob 拦截常见扩展名资源及配置的 URL。
 """
 from __future__ import annotations
 

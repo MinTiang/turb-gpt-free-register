@@ -3,8 +3,7 @@
 #
 # 浏览器二进制不在启动时下载(不阻塞服务启动,启动秒级):
 #   - cloakbrowser 由库自身在首跑检测 .cloakbrowser 卷缓存,没有才下载
-#   - patchright 的 chromium 在首次注册真正用到时按需下载
-#     (core/patchright_driver._ensure_chromium,落 /opt/ms-playwright 卷)
+#     (CloakBrowser 自带 Playwright,二进制落 /opt/ms-playwright 卷)
 set -e
 cd /app
 

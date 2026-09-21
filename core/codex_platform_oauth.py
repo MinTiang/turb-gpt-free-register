@@ -56,7 +56,7 @@ _MAX_CONSENT_HOPS = 10
 # 平台要求手机验证时提示切换驱动的文案
 _PHONE_REQUIRED_HINT = (
     "OpenAI 在 platform 流程中要求手机验证，免接码流程不适用；"
-    "请把 CODEX_OAUTH_DRIVER 切回 protocol / roxy / cloak / browser_use / skyvern 等接码驱动后补跑"
+    "请把 CODEX_OAUTH_DRIVER 切回 protocol / cloak 等接码驱动后补跑"
 )
 
 # 命中这些落点说明 OpenAI 要求重新登录（登录态不足/不存在），免验证提取无意义，直接转邮箱 OTP 登录兜底
@@ -254,7 +254,7 @@ def _authorize_continue_login(session: BrowserSession, email: str) -> dict:
     if isinstance(page_payload, dict) and page_payload.get("passwordless_disabled"):
         raise RuntimeError(
             "OpenAI 返回的登录流不支持 passwordless（passwordless_disabled），"
-            "请把 CODEX_OAUTH_DRIVER 切回 protocol / roxy 等接码驱动"
+            "请把 CODEX_OAUTH_DRIVER 切回 protocol / cloak 等接码驱动"
         )
     logger.info(f"[Codex][Platform] 已提交邮箱 {email}，进入登录验证")
     return data
@@ -418,7 +418,7 @@ def _passwordless_login_branch(
             raise
     raise RuntimeError(
         "[Codex][Platform] passwordless 登录会话持续失效（409），"
-        "请把 CODEX_OAUTH_DRIVER 切回 protocol / roxy 等接码驱动后补跑"
+        "请把 CODEX_OAUTH_DRIVER 切回 protocol / cloak 等接码驱动后补跑"
     )
 
 

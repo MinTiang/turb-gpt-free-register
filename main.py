@@ -15,7 +15,6 @@ from config import REGISTER_EMAIL, REGISTER_NAME  # 这两个一般不在 WebUI 
 from config import twofa as _twofa_cfg
 from config import email as _email_cfg
 from config import register as _register_cfg
-from config import roxybrowser as _roxy_cfg
 from config import openai_protocol as _protocol_cfg
 from config.proxy import expand_sticky_proxy, pick_proxy, STICKY_EMAIL_PLACEHOLDER
 from core.session import BrowserSession
@@ -194,19 +193,15 @@ def run_registration(
         otp_code: 邮箱验证码（如果为None，会等待手动输入）
         sticky_variant: 粘性邮箱会话变体号,0=纯邮箱,>0=邮箱-variant(换出口重试用)
     """
-    # 可选注册驱动：
-    #   protocol     = 原有纯协议（curl_cffi）
-    #   roxy         = RoxyBrowser 指纹浏览器 + Selenium
-    #   cloak        = CloakBrowser + Playwright/Selenium 适配层
-    #   patchright   = 本地 Patchright（Playwright 反检测分支）+ Selenium 适配层
-    #   browser_use  = Browser Use Cloud stealth Chromium + Playwright
-    #   skyvern      = Skyvern Browser Sessions + Playwright
+    # 可选注册驱动（精简后仅保留两种）：
+    #   protocol = 原有纯协议（curl_cffi）
+    #   cloak    = CloakBrowser + Playwright 适配层
     # 粘性代理解析(2026-09-20):占位符在入口一次性展开(pick_proxy 抽取时也会
     # 展开,这里再过一遍幂等)。同一次注册内协议会话与浏览器驱动共用同一个
     # 展开值,保证全程同 IP;"" 仍表示显式禁用代理。
     if proxy is None:
         proxy = pick_proxy()
-    # {email} 占位符要求邮箱已确定:cloak/roxy 等延迟领取路径在粘性邮箱代理
+    # {email} 占位符要求邮箱已确定:cloak 等延迟领取路径在粘性邮箱代理
     # 下必须改为启动浏览器前领取——浏览器一启动就要锁定出口会话。
     if STICKY_EMAIL_PLACEHOLDER in str(proxy or "") and not str(email or "").strip():
         if not _email_cfg.USE_EMAIL_SERVICE:
@@ -218,18 +213,7 @@ def run_registration(
         if on_email_acquired:
             on_email_acquired(email)
     proxy = expand_sticky_proxy(proxy, email, sticky_variant)
-    driver_mode = str(getattr(_roxy_cfg, "REGISTRATION_DRIVER", "protocol") or "protocol").strip().lower()
-    if driver_mode in ("roxy", "roxybrowser", "fingerprint", "browser"):
-        from core.roxy_registration import run_roxy_registration
-        return run_roxy_registration(
-            email=email,
-            name=name,
-            birthday=birthday or generate_random_birthday(),
-            proxy=proxy,
-            otp_code=otp_code,
-            batch_dir=batch_dir,
-            on_email_acquired=on_email_acquired,
-        )
+    driver_mode = str(getattr(_register_cfg, "REGISTRATION_DRIVER", "protocol") or "protocol").strip().lower()
     if driver_mode in ("cloak", "cloakbrowser"):
         from core.cloakbrowser_registration import run_cloak_registration
         return run_cloak_registration(
@@ -241,42 +225,9 @@ def run_registration(
             batch_dir=batch_dir,
             on_email_acquired=on_email_acquired,
         )
-    if driver_mode in ("patchright", "local", "localbrowser", "pr"):
-        from core.patchright_registration import run_patchright_registration
-        return run_patchright_registration(
-            email=email,
-            name=name,
-            birthday=birthday or generate_random_birthday(),
-            proxy=proxy,
-            otp_code=otp_code,
-            batch_dir=batch_dir,
-            on_email_acquired=on_email_acquired,
-        )
-    if driver_mode in ("browser_use", "browseruse", "browser-use", "bu"):
-        from core.browser_use_registration import run_browser_use_registration
-        return run_browser_use_registration(
-            email=email,
-            name=name,
-            birthday=birthday or generate_random_birthday(),
-            proxy=proxy,
-            otp_code=otp_code,
-            batch_dir=batch_dir,
-            on_email_acquired=on_email_acquired,
-        )
-    if driver_mode in ("skyvern", "sv"):
-        from core.skyvern_registration import run_skyvern_registration
-        return run_skyvern_registration(
-            email=email,
-            name=name,
-            birthday=birthday or generate_random_birthday(),
-            proxy=proxy,
-            otp_code=otp_code,
-            batch_dir=batch_dir,
-            on_email_acquired=on_email_acquired,
-        )
     if driver_mode not in ("protocol", "api", "http"):
         raise RuntimeError(
-            f"不支持的 REGISTRATION_DRIVER={driver_mode!r}，可选 protocol / roxy / cloak / patchright / browser_use / skyvern"
+            f"不支持的 REGISTRATION_DRIVER={driver_mode!r}，可选 protocol / cloak"
         )
 
     # 纯协议驱动没有“邮箱输入框”可等待，因此在创建 BrowserSession 前领取。

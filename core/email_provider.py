@@ -2,29 +2,27 @@
 """
 邮箱来源调度层。
 
-EMAIL_SOURCE 支持单个或多个来源：
-    "outlook"
-    "cloudflare_domain"   # 自有域名 + QQ IMAP
-    "cloudflare"          # Cloudflare Worker 临时邮箱
-    "generic_api"
-    "imap"
-    "gptmail"
-    "mailnest"
-    "cloudmail"
-    "remail"
-    "outlook,generic_api,mailnest,cloudmail,remail"   # 按顺序兜底
-    ["outlook", "generic_api", "mailnest", "cloudmail", "remail"]  # 也兼容列表写法
+精简后只保留 Outlook 邮箱池：
+    EMAIL_SOURCE = "outlook"
+
+历史上支持过的临时邮箱来源（generic_api / imap / cloudflare_domain /
+cloudflare / gptmail / mailnest / cloudmail / remail）对应的客户端已删除；
+旧 .env 里残留的来源名会被忽略并记一条 warning，最终按 outlook 处理。
 """
 import logging
 from typing import Iterable
 
 logger = logging.getLogger(__name__)
 
-_VALID_SOURCES = ("outlook", "generic_api", "imap", "cloudflare_domain", "cloudflare", "gptmail", "mailnest", "cloudmail", "remail")
+_VALID_SOURCES = ("outlook",)
 
 
 def parse_email_sources(value=None) -> list[str]:
-    """把 EMAIL_SOURCE 解析为有序来源列表，去重并过滤空值。"""
+    """把 EMAIL_SOURCE 解析为有序来源列表，去重并过滤空值。
+
+    非 outlook 的历史来源会被忽略（对应客户端已下线），因此本函数现在
+    正常只会返回 ["outlook"]。
+    """
     if value is None:
         from config import email as _email_cfg
         value = _email_cfg.EMAIL_SOURCE
@@ -41,7 +39,7 @@ def parse_email_sources(value=None) -> list[str]:
         if not s:
             continue
         if s not in _VALID_SOURCES:
-            logger.warning(f"[EmailProvider] 未知邮箱来源 {s!r}，已忽略")
+            logger.warning(f"[EmailProvider] 邮箱来源 {s!r} 已下线（仅保留 outlook），已忽略")
             continue
         if s not in out:
             out.append(s)
@@ -49,30 +47,6 @@ def parse_email_sources(value=None) -> list[str]:
 
 
 def _pick_from_source(source: str) -> str:
-    if source == "gptmail":
-        from core.gptmail_client import pick_account
-        return pick_account().email
-    if source == "cloudflare":
-        from core.cf_temp_mail_client import pick_account
-        return pick_account().email
-    if source == "cloudflare_domain":
-        from core.qqmail_client import pick_domain_email
-        return pick_domain_email()
-    if source == "generic_api":
-        from core.generic_api_mail_client import pick_account
-        return pick_account().email
-    if source == "imap":
-        from core.imap_mail_client import pick_account
-        return pick_account().email
-    if source == "mailnest":
-        from core.mailnest_client import pick_account
-        return pick_account().email
-    if source == "cloudmail":
-        from core.cloudmail_client import pick_account
-        return pick_account().email
-    if source == "remail":
-        from core.remail_client import pick_account
-        return pick_account().email
     from core.outlook_client import pick_account
     return pick_account().email
 
@@ -125,7 +99,11 @@ def acquire_email_after_input(email: str | None = None) -> str:
 
 
 def resolve_email_source(email: str) -> str:
-    """根据邮箱判断实际来源，已注册账号优先使用落库来源。"""
+    """根据邮箱判断实际来源，已注册账号优先使用落库来源。
+
+    精简后只可能返回 "outlook"；落库来源若不是 outlook（历史账号）也会
+    归一为 outlook，因为这些来源的取信客户端已删除。
+    """
     # 已注册账号的 email_source 是注册时的最终来源。必须先读它，不能因为
     # 当前进程里恰好残留了其它邮箱池上下文，或邮箱池顺序发生变化，就把同一
     # 地址误判到另一个服务商。
@@ -133,39 +111,9 @@ def resolve_email_source(email: str) -> str:
     if registered_source:
         return registered_source
 
-    from core.gptmail_client import get_account_context as get_gptmail_context
-    if get_gptmail_context(email):
-        return "gptmail"
-    from core.cf_temp_mail_client import get_account_context as get_cf_context
-    if get_cf_context(email):
-        return "cloudflare"
-    from core.mailnest_client import get_account_context as get_mailnest_context
-    if get_mailnest_context(email):
-        return "mailnest"
-    from core.cloudmail_client import get_account_context as get_cloudmail_context
-    if get_cloudmail_context(email):
-        return "cloudmail"
-    from core.remail_client import get_account_context as get_remail_context
-    if get_remail_context(email):
-        return "remail"
-
     from core import db
-    if db.get_imap_email_by_email(email):
-        return "imap"
-    if db.get_generic_api_email_by_email(email):
-        return "generic_api"
     if db.get_outlook_by_email(email):
         return "outlook"
-    if db._find_domain_email(db._load_domain_pool(), email):  # 内部轻量查询，仅本项目使用
-        return "cloudflare_domain"
-    # 兜底：如果域名匹配 EMAIL_DOMAIN，则按域名邮箱处理
-    try:
-        from config import email as _email_cfg
-        domain = (_email_cfg.EMAIL_DOMAIN or "").lower().strip()
-        if domain and domain != "-" and email.lower().endswith("@" + domain):
-            return "cloudflare_domain"
-    except Exception:
-        pass
     return parse_email_sources()[0]
 
 
@@ -174,7 +122,7 @@ def _normalize_explicit_email_source(value: str | None) -> str | None:
 
     已注册账号的 ``email_source`` 是注册时落库的单一来源，查活时应优先使用
     这个值，而不是重新根据当前进程的临时邮箱上下文或全局 EMAIL_SOURCE 猜测。
-    这里也兼容历史数据里偶尔保存的逗号/分号分隔值，取其中第一个有效来源。
+    历史数据里保存的已下线来源（imap/gptmail 等）返回 None，由调用方兜底。
     """
     if value is None:
         return None
@@ -239,52 +187,16 @@ def wait_for_otp(
     if settle_seconds is not None:
         extra_kwargs["settle_seconds"] = settle_seconds
 
-    # 查活等已注册账号会传入注册时保存的来源；即使调用方没有显式传入，
-    # 这里也先读取账号落库来源，再按当前进程上下文/邮箱池/全局配置兜底。
-    source = (
-        _normalize_explicit_email_source(email_source)
-        or _registered_email_source(email)
-        or resolve_email_source(email)
-    )
-    if source == "gptmail":
-        from core.gptmail_client import fetch_latest_otp
-        return fetch_latest_otp(email, after_ts=after_ts, **extra_kwargs)
-    if source == "cloudflare":
-        from core.cf_temp_mail_client import fetch_latest_otp
-        return fetch_latest_otp(email, after_ts=after_ts, **extra_kwargs)
-    if source == "cloudflare_domain":
-        from core.qqmail_client import fetch_latest_otp
-        return fetch_latest_otp(email, after_ts=after_ts, **extra_kwargs)
-    if source == "generic_api":
-        from core.generic_api_mail_client import fetch_latest_otp
-        return fetch_latest_otp(email, after_ts=after_ts, **extra_kwargs)
-    if source == "imap":
-        from core.imap_mail_client import fetch_latest_otp
-        return fetch_latest_otp(email, after_ts=after_ts, **extra_kwargs)
-    if source == "mailnest":
-        from core.mailnest_client import fetch_latest_otp
-        return fetch_latest_otp(email, after_ts=after_ts, **extra_kwargs)
-    if source == "cloudmail":
-        from core.cloudmail_client import fetch_latest_otp
-        return fetch_latest_otp(email, after_ts=after_ts, **extra_kwargs)
-    if source == "remail":
-        from core.remail_client import fetch_latest_otp
-        return fetch_latest_otp(email, after_ts=after_ts, **extra_kwargs)
+    # 精简后取信只剩 Outlook 一种实现：无论来源参数/落库来源是什么，
+    # 统一走 Outlook client（远端 mail.chatai.codes / Graph 直连）。
     from core.outlook_client import fetch_latest_otp
     return fetch_latest_otp(email, after_ts=after_ts, **extra_kwargs)
 
 
 def email_material_line(email: str, source: str | None = None) -> str:
     """返回账号换绑后应保存的邮箱素材行。"""
-    source = _normalize_explicit_email_source(source) or resolve_email_source(email)
     from core import db
-    row = None
-    if source == "outlook":
-        row = db.get_outlook_by_email(email)
-    elif source == "generic_api":
-        row = db.get_generic_api_email_by_email(email)
-    elif source == "imap":
-        row = db.get_imap_email_by_email(email)
+    row = db.get_outlook_by_email(email)
     if row:
         return str(row.get("copy_line") or email)
     return str(email or "")
@@ -293,33 +205,8 @@ def email_material_line(email: str, source: str | None = None) -> str:
 def release_email(email: str, status: str = "available", note: str | None = None) -> str:
     """按邮箱实际来源回收状态，返回来源名。"""
     source = resolve_email_source(email)
-    if source == "gptmail":
-        from core.gptmail_client import release_account
-        release_account(email, status=status, note=note)
-    elif source == "cloudflare":
-        from core.cf_temp_mail_client import release_account
-        release_account(email, status=status, note=note)
-    elif source == "cloudflare_domain":
-        from core.qqmail_client import release_domain_email
-        release_domain_email(email, status=status, note=note)
-    elif source == "generic_api":
-        from core.generic_api_mail_client import release_account
-        release_account(email, status=status, note=note)
-    elif source == "imap":
-        from core.imap_mail_client import release_account
-        release_account(email, status=status, note=note)
-    elif source == "mailnest":
-        from core.mailnest_client import release_account
-        release_account(email, status=status, note=note)
-    elif source == "cloudmail":
-        from core.cloudmail_client import release_account
-        release_account(email, status=status, note=note)
-    elif source == "remail":
-        from core.remail_client import release_account
-        release_account(email, status=status, note=note)
-    else:
-        from core.outlook_client import release_account
-        release_account(email, status=status, note=note)
+    from core.outlook_client import release_account
+    release_account(email, status=status, note=note)
     return source
 
 
@@ -328,24 +215,9 @@ def release_email_if_unconsumed(email: str, note: str | None = None) -> bool:
     if not (email or "").strip():
         return False
 
-    source = resolve_email_source(email)
     from core import db
 
-    if source == "outlook":
-        changed = db.release_unconsumed_outlook(email, note=note)
-    elif source == "generic_api":
-        changed = db.release_unconsumed_generic_api_email(email, note=note)
-    elif source == "imap":
-        changed = db.release_unconsumed_imap_email(email, note=note)
-    elif source == "cloudflare_domain":
-        changed = db.release_unconsumed_domain_email(email, note=note)
-    else:
-        # 临时邮箱不重新进入本地池，只清理进程上下文；已有本地账号时保留上下文。
-        if db.get_account_by_email(email) is not None:
-            return False
-        release_email(email, status="available", note=note)
-        changed = True
-
+    changed = db.release_unconsumed_outlook(email, note=note)
     if changed:
-        logger.info("[EmailProvider] 已回收未消耗邮箱: source=%s, email=%s", source, email)
+        logger.info("[EmailProvider] 已回收未消耗邮箱: email=%s", email)
     return changed

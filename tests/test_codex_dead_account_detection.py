@@ -2,7 +2,7 @@
 import unittest
 
 from core.openai_auth import detect_account_unusable_response_body
-from core.browser_use_codex_oauth import _wait_after_email_submit
+from core.browser_codex_oauth import _read_email_otp_validate_dead_code
 
 
 class CodexDeadAccountDetectionTests(unittest.TestCase):
@@ -17,19 +17,25 @@ class CodexDeadAccountDetectionTests(unittest.TestCase):
         )
         self.assertEqual(detect_account_unusable_response_body('Your account has been deactivated.'), "")
 
-    def test_browser_use_email_submit_returns_deactivated_from_response_tracker(self):
-        class Body:
-            def inner_text(self, timeout=1000):
-                return "Your account has been deactivated."
+    def test_browser_email_submit_returns_deactivated_from_response_tracker(self):
+        class Driver:
+            def __init__(self, rows):
+                self.rows = rows
 
-        class Page:
-            url = "https://auth.openai.com/email-verification"
-            def locator(self, selector):
-                return Body()
+            def execute_script(self, script, *args):
+                return self.rows
 
-        tracker = {"code": "account_deactivated"}
-        self.assertEqual(_wait_after_email_submit(Page(), timeout=1, dead_tracker=tracker), "deactivated:account_deactivated")
-        self.assertNotEqual(_wait_after_email_submit(Page(), timeout=1, dead_tracker={}), "deactivated:account_deactivated")
+        rows = [{
+            "url": "https://auth.openai.com/api/accounts/email-otp/validate",
+            "status": 400,
+            "body": '{"error":{"code":"account_deactivated"}}',
+        }]
+        self.assertEqual(_read_email_otp_validate_dead_code(Driver(rows)), "account_deactivated")
+        self.assertEqual(_read_email_otp_validate_dead_code(Driver([])), "")
+        self.assertEqual(
+            _read_email_otp_validate_dead_code(Driver([{"body": '{"ok":true}'}])),
+            "",
+        )
 
 
 if __name__ == "__main__":

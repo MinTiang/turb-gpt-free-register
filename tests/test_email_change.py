@@ -229,9 +229,23 @@ class EmailChangeTests(unittest.TestCase):
             account_id = db.insert_account(email="old@example.com", access_token="token", email_source="outlook")
             client = create_app(auth_code="test-auth").test_client()
             with patch("core.email_change_service.enqueue", return_value={"accepted": True, "future": MagicMock()}):
-                response = client.post("/api/accounts/change-email-bulk", json={"account_ids": [account_id], "source": "imap"}, headers={"X-Auth-Code": "test-auth"})
+                response = client.post("/api/accounts/change-email-bulk", json={"account_ids": [account_id], "source": "outlook"}, headers={"X-Auth-Code": "test-auth"})
             self.assertEqual(response.status_code, 202)
             self.assertEqual(response.get_json()["started_count"], 1)
+
+    def test_change_email_rejects_removed_email_source(self):
+        """已下线邮箱来源（imap/gptmail 等）不能再用于换绑。"""
+        with tempfile.TemporaryDirectory() as td, patch.multiple(db, **self.storage(Path(td))):
+            account_id = db.insert_account(email="old@example.com", access_token="token", email_source="outlook")
+            client = create_app(auth_code="test-auth").test_client()
+            with patch("core.email_change_service.enqueue", return_value={"accepted": True, "future": MagicMock()}):
+                response = client.post(
+                    f"/api/accounts/{account_id}/change-email",
+                    json={"source": "imap"},
+                    headers={"X-Auth-Code": "test-auth"},
+                )
+            self.assertEqual(response.status_code, 400)
+            self.assertFalse(response.get_json()["ok"])
 
     def test_change_email_log_api(self):
         with tempfile.TemporaryDirectory() as td, patch.multiple(db, **self.storage(Path(td))):

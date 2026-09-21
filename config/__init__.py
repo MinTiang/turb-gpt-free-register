@@ -118,6 +118,7 @@ from config.proxy import (
 
 # ---------- 注册默认信息 ----------
 from config.register import (
+    REGISTRATION_DRIVER,
     REGISTER_EMAIL,
     REGISTER_PASSWORD,
     REGISTER_NAME,
@@ -134,41 +135,6 @@ from config.email import (
     OTP_POLL_INTERVAL,
     OTP_MAX_WAIT,
     OTP_SETTLE_SECONDS,
-    EMAIL_DOMAIN,
-    QQ_IMAP_SERVER,
-    QQ_IMAP_PORT,
-    QQ_EMAIL,
-    QQ_IMAP_PASSWORD,
-    GPTMAIL_API_KEY,
-    MAIL_NEST_API_KEY,
-    MAIL_NEST_PROJECT_CODE,
-    CLOUDFLARE_API_BASE,
-    CLOUDFLARE_API_KEY,
-    CLOUDFLARE_AUTH_MODE,
-    CLOUDFLARE_CUSTOM_AUTH,
-    CLOUDFLARE_PATH_DOMAINS,
-    CLOUDFLARE_PATH_ACCOUNTS,
-    CLOUDFLARE_PATH_TOKEN,
-    CLOUDFLARE_PATH_MESSAGES,
-    CLOUDFLARE_DEFAULT_DOMAINS,
-    CLOUDFLARE_REQUEST_TIMEOUT,
-    CLOUDFLARE_NAME_LENGTH,
-    CLOUDMAIL_API_BASE,
-    CLOUDMAIL_ADMIN_EMAIL,
-    CLOUDMAIL_PASSWORD,
-    CLOUDMAIL_TOKEN_PATH,
-    CLOUDMAIL_AUTH_TOKEN,
-    CLOUDMAIL_DOMAINS,
-    CLOUDMAIL_AUTO_ADD_USER,
-    CLOUDMAIL_RANDOM_LOCAL_LENGTH,
-    REMAIL_API_BASE,
-    REMAIL_API_KEY,
-    REMAIL_PROJECT_ID,
-    REMAIL_EMAIL_SUFFIX,
-    REMAIL_SERVICE_MODE,
-    REMAIL_SUPPLY_POLICY,
-    REMAIL_ORDER_WAIT_SECONDS,
-    REMAIL_REQUEST_TIMEOUT,
 )
 
 # ---------- 2FA ----------
@@ -195,17 +161,13 @@ _RELOADABLE_SUBMODULES = (
     "config.register",
     "config.email",
     "config.twofa",
-    "config.roxybrowser",
     "config.cloakbrowser",
-    "config.browser_use",
-    "config.skyvern",
     "config.flow_trigger",
     "config.codex",
     "config.extract_link",
     "config.sub2api",
     "config.humanize",
     "config.hub_push",
-    "config.clash_manager",
 )
 
 
@@ -235,9 +197,9 @@ def reload_all() -> list[str]:
 def _refresh_top_level_constants() -> None:
     """把刚 reload 的子模块的常量重新拷一份到 config 包顶层。"""
     import config as _self
-    from config import browser, openai_protocol, proxy as _proxy, register, email, twofa, roxybrowser, cloakbrowser, browser_use, skyvern, codex, extract_link, sub2api, humanize, flow_trigger
+    from config import browser, openai_protocol, proxy as _proxy, register, email, twofa, cloakbrowser, codex, extract_link, sub2api, humanize, flow_trigger
     # 简单粗暴：枚举一遍重要常量，覆盖到 _self
-    for src in (browser, openai_protocol, _proxy, register, email, twofa, roxybrowser, cloakbrowser, browser_use, skyvern, codex, extract_link, sub2api, humanize, flow_trigger):
+    for src in (browser, openai_protocol, _proxy, register, email, twofa, cloakbrowser, codex, extract_link, sub2api, humanize, flow_trigger):
         for k in dir(src):
             if k.isupper() or k in ("pick_proxy", "pick_browser_profile", "build_browser_environment", "validate_browser_profile"):
                 setattr(_self, k, getattr(src, k))
@@ -271,22 +233,11 @@ __all__ = [
     "PLAN_CHECK_REGISTRATION_RECHECK_DELAY", "PLAN_CHECK_WORKERS", "PLAN_CHECK_QUEUE_LIMIT",
     "PLAN_CHECK_MIN_INTERVAL", "PLAN_CHECK_JITTER", "pick_proxy", "PROXY",
     # register
-    "REGISTER_EMAIL", "REGISTER_PASSWORD", "REGISTER_NAME",
+    "REGISTER_EMAIL", "REGISTER_PASSWORD", "REGISTER_NAME", "REGISTRATION_DRIVER",
     # email
     "USE_EMAIL_SERVICE", "EMAIL_SOURCE",
     "OUTLOOK_ACCOUNTS_FILE", "OUTLOOK_API_BASE",
     "OTP_POLL_INTERVAL", "OTP_MAX_WAIT", "OTP_SETTLE_SECONDS",
-    "EMAIL_DOMAIN", "QQ_IMAP_SERVER", "QQ_IMAP_PORT", "QQ_EMAIL", "QQ_IMAP_PASSWORD",
-    "GPTMAIL_API_KEY", "MAIL_NEST_API_KEY", "MAIL_NEST_PROJECT_CODE",
-    "CLOUDFLARE_API_BASE", "CLOUDFLARE_API_KEY", "CLOUDFLARE_AUTH_MODE", "CLOUDFLARE_CUSTOM_AUTH",
-    "CLOUDFLARE_PATH_DOMAINS", "CLOUDFLARE_PATH_ACCOUNTS", "CLOUDFLARE_PATH_TOKEN",
-    "CLOUDFLARE_PATH_MESSAGES", "CLOUDFLARE_DEFAULT_DOMAINS",
-    "CLOUDFLARE_REQUEST_TIMEOUT", "CLOUDFLARE_NAME_LENGTH",
-    "CLOUDMAIL_API_BASE", "CLOUDMAIL_ADMIN_EMAIL", "CLOUDMAIL_PASSWORD", "CLOUDMAIL_TOKEN_PATH",
-    "CLOUDMAIL_AUTH_TOKEN", "CLOUDMAIL_DOMAINS",
-    "CLOUDMAIL_AUTO_ADD_USER", "CLOUDMAIL_RANDOM_LOCAL_LENGTH",
-    "REMAIL_API_BASE", "REMAIL_API_KEY", "REMAIL_PROJECT_ID", "REMAIL_EMAIL_SUFFIX", "REMAIL_SERVICE_MODE",
-    "REMAIL_SUPPLY_POLICY", "REMAIL_ORDER_WAIT_SECONDS", "REMAIL_REQUEST_TIMEOUT",
     # twofa
     "ENABLE_2FA", "TWOFA_REAUTH_MAX_ATTEMPTS", "TWOFA_REAUTH_RETRY_DELAY",
     "TWOFA_WORKERS", "TWOFA_QUEUE_LIMIT",

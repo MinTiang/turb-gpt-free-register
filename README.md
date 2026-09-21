@@ -1,13 +1,9 @@
 # Turb GPT Free Register
 
-ChatGPT / OpenAI 账号自动注册与 Codex OAuth 授权工具。当前项目支持多套注册驱动：
+ChatGPT / OpenAI 账号自动注册与 Codex OAuth 授权工具。当前项目支持两套注册驱动：
 
-- **protocol**：原纯协议注册，基于 `curl_cffi` + Sentinel/PoW。
-- **roxy**：RoxyBrowser 指纹浏览器 + Selenium 自动化注册，兼容新版页面流，例如 `create-account/password`、`about-you` 年龄/生日表单、地区本地化页面等。
+- **protocol**：纯协议注册，基于 `curl_cffi` + Sentinel/PoW。
 - **cloak**：CloakBrowser + Playwright 适配层自动化注册，支持免费 binary、无头模式、humanize、固定 fingerprint seed、代理 geoip。
-- **patchright**：本地 Patchright（Playwright 反检测分支）+ Selenium 适配层，浏览器在本机运行，**完全免费**，无需 license / API Key；默认使用本机已安装的正式 Chrome/Edge。
-- **browser_use**：Browser Use Cloud stealth Chromium + Playwright（可选住宅代理，无需本机安装 Roxy，按 credit 收费）。
-- **skyvern**：Skyvern Browser Sessions 云端浏览器 + Playwright CDP（收费）。
 
 项目提供 **CLI** 和 **本地 WebUI** 两种使用方式。日常推荐使用 WebUI。
 
@@ -26,15 +22,9 @@ ChatGPT / OpenAI 账号自动注册与 Codex OAuth 授权工具。当前项目�
 - 批量注册 ChatGPT 账号。
 - 支持注册驱动切换：
   - `REGISTRATION_DRIVER = "protocol"`
-  - `REGISTRATION_DRIVER = "roxy"`
   - `REGISTRATION_DRIVER = "cloak"`
-  - `REGISTRATION_DRIVER = "patchright"`
-  - `REGISTRATION_DRIVER = "browser_use"`
-  - `REGISTRATION_DRIVER = "skyvern"`
-- 支持 RoxyBrowser 一号一环境：自动创建、打开、关闭、删除 Roxy Profile。
-- 支持 Roxy 无头启动：`ROXY_OPEN_HEADLESS=True`。
 - 支持 CloakBrowser：免费 binary、无头模式、humanize、固定 fingerprint seed、按出口 IP 自动匹配语言/时区/WebRTC。
-- Roxy / Cloak 浏览器注册已兼容：
+- Cloak 浏览器注册已兼容：
   - 填邮箱后直接进入邮箱验证码页；
   - 填邮箱后先进入 `create-account/password`，自动设置密码再继续；
   - `about-you/profile` 页面直接输入年龄数字；
@@ -44,31 +34,25 @@ ChatGPT / OpenAI 账号自动注册与 Codex OAuth 授权工具。当前项目�
 
 ### 邮箱来源
 
-支持多种邮箱来源：
+只支持 Outlook 邮箱池（外购 Outlook 账号 + 远端取信服务）：
 
-- Outlook 邮箱池：`email----password----clientId----refreshToken`
-- Cloudflare 域名邮箱 + QQ 邮箱 IMAP 收信（`cloudflare_domain`）
-- Cloudflare Worker 临时邮箱：自动创建 + JWT 取码（`cloudflare`，兼容 cloudflare_temp_email）
-- 通用 API 邮箱：`email----取码地址`
-- 通用 IMAP 邮箱池：每行 `邮箱----IMAP密码` 或 `邮箱:IMAP密码`，服务器、端口和 SSL 在导入界面统一配置
-- GPTMail 临时邮箱 API：运行时随机生成邮箱并自动收取验证码
-- Remail 开放 API：按项目下单短效邮箱并自动收取验证码（`remail`）
-- `EMAIL_SOURCE` 支持多个来源组合，例如：
+- 每行素材格式：`email----password----clientId----refreshToken`
+- `EMAIL_SOURCE` 固定为 `outlook`：
 
 ```python
-EMAIL_SOURCE = "outlook,generic_api,imap"
+EMAIL_SOURCE = "outlook"
 ```
 
-- MailNest-迈巢：Outlook 临时邮箱
+> 精简版已移除 Cloudflare / 通用 API / 通用 IMAP / GPTMail / MailNest / CloudMail / Remail
+> 等临时邮箱来源及其客户端，配置里残留的旧来源名会被忽略。
 
 ### Codex OAuth
 
 - 注册成功后可自动跑 Codex OAuth。
 - Codex 授权驱动可选：
   - `CODEX_OAUTH_DRIVER = "protocol"`
-  - `CODEX_OAUTH_DRIVER = "roxy"`
+  - `CODEX_OAUTH_DRIVER = "platform"`
   - `CODEX_OAUTH_DRIVER = "cloak"`
-  - `CODEX_OAUTH_DRIVER = "browser_use"`
   - `CODEX_OAUTH_DRIVER = "same_as_registration"`
 - 支持 CPA 管理接口生成授权 URL，并提交 OAuth callback。
 - 支持接码平台：
@@ -85,9 +69,8 @@ EMAIL_SOURCE = "outlook,generic_api,imap"
 - 批量补跑 Codex，补跑线程数每次提交即时生效。
 - 管理账号、邮箱池、Codex 凭证；账号页支持单个/批量换绑邮箱并指定新邮箱来源，换绑后同时展示原邮箱与当前邮箱，支持查看换绑日志，并自动查活刷新 AT。
 - 邮箱池导入默认不创建账号；勾选“导入后默认视为注册成功账号”后，会将邮箱池标记为已用并同步显示在账号页，可直接批量补跑 Codex。
-- Roxy/Cloak 浏览器注册完成后统计整个浏览器会话的上传、下载和总流量，任务列表与账号扩展信息均会保存结果；Browser Use/Skyvern 云端浏览器不启用本地流量监听、资源拦截或 JS 覆盖率采集。
+- Cloak 浏览器注册完成后统计整个浏览器会话的上传、下载和总流量，任务列表与账号扩展信息均会保存结果。
 - 配置页支持热加载，保存后无需重启。
-- Roxy 团队/项目可在配置页获取并保存。
 
 ### 数据存储
 
@@ -104,11 +87,11 @@ EMAIL_SOURCE = "outlook,generic_api,imap"
 - HTTP 请求数、失败/未完成请求数；
 - WebSocket 帧 payload 字节（如流程使用 WebSocket）。
 
-现代/Legacy WebUI 的注册任务列表会显示总流量，完整结构保存在任务记录的 `network_traffic` 和成功账号的 `extra_json` 中。统计为浏览器侧可观测的请求/响应流量，不包含 TLS/IP/代理隧道额外开销，也不包含邮箱 API、Roxy API 或 CDP 控制通道流量。
+现代/Legacy WebUI 的注册任务列表会显示总流量，完整结构保存在任务记录的 `network_traffic` 和成功账号的 `extra_json` 中。统计为浏览器侧可观测的请求/响应流量，不包含 TLS/IP/代理隧道额外开销，也不包含邮箱 API 或 CDP 控制通道流量。
 
 #### 省流量模式
 
-在 WebUI「浏览器画像」中开启「本地浏览器省流量模式」，或在 `.env` 设置（仅 Roxy/Cloak 生效）：
+在 WebUI「浏览器画像」中开启「本地浏览器省流量模式」，或在 `.env` 设置（仅 Cloak 生效）：
 
 ```dotenv
 BROWSER_DATA_SAVER_MODE=True
@@ -117,7 +100,7 @@ BROWSER_DATA_SAVER_BLOCKED_RESOURCE_TYPES=["image", "media"]
 BROWSER_DATA_SAVER_BLOCKED_URL_PATTERNS='["**://auth.openai.com/awe/api/v2/rum**", "**://chatgpt.com/ces/statsc/flush**", "**://connect.facebook.net/**", "**://analytics.tiktok.com/**", "**://snap.licdn.com/**", "**://bat.bing.com/**", "**://accounts.google.com/gsi/client**"]'
 ```
 
-Roxy/Selenium 会在启动参数中关闭图片加载，并使用 Chrome CDP 拦截常见图片、媒体等 URL 后缀及配置的 URL glob（因此也能覆盖无扩展名资源）；Cloak 使用 Playwright 按资源类型和 URL glob 拦截。Browser Use/Skyvern 是云端浏览器，不安装本地省流量拦截器，始终保留完整页面资源。默认只拦截 `image`、`media`，以及配置中列出的 RUM/广告统计 URL，不会按类型拦截登录所需的核心脚本、接口和 WebSocket。Playwright 会放行带验证码/challenge 关键词的 URL；Roxy 的 Chromium 图片开关和 CDP URL 黑名单无法提供 URL 例外规则，若页面出现验证码或布局异常，关闭该模式后重试。
+Cloak 使用 Playwright 按资源类型和 URL glob 拦截；Selenium/CDP 路径按 URL glob 拦截常见扩展名资源。默认只拦截 `image`、`media`，以及配置中列出的 RUM/广告统计 URL，不会按类型拦截登录所需的核心脚本、接口和 WebSocket。Playwright 会放行带验证码/challenge 关键词的 URL；若页面出现验证码或布局异常，关闭该模式后重试。
 
 Job 208 的明细显示，当前规则实际拦截了 5 个第三方脚本（Google GSI、Facebook、TikTok、LinkedIn、Bing）以及 380 次 RUM 请求；邮箱/密码注册成功。注册侧下载约 9.92 MiB，其中脚本约 8.90 MiB，主要来自 ChatGPT 核心 CDN chunk。
 
@@ -148,22 +131,22 @@ BROWSER_TRAFFIC_DETAIL_LOG=True
 BROWSER_TRAFFIC_DETAIL_MAX_ENTRIES=2000
 ```
 
-启用统计的 Roxy/Cloak 注册任务结束后，日志会输出 `[资源明细]` 行，包含资源 URL、类型、HTTP 方法、状态码、上传大小、下载大小、响应 body/header 大小，以及 `failed`、`blocked`、`unfinished`、`cache` 状态；明细按单请求总字节从大到小排列。Browser Use/Skyvern 云端浏览器不启用该监听。`ws_upload/ws_download` 表示 WebSocket 帧 payload。Playwright 缓存状态在无法从 API 确认时显示 `unknown`，Selenium/CDP 能识别时显示 `hit` 或 `miss`。URL 查询参数值、data/blob URL 内容不会写入日志。
+启用统计的 Cloak 注册任务结束后，日志会输出 `[资源明细]` 行，包含资源 URL、类型、HTTP 方法、状态码、上传大小、下载大小、响应 body/header 大小，以及 `failed`、`blocked`、`unfinished`、`cache` 状态；明细按单请求总字节从大到小排列。`ws_upload/ws_download` 表示 WebSocket 帧 payload。Playwright 缓存状态在无法从 API 确认时显示 `unknown`，Selenium/CDP 能识别时显示 `hit` 或 `miss`。URL 查询参数值、data/blob URL 内容不会写入日志。
 
 把一轮注册的 `[资源明细]` 日志发回后，可以按域名、路径、资源类型和实际字节量判断下一步是否适合继续拦截；`stylesheet`、`font` 等类型需要结合注册是否受影响再启用。
 
 #### JS 执行函数覆盖率
 
-需要确认某个 CDN chunk 是否在 Roxy/Cloak 注册流程中真正执行时，开启：
+需要确认某个 CDN chunk 是否在 Cloak 注册流程中真正执行时，开启：
 
 ```dotenv
 BROWSER_JS_COVERAGE_LOG=True
 BROWSER_JS_COVERAGE_MAX_ENTRIES=1000
 ```
 
-Roxy/Selenium 会在当前 Chrome target 上启用 CDP `Profiler.startPreciseCoverage`，Cloak 会为已发现的 Chromium Page 建立 CDP session；Browser Use/Skyvern 不启用 JS 覆盖率监听。任务结束时日志包含：`[JS执行汇总]`、每个脚本的 `[JS脚本]`、实际执行函数的 `[JS执行]`（函数名、调用次数、`startOffset-endOffset:count`）以及“本次未观察到执行范围”的 `[JS候选]`。`network_traffic.js_coverage` 会保存脚本级摘要和候选 URL，逐函数 offset 只写日志，不保存源码、参数或返回值。
+Cloak 会为已发现的 Chromium Page 建立 CDP session；Selenium/CDP 路径会在当前 Chrome target 上启用 CDP `Profiler.startPreciseCoverage`。任务结束时日志包含：`[JS执行汇总]`、每个脚本的 `[JS脚本]`、实际执行函数的 `[JS执行]`（函数名、调用次数、`startOffset-endOffset:count`）以及“本次未观察到执行范围”的 `[JS候选]`。`network_traffic.js_coverage` 会保存脚本级摘要和候选 URL，逐函数 offset 只写日志，不保存源码、参数或返回值。
 
-`[JS候选]` 仅表示该轮覆盖率没有观察到执行代码，不能单独证明可以屏蔽：先用一轮未屏蔽核心脚本的成功注册作为基线，再一次只屏蔽一个候选并对比 OTP、session、资料页和成功率。脚本若来自 `data:`/`blob:`/扩展页不会列为 URL 屏蔽候选；跨 popup/多 target 的 Selenium 页面只覆盖当前 CDP target。若 CDP Profiler 不受当前指纹浏览器支持，日志会标记 `supported=False`，不会影响注册流程。
+`[JS候选]` 仅表示该轮覆盖率没有观察到执行代码，不能单独证明可以屏蔽：先用一轮未屏蔽核心脚本的成功注册作为基线，再一次只屏蔽一个候选并对比 OTP、session、资料页和成功率。脚本若来自 `data:`/`blob:`/扩展页不会列为 URL 屏蔽候选；跨 popup/多 target 的页面只覆盖当前 CDP target。若 CDP Profiler 不受当前浏览器支持，日志会标记 `supported=False`，不会影响注册流程。
 
 ---
 
@@ -171,8 +154,7 @@ Roxy/Selenium 会在当前 Chrome target 上启用 CDP `Profiler.startPreciseCov
 
 - Python 3.10+
 - Node.js 18+
-- 可用代理、系统代理/VPN，或 RoxyBrowser 代理环境
-- 如使用 Roxy 注册：需要本机 RoxyBrowser API 可访问
+- 可用代理或系统代理/VPN
 - 如使用 Cloak 注册：首次运行会自动下载 Cloak Chromium binary；`CLOAK_GEOIP=True` 需要 `cloakbrowser[geoip]` 依赖
 - 如启用 Codex 自动授权：需要接码平台配置
 
@@ -190,8 +172,8 @@ node --version
 ```bash
 cp .env.example .env
 # 编辑 .env，例如：
-# BROWSER_USE_API_KEY=...
-# ROXY_API_TOKEN=...
+# CPA_MANAGEMENT_KEY=...
+# SMS_API_KEY=...
 ```
 
 当前支持从 `.env` 读取的密钥：
@@ -201,9 +183,6 @@ cp .env.example .env
 - `BROWSER_USE_API_KEY`
 - `SKYVERN_API_KEY`
 - `ROXY_API_TOKEN`
-- `QQ_IMAP_PASSWORD`
-- `CLOUDFLARE_API_KEY` / `CLOUDFLARE_CUSTOM_AUTH`（`EMAIL_SOURCE=cloudflare` 时）
-- `REMAIL_API_KEY`（`EMAIL_SOURCE=remail` 时）
 - `CPA_MANAGEMENT_KEY`
 - `SMS_API_KEY`
 - `L_ADMIN_AUTH_CODE`
@@ -251,163 +230,19 @@ email----password----clientId----refreshToken
 
 也可以在 WebUI 的「邮箱池」页面导入。
 
-#### 通用 API 邮箱
-
-每行格式：
-
-```text
-email----code_url
-```
-
-在 `config/email.py` 设置：
-
-```python
-EMAIL_SOURCE = "generic_api"
-```
-
-或使用组合来源：
-
-```python
-EMAIL_SOURCE = "outlook,generic_api,mailnest"
-```
-
-#### 通用 IMAP 邮箱
-
-在 WebUI「邮箱池 → 导入」选择“通用 IMAP 取码邮箱”，每行格式：
-
-```text
-email----imap_password
-email:imap_password
-```
-
-- 在导入类型选择“通用 IMAP 取码邮箱”后，填写统一的 IMAP 服务器、端口和 SSL 配置。
-- IMAP 登录用户名固定使用对应邮箱地址，无需额外配置。
-- 端口通常为 `993`，SSL 默认启用。
-- 示例：`user@example.com----app-password`
-- 默认读取 `INBOX`，可在「配置 → 邮箱 / OTP → 通用 IMAP」修改。
-
-将邮箱来源设置为：
-
-```python
-EMAIL_SOURCE = "imap"
-```
-
-#### GPTMail 临时邮箱
-
-在 WebUI 的「配置 → 邮箱 / OTP」填写 `GPTMail API Key`，然后将邮箱来源设置为：
-
-```python
-EMAIL_SOURCE = "gptmail"
-```
-
-也可以在项目根目录 `.env` 中填写：
-
-```dotenv
-GPTMAIL_API_KEY=你的_GPTMail_API_Key
-```
-
-服务地址固定为 `https://mail.chatgpt.org.uk`。未填写 Key 时，任务会提示填写 `GPTMail API Key`，不会使用公共测试 Key。
-
-#### Cloudflare Worker 临时邮箱（`cloudflare`）
-
-兼容 `cloudflare_temp_email` 类 Worker：注册时自动创建域名邮箱，并用 JWT 轮询收件箱提取 OpenAI 六位验证码。  
-（与下方 `cloudflare_domain` / QQ IMAP 方案不同，请勿混用标识。）
-
-```dotenv
-EMAIL_SOURCE=cloudflare
-CLOUDFLARE_API_BASE=https://你的-worker-api-域名
-CLOUDFLARE_API_KEY=你的_ADMIN_PASSWORD
-CLOUDFLARE_AUTH_MODE=x-admin-auth
-# admin 创建时常用：
-# CLOUDFLARE_PATH_ACCOUNTS=/admin/new_address
-CLOUDFLARE_DEFAULT_DOMAINS=你的收信域名.com
-```
-
-匿名模式可将 `CLOUDFLARE_AUTH_MODE=none` 且 Key 留空，创建路径默认 `/api/new_address`；若被 Turnstile 拦截请改用 admin 模式。更多字段见 WebUI「配置 → 邮箱 / OTP」或 `.env.example`。
-
-#### Cloudflare 域名邮箱（`cloudflare_domain`）
-
-在 `config/email.py` 设置：
-
-```python
-EMAIL_SOURCE = "cloudflare_domain"
-EMAIL_DOMAIN = "你的域名"
-QQ_EMAIL = "你的QQ邮箱"
-QQ_IMAP_PASSWORD = "QQ邮箱IMAP授权码"
-```
-
-Cloudflare Email Routing 需要把域名邮件转发到 QQ 邮箱。此模式不调用 Worker 创建接口，仅本地生成地址并通过 QQ IMAP 取件。
-
-#### MailNest-迈巢 Outlook 临时邮箱
-
-可直接在 Web-UI 中配置 API Key 与项目代码`MAIL_NEST_PROJECT_CODE`，也可以在配置文件中配置。
-
-- `api-key`获取页面：https://mailnest.top/account
-- 项目代码获取页面：https://mailnest.top/buy-email。默认为`chatgpt001`，可以直接使用
-
-#### Remail 开放 API
-
-Remail API 文档：[https://remail.aishop6.com/docs](https://remail.aishop6.com/docs)。该服务使用 API Key
-按项目创建短效接码订单，订单返回的邮箱和 service token 会自动用于后续取码。
-
-在 WebUI「配置 → 邮箱 / OTP」填写：
-
-- `REMAIL_API_KEY`：Remail 控制台生成的 `rk-` 开头 API Key；
-- `REMAIL_PROJECT_ID`：Remail「项目」列表中用于 ChatGPT/OpenAI 验证码的 `projectId`；
-- `REMAIL_EMAIL_SUFFIX`：下单后缀，微软邮箱通常填 `outlook.com`。
-
-然后设置：
-
-```dotenv
-USE_EMAIL_SERVICE=True
-EMAIL_SOURCE=remail
-REMAIL_API_BASE=https://remail.aishop6.com
-REMAIL_API_KEY=你的_Remail_API_Key
-REMAIL_PROJECT_ID=项目ID
-REMAIL_EMAIL_SUFFIX=outlook.com
-REMAIL_SERVICE_MODE=purchase
-REMAIL_SUPPLY_POLICY=public_only
-```
-
-`REMAIL_SERVICE_MODE` 默认为 `purchase`（长效购买，可重复收件），也可改为 `code`（短效接码）。
-`REMAIL_SUPPLY_POLICY` 默认为 `public_only`，也可改为 `private_first`。每个注册任务会创建一个
-对应模式的订单，验证码通过 `/v1/pickup` 获取；Remail 订单余额和对应项目库存需可用。
-
----
-
 ### 2. 配置注册驱动
 
-编辑 `config/roxybrowser.py`，或直接在 WebUI「配置」页修改。
-
-#### 使用 RoxyBrowser 注册
-
-```python
-REGISTRATION_DRIVER = "roxy"  # 可选 protocol / roxy / cloak
-ROXY_API_BASE = "http://127.0.0.1:50100"
-ROXY_API_TOKEN = "你的Roxy API Key"
-ROXY_WORKSPACE_ID = "你的workspaceId"
-ROXY_PROJECT_ID = "你的projectId"
-ROXY_ONE_PROFILE_PER_ACCOUNT = True
-ROXY_DELETE_PROFILE_AFTER_RUN = True
-ROXY_CREATE_USE_PROXY_POOL = True
-```
-
-如要无头：
-
-```python
-ROXY_OPEN_HEADLESS = True
-```
-
+编辑 `config/register.py`，或直接在 WebUI「配置」页修改。可选驱动只有两个：`protocol`（纯协议）、`cloak`（CloakBrowser 本地指纹浏览器）。
 
 #### 使用 CloakBrowser 注册
 
-如需改用 CloakBrowser，先安装依赖：
+先安装依赖：
 
 ```bash
 pip install -r requirements.txt
 ```
 
-然后在 `config/roxybrowser.py` 或 WebUI 配置页把注册驱动改为：
+然后在 `config/register.py` 或 WebUI 配置页把注册驱动改为：
 
 ```python
 REGISTRATION_DRIVER = "cloak"
@@ -417,7 +252,7 @@ REGISTRATION_DRIVER = "cloak"
 
 ```python
 CODEX_OAUTH_DRIVER = "same_as_registration"  # 跟随注册驱动
-# 或单独指定："protocol" / "roxy" / "cloak" / "patchright" / "browser_use"
+# 或单独指定："protocol" / "platform" / "cloak"
 ```
 
 CloakBrowser 专用配置在 `config/cloakbrowser.py`：
@@ -440,53 +275,6 @@ CLOAK_USER_DATA_DIR = ""        # 留空临时环境；填路径可持久化 pro
 - 免费版没有在项目侧限制窗口数；本项目每个注册任务会启动一个 CloakBrowser 实例，即一个实例一套指纹。
 - WebUI 中，`Codex授权驱动` 位于「CPA / Codex」分组，对应 `config/codex.py` 的 `CODEX_OAUTH_DRIVER`。
 
-#### 使用 Patchright 本地浏览器注册（免费）
-
-Patchright 是 Playwright 的反检测补丁分支，浏览器在本机运行，不依赖任何指纹浏览器客户端、license 或云端 API Key。先安装依赖并准备浏览器内核：
-
-```bash
-pip install patchright
-# 二选一：
-#   A. 本机已安装正式版 Chrome/Edge（推荐，无需额外下载，指纹即真实浏览器）；
-#      默认自动探测 chrome → msedge。
-#   B. 使用补丁版 Chromium：
-patchright install chromium
-```
-
-然后把注册驱动改为：
-
-```python
-REGISTRATION_DRIVER = "patchright"   # 或 "local"
-```
-
-Codex OAuth 也可跟随：
-
-```python
-CODEX_OAUTH_DRIVER = "same_as_registration"  # 或单独指定 "patchright"
-```
-
-Patchright 专用配置在 `config/localbrowser.py`：
-
-```python
-PATCHRIGHT_CHANNEL = ""            # 留空自动探测 chrome→msedge；也可强制 chrome / msedge / chromium
-PATCHRIGHT_EXECUTABLE_PATH = ""    # 显式浏览器路径；非空时优先于 CHANNEL
-PATCHRIGHT_HEADLESS = False        # False=显示窗口（过检更稳）；True=无头批量
-PATCHRIGHT_GEOIP = True            # 按当前出口 IP 自动匹配语言/时区
-PATCHRIGHT_LOCALE = ""             # 留空自动；也可强制如 ja-JP / en-US
-PATCHRIGHT_TIMEZONE = ""           # 留空自动；也可强制如 Asia/Tokyo
-PATCHRIGHT_USE_PROXY = True        # 把代理池/任务代理传给浏览器
-PATCHRIGHT_USER_DATA_DIR = ""      # 留空临时上下文；批量注册建议留空
-PATCHRIGHT_SELENIUM_TIMEOUT = 90   # 页面/元素等待超时（秒）
-PATCHRIGHT_KEEP_BROWSER_OPEN = False  # 调试时保留浏览器
-```
-
-说明：
-
-- Patchright 驱动与 Roxy/Cloak 共享同一套注册页面流程函数（邮箱、密码、OTP、生日/年龄、profile 页），输入走真实键盘事件。
-- 不要与 `playwright-stealth` 等注入式补丁叠加使用：Patchright 的反检测策略与注入式补丁冲突，叠加反而更容易被识别。
-- `PATCHRIGHT_HEADLESS=True` 走无头模式；如遇风控变严或验证码异常，先改回 `False` 显示窗口重试。
-- 其余代理行为与 Cloak 一致：代理池/系统代理均按当前实际出口 IP 自动定位语言与时区。
-
 #### 使用协议注册
 
 ```python
@@ -496,52 +284,6 @@ REGISTRATION_DRIVER = "protocol"
 协议注册会使用 `curl_cffi`、Sentinel/PoW、代理池等配置。
 
 **密码注册（2026-09-18 抓包对齐）**：`REGISTER_WITH_PASSWORD=True` 时（2026-09-20 起默认 `False`，协议通道实验证实密码分支是存活强负信号），authorize 后切到 `create-account/password` 页，先 `user/register` 提交邮箱+密码，再 `email-otp/send` 触发验证码，后续 OTP/资料页一致。注册密码存入账号 `extra_json.registration_password`，可直接密码重登；`REGISTER_PASSWORD` 留空则每个账号随机生成强密码。`False` 时退回无密码（纯 OTP）注册。
-
-#### 使用 Browser Use Cloud 注册
-
-```python
-REGISTRATION_DRIVER = "browser_use"
-```
-
-并在 `config/browser_use.py` 或 WebUI「配置 → Browser Use」填写：
-
-```python
-BROWSER_USE_API_KEY = "你的 Browser Use API Key"
-BROWSER_USE_PROXY_COUNTRY_CODE = "jp"   # 可选：us/sg/de...
-BROWSER_USE_USE_PROXY = True
-BROWSER_USE_FAST_MODE = True       # 推荐开启：减少 Browser Use 额外等待
-BROWSER_USE_LOG_TIMING = True      # 输出阶段耗时日志，方便定位慢点
-BROWSER_USE_SESSION_TIMEOUT = 240  # Browser Use keepAlive/timeout，单位分钟；创建远端浏览器时保持活跃更久
-```
-
-如希望注册成功后也用 Browser Use 自动跑 Codex OAuth：
-
-```python
-ENABLE_CODEX_AUTO = True
-CODEX_OAUTH_DRIVER = "browser_use"
-# 或 CODEX_OAUTH_DRIVER = "same_as_registration"，当 REGISTRATION_DRIVER="browser_use" 时自动跟随
-```
-
-依赖：
-
-```bash
-uv pip install playwright --python .venv/bin/python
-# 或
-pip install playwright
-```
-
-说明：
-
-- Browser Use 走远端 stealth Chromium，通过 Playwright `connect_over_cdp` 控制。
-- `BROWSER_USE_SESSION_TIMEOUT=240` 会在 Browser Use 创建/连接远端浏览器时设置较长 keepAlive（connect URL 的 `timeout` 参数，单位分钟），避免等待邮箱 OTP、短信或 callback 时云端会话提前回收；代码会限制到 `1~240`。
-- 如果第一次进入邮箱验证码页且邮箱里实际已有验证码，但程序没取到，通常是 Outlook 取件链路抖动：Graph TLS/REST/IMAP 某一轮失败、短轮询切片过短、或 `after_ts` 过滤边界过紧。Browser Use 驱动已放宽 Outlook 单轮取件切片、提前记录验证码过滤时间，并会在等待邮箱 OTP 超时后尝试点击重发继续等待；重发入口使用 DOM 结构/位置/属性启发式定位，不依赖页面文案或 OCR/文字识别。可在「邮箱 / OTP」把 `OTP_MAX_WAIT` 调大到 `180~240`，`OUTLOOK_FETCH_MODE` 优先用 `auto`。
-- Outlook 取件日志会显示验证码来源：`source=graph`、`source=outlook_rest`、`source=imap_new`、`source=imap_entra_outlook`、`source=remote_graph` 或 `source=remote_imap`，便于判断是哪条链路成功取码。
-- `BROWSER_USE_FAST_MODE=True` 会跳过大部分人工节奏等待；`BROWSER_USE_LOG_TIMING=True` 会打印连接、打开页面、邮箱、OTP、手机、callback 等阶段耗时。
-- 支持作为 Codex OAuth 授权驱动：`CODEX_OAUTH_DRIVER="browser_use"`，可完成授权页面、邮箱 OTP、手机短信验证与 callback 捕获。
-- 适合不想安装本机 Roxy、又想要 session 隔离 + 云端代理的场景。
-- 免费额度/并发以 Browser Use 官方定价页为准。
-
----
 
 ### 3. 配置代理
 
@@ -553,7 +295,7 @@ PROXY_POOL = [
 ]
 ```
 
-Roxy 一号一环境开启 `ROXY_CREATE_USE_PROXY_POOL=True` 时，会从这里随机取代理写入 Roxy Profile。
+Cloak 会从代理池随机取代理传给浏览器（`CLOAK_USE_PROXY=True`）。
 
 ---
 
@@ -570,7 +312,7 @@ ENABLE_CODEX_AUTO = False
 ```python
 ENABLE_CODEX_AUTO = True
 # config/codex.py
-CODEX_OAUTH_DRIVER = "browser_use"  # 可选 protocol / roxy / cloak / browser_use / skyvern / same_as_registration
+CODEX_OAUTH_DRIVER = "cloak"  # 可选 platform / protocol / cloak / same_as_registration
 ```
 
 接码配置在 `config/codex.py`：
@@ -659,7 +401,7 @@ WebUI 页面说明：
 | 账号 | 查看账号、复制 token、补跑 Codex、批量删除账号 |
 | Codex 授权 | 查看/下载/删除 SQLite 中的 Codex 凭证 |
 | 邮箱池 | 导入邮箱、筛选来源、标记可用/失败、删除邮箱 |
-| 配置 | 修改运行配置并热加载，含 Roxy、Codex、邮箱、代理、人工节奏等 |
+| 配置 | 修改运行配置并热加载，含注册驱动、Codex、邮箱、代理、人工节奏等 |
 
 ### 线程数说明
 
@@ -727,7 +469,7 @@ python tools/test_codex_oauth.py --email <已注册邮箱> --verbose
 
 ## 注册密码说明
 
-Roxy 注册如果遇到新版流程：
+Cloak 注册如果遇到新版流程：
 
 ```text
 /create-account/password
@@ -758,19 +500,18 @@ REGISTER_PASSWORD = "你的固定密码"
 
 | 文件 | 说明 |
 |---|---|
-| `config/roxybrowser.py` | 注册驱动、Roxy API、Roxy 环境生命周期 |
+| `config/register.py` | 注册驱动（protocol/cloak）、默认邮箱、密码、显示名 |
 | `config/cloakbrowser.py` | CloakBrowser 无头/humanize/geoip/语言时区/指纹 seed |
 | `config/codex.py` | Codex OAuth、授权驱动、CPA 管理接口、接码平台 |
-| `config/email.py` | 邮箱来源、OTP 轮询、QQ IMAP、域名邮箱、Cloudflare Worker 临时邮箱 |
+| `config/email.py` | 邮箱来源（Outlook）、OTP 轮询 |
 | `config/proxy.py` | 代理池 |
-| `config/register.py` | 默认邮箱、密码、显示名 |
 | `config/twofa.py` | 2FA 开关 |
 | `config/humanize.py` | 随机停顿/人工节奏 |
 | `config/flow_trigger.py` | 注册成功后触发 Flow |
 | `config/browser.py` | 协议模式浏览器指纹 |
 | `config/openai_protocol.py` | OpenAI OAuth/Sentinel 参数 |
 
-WebUI 配置页保存后会调用热加载；Roxy、Codex、邮箱、代理、人工节奏等常用项可立即生效。
+WebUI 配置页保存后会调用热加载；注册驱动、Codex、邮箱、代理、人工节奏等常用项可立即生效。
 
 ---
 
@@ -786,10 +527,10 @@ WebUI 配置页保存后会调用热加载；Roxy、Codex、邮箱、代理、�
 
 ## 当前主流程
 
-### Roxy 注册流程
+### Cloak 注册流程
 
 ```text
-创建/打开 Roxy Profile
+启动 CloakBrowser（按出口 IP 生成语言/时区/指纹）
   ↓
 打开 chatgpt.com/auth/login
   ↓
@@ -813,15 +554,15 @@ WebUI 配置页保存后会调用热加载；Roxy、Codex、邮箱、代理、�
   ↓
 保存账号到 SQLite
   ↓
-关闭/删除 Roxy Profile
+关闭 CloakBrowser
 ```
 
-### Codex Roxy 授权流程
+### Codex 浏览器授权流程
 
 ```text
 获取 Codex 授权地址（CPA 或 local PKCE）
   ↓
-Roxy 打开授权页
+Cloak 打开授权页
   ↓
 邮箱登录 + 邮箱 OTP
   ↓
@@ -844,19 +585,9 @@ WebUI 配置页保存后会热加载。Codex 补跑线程启动前也会重新�
 
 如果你直接手改 `config/*.py`，CLI 进程需要重启；WebUI 建议在配置页修改。
 
-### Roxy 无头保存后仍弹窗口？
-
-检查：
-
-```python
-ROXY_OPEN_HEADLESS = True
-```
-
-并确认 Roxy 版本支持 `/browser/open` 的 `headless` 参数。日志会打印实际传入的 `headless`。
-
 ### 出口 IP 不是日本时点到 Google 登录？
 
-当前 Roxy 注册邮箱入口已改为只按 DOM 技术属性定位，并排除三方登录按钮。不会再靠按钮文字匹配“Continue”。
+当前浏览器注册邮箱入口只按 DOM 技术属性定位，并排除三方登录按钮。不会再靠按钮文字匹配“Continue”。
 
 ### Codex 显示 `Check your phone` 被误判失败？
 
@@ -873,11 +604,6 @@ ROXY_OPEN_HEADLESS = True
 ```bash
 python tools/test_codex_oauth.py --email <邮箱> --verbose
 ```
-
-### Cloudflare Worker 邮箱怎么配？
-
-将 `EMAIL_SOURCE` 设为 `cloudflare`，并配置 `CLOUDFLARE_API_BASE` 等（见上文「Cloudflare Worker 临时邮箱」）。  
-注意与 `cloudflare_domain`（QQ IMAP 转发）不是同一来源。
 
 ### 没有接码平台能注册吗？
 
@@ -898,28 +624,22 @@ ENABLE_CODEX_AUTO = False
 ├── main.py                         # CLI 入口
 ├── web.py                          # WebUI 入口
 ├── config/                         # 配置
-│   ├── roxybrowser.py              # RoxyBrowser 注册/Codex 驱动
 │   ├── cloakbrowser.py             # CloakBrowser 注册驱动配置
-│   ├── browser_use.py              # Browser Use Cloud 配置
 │   ├── codex.py                    # Codex OAuth / 授权驱动 / CPA / 接码
 │   ├── email.py                    # 邮箱来源/OTP
 │   ├── proxy.py                    # 代理池
-│   ├── register.py                 # 默认注册信息
+│   ├── register.py                 # 注册驱动 + 默认注册信息
 │   └── ...
 ├── core/
-│   ├── browser_data_saver.py       # Roxy/Cloak 本地浏览器省流量资源拦截
+│   ├── browser_data_saver.py       # Cloak 本地浏览器省流量资源拦截
 │   ├── browser_traffic.py          # 浏览器注册 HTTP/WebSocket 流量统计
-│   ├── roxy_registration.py        # Roxy / 浏览器注册页面流程
+│   ├── page_ops.py                 # 共享页面操作库（邮箱/OTP/密码/资料页）
 │   ├── cloakbrowser_registration.py # Cloak 注册入口
 │   ├── cloakbrowser_driver.py      # Cloak Playwright→Selenium 风格适配层
-│   ├── browser_use_registration.py # Browser Use + Playwright 注册流程
-│   ├── browser_use_client.py       # Browser Use CDP 客户端
-│   ├── roxy_codex_oauth.py         # Roxy / Cloak 浏览器 Codex OAuth 页面流程
-│   ├── roxybrowser_client.py       # Roxy API 客户端
+│   ├── browser_codex_oauth.py      # Cloak 浏览器 Codex OAuth 页面流程（共享浏览器授权实现）
 │   ├── registration_service.py     # WebUI 注册线程池
-│   ├── codex_oauth.py              # Codex 协议/Roxy/Cloak 调度
-│   ├── email_provider.py           # 邮箱来源调度
-│   ├── cf_temp_mail_client.py      # Cloudflare Worker 临时邮箱
+│   ├── codex_oauth.py              # Codex 协议/platform/Cloak 调度
+│   ├── email_provider.py           # 邮箱来源调度（Outlook）
 │   ├── sms_provider.py             # 接码平台
 │   ├── account_export.py           # 注册后处理与 SQLite 保存
 │   └── db.py                       # SQLite 数据库与一次性迁移
@@ -941,24 +661,21 @@ ENABLE_CODEX_AUTO = False
 
 - 日常批量使用 WebUI，不建议直接同时开多个 CLI 进程。
 - 注册线程数建议不超过可用代理数。
-- Roxy 一号一环境建议保持开启，降低环境污染。
 - 调试页面问题时可临时设置：
 
 ```python
-ROXY_KEEP_BROWSER_OPEN = True
-ROXY_OPEN_HEADLESS = False
+CLOAK_KEEP_BROWSER_OPEN = True
+CLOAK_HEADLESS = False
 ```
 
-- 调试完再改回自动关闭/删除环境。
+- 调试完再改回自动关闭窗口。
 
 ---
 
 ## 🙏 致谢
 
 - [LINUX DO](https://linux.do) — 社区交流与用户反馈
-- [RoxyBrowser](https://roxybrowser.cn/invite/NvH4Jx) — 免费提供 5 个窗口
 - [CloakBrowser](https://github.com/CloakHQ/CloakBrowser) — Stealth Chromium / Playwright 自动化指纹浏览器支持
-- [browser-use](https://github.com/browser-use/browser-use) — Browser Use Cloud / Playwright CDP 云端浏览器能力支持
 - [CLIProxyAPI](https://github.com/router-for-me/CLIProxyAPI) — Codex OAuth 凭证格式参考
 - [curl_cffi](https://github.com/yifeikong/curl_cffi) — 底层 HTTP 库，提供 TLS 指纹 impersonate 能力
 

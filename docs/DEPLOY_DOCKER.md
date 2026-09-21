@@ -8,8 +8,7 @@ amd64/arm64 双平台并合成同一个多架构标签,推送 `ghcr.io/mintiang/
 
 - 基础:`python:3.13-slim` + Node.js(sentinel 令牌的 `sentinel-runner.js` 需要)+ Chromium 系统依赖(apt)
 - **浏览器二进制不进镜像、启动时也不下载**(服务秒级启动):cloakbrowser 由库自身
-  在首跑检测 `.cloakbrowser` 卷缓存;patchright 的 chromium 在**首次注册真正用到时**
-  按需下载(`core/patchright_driver._ensure_chromium`,落 `/opt/ms-playwright` 卷)
+  在首跑检测 `.cloakbrowser` 卷缓存,其 Playwright 二进制落 `/opt/ms-playwright` 卷
 - 非 root 运行(uid 1000);运行态全部落卷,镜像无状态
 
 ## 卷一览
@@ -17,28 +16,24 @@ amd64/arm64 双平台并合成同一个多架构标签,推送 `ghcr.io/mintiang/
 | 卷 | 容器路径 | 内容 |
 |---|---|---|
 | `app-state` | `/app/state` | `turb.sqlite3` 主库(镜像内已做符号链接) |
-| `app-data` | `/app/data` | clash_nodes.json 等节点状态 |
+| `app-data` | `/app/data` | 运行时数据目录 |
 | `app-logs` | `/app/logs` | WebUI 运行日志 |
 | `app-reglogs` | `/app/注册日志` | 每任务注册日志 |
 | `app-cloak` | `/home/app/.cloakbrowser` | cloakbrowser 浏览器二进制缓存(首跑下载) |
-| `app-pw` | `/opt/ms-playwright` | patchright 浏览器二进制(首次注册使用时下载) |
+| `app-pw` | `/opt/ms-playwright` | Playwright 浏览器二进制(CloakBrowser 使用) |
 | bind | `/app/.env` | 配置(WebUI 配置页写回,**勿加 `:ro`**) |
 
 ## 部署步骤
 
 1. **改 .env(容器关键项)**——容器里的 `127.0.0.1` 是容器自己,凡是要访问宿主机
-   Clash 的地址一律改成 `host.docker.internal`:
+   本地代理的地址一律改成 `host.docker.internal`:
 
    ```ini
-   CLASH_PROXY_HOST="host.docker.internal"          # worker 端口 1100x 的主机名(新增配置项)
-   CLASH_API_URL="http://host.docker.internal:9097" # external-controller
-   PROXY_POOL="socks5://host.docker.internal:7897"  # 非自动选点路径的兜底代理
+   PROXY_POOL="socks5://host.docker.internal:7897"
    ```
 
-2. **宿主机 Clash 放行容器访问**(Verge):
-   - 开启「允许 LAN」(7897 混合端口监听 0.0.0.0)
-   - external-controller 改绑 `0.0.0.0:9097`(默认只听 127.0.0.1)
-   - Merge.yaml 里的 worker listeners(11001-11003)同样要写 `0.0.0.0:1100x`
+2. **宿主机本地代理放行容器访问**:代理监听地址需允许 LAN(如 7897 混合端口
+   监听 0.0.0.0),否则容器无法连出。
 
 3. **启动**:
 

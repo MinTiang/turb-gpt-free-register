@@ -29,12 +29,7 @@ _CHANNEL_ALIASES = {
     "manual": "manual",
     # 历史驱动名兼容归一
     "cloak": "browse",
-    "roxy": "browse",
     "cloakbrowser": "browse",
-    "roxybrowser": "browse",
-    "patchright": "browse",
-    "browser_use": "browse",
-    "browseruse": "browse",
 }
 
 

@@ -1,5 +1,12 @@
 # -*- coding: utf-8 -*-
-"""通过 RoxyBrowser 指纹浏览器 + Selenium 执行 ChatGPT 注册。"""
+"""ChatGPT 注册页面操作函数库(Selenium/Playwright 双兼容)。
+
+从原 roxy_registration 提取的共享页面操作层:邮箱提交、OTP 输入与提交、
+密码页处理、资料页填写、会话拉取等。CloakBrowser 驱动复用这些函数。
+
+所有函数只依赖 driver 的 Selenium 风格接口(execute_script/find_element/
+page 等),不绑定具体浏览器实现。
+"""
 from __future__ import annotations
 
 import logging
@@ -11,14 +18,12 @@ import uuid
 from pathlib import Path
 from typing import Callable
 
-from config import roxybrowser as _cfg
+from config import cloakbrowser as _cfg
 from config import twofa as _twofa_cfg
 from core.account_export import save_account_data, post_register_dwell
 from core.browser_data_saver import BrowserDataSaver
-from core.browser_traffic import SeleniumTrafficTracker
 from core.email_provider import acquire_email_after_input, wait_for_otp, resolve_email_source
 from core.humanize import delay as human_delay
-from core.roxybrowser_client import RoxyBrowserClient, RoxyOpenResult
 
 logger = logging.getLogger(__name__)
 
@@ -28,14 +33,13 @@ def _enable_performance_logging(options) -> None:
     try:
         options.set_capability("goog:loggingPrefs", {"performance": "ALL"})
     except Exception as exc:
-        logger.debug("[Roxy] 当前 Selenium 选项不支持 performance log：%s", exc)
+        logger.debug("[页面] 当前 Selenium 选项不支持 performance log：%s", exc)
 
 
 def _log_prefix(driver=None) -> str:
     """按当前浏览器实现返回注册日志前缀。
 
-    CloakBrowser 复用 Roxy 的页面操作函数；这些共享函数必须跟随实际 driver
-    输出 `[Cloak注册]`，避免 Cloak 流程里混入 `[Roxy注册]` 日志。
+    共享页面操作层的日志前缀；CloakBrowser 为当前唯一浏览器驱动。
     """
     try:
         explicit = str(getattr(driver, "_registration_log_prefix", "") or "").strip()
@@ -45,52 +49,12 @@ def _log_prefix(driver=None) -> str:
             return "[Cloak注册]"
     except Exception:
         pass
-    return "[Roxy注册]"
-
-
-def _build_driver(opened: RoxyOpenResult):
-    from selenium import webdriver
-    from selenium.webdriver.chrome.options import Options
-    from selenium.webdriver.chrome.service import Service
-    from selenium.webdriver.remote.webdriver import WebDriver as RemoteWebDriver
-
-    if opened.debugger_address:
-        logger.info("[Roxy] Selenium 连接 debuggerAddress=%s", opened.debugger_address)
-        options = Options()
-        # 页面里长轮询/风控脚本偶尔会让 driver.get 等到超时；eager 只等 DOMContentLoaded。
-        options.page_load_strategy = "eager"
-        _enable_performance_logging(options)
-        options.add_experimental_option("debuggerAddress", opened.debugger_address)
-        driver_path = ""
-        try:
-            raw_data = opened.raw.get("data") if isinstance(opened.raw, dict) else {}
-            if isinstance(raw_data, dict):
-                driver_path = str(raw_data.get("driver") or raw_data.get("driverPath") or raw_data.get("driver_path") or "").strip()
-        except Exception:
-            driver_path = ""
-        if driver_path:
-            logger.info("[Roxy] 使用 Roxy chromedriver=%s", driver_path)
-            driver = webdriver.Chrome(service=Service(executable_path=driver_path), options=options)
-        else:
-            driver = webdriver.Chrome(options=options)
-        _apply_browser_automation_mask(driver)
-        return driver
-
-    if opened.webdriver_url:
-        logger.info("[Roxy] Selenium 连接 webdriver_url=%s", opened.webdriver_url)
-        options = Options()
-        options.page_load_strategy = "eager"
-        _enable_performance_logging(options)
-        driver = RemoteWebDriver(command_executor=opened.webdriver_url, options=options)
-        _apply_browser_automation_mask(driver)
-        return driver
-
-    raise RuntimeError("Roxy 未返回可连接的 Selenium 地址")
+    return "[Cloak注册]"
 
 
 def _center_browser_window(driver) -> None:
-    """把可见的 Roxy 窗口移动到 Windows 主屏工作区中央。"""
-    if bool(getattr(_cfg, "ROXY_OPEN_HEADLESS", False)):
+    """把可见的 Cloak 浏览器窗口移动到 Windows 主屏工作区中央。"""
+    if bool(getattr(_cfg, "CLOAK_HEADLESS", False)):
         return
     try:
         import platform
@@ -115,26 +79,26 @@ def _center_browser_window(driver) -> None:
         x = int(work_area.left + max(0, (work_area.right - work_area.left - width) // 2))
         y = int(work_area.top + max(0, (work_area.bottom - work_area.top - height) // 2))
         driver.set_window_position(x, y)
-        logger.info("[Roxy] 浏览器窗口已居中：x=%s y=%s width=%s height=%s", x, y, width, height)
+        logger.info("[页面] 浏览器窗口已居中：x=%s y=%s width=%s height=%s", x, y, width, height)
     except Exception as exc:
-        logger.warning("[Roxy] 浏览器窗口居中失败，继续执行：%s", exc)
+        logger.warning("[页面] 浏览器窗口居中失败，继续执行：%s", exc)
 
 
 def _wait(driver, timeout: int | None = None):
     from selenium.webdriver.support.ui import WebDriverWait
-    return WebDriverWait(driver, timeout or int(_cfg.ROXY_SELENIUM_TIMEOUT))
+    return WebDriverWait(driver, timeout or int(_cfg.CLOAK_SELENIUM_TIMEOUT))
 
 
 def _safe_get(driver, url: str, *, timeout: int = 45, attempts: int = 2, accept_hosts: tuple[str, ...] = ()) -> None:
     """带容错的页面跳转。
 
-    Roxy/Chrome 150 偶发 `Timed out receiving message from renderer`，实际页面可能已经可用。
+    Chrome 偶发 `Timed out receiving message from renderer`，实际页面可能已经可用。
     这里超时后先 `window.stop()`，只要当前 URL/DOM 已进入目标页就继续；否则重试一次。
     """
     from selenium.common.exceptions import TimeoutException, WebDriverException
 
     last_exc: Exception | None = None
-    old_timeout = int(getattr(_cfg, "ROXY_SELENIUM_TIMEOUT", 90) or 90)
+    old_timeout = int(getattr(_cfg, "CLOAK_SELENIUM_TIMEOUT", 90) or 90)
     hosts = tuple(h.lower() for h in (accept_hosts or ()))
     for attempt in range(1, max(1, attempts) + 1):
         try:
@@ -258,8 +222,8 @@ def _solve_cloudflare_challenge_if_present(driver, timeout: float = 90.0) -> boo
     2026-09-18:auth.openai.com 的 authorize 文档导航在真实浏览器里也会被
     要求 "Verify you are human" 复选框;自动化流程若不处理会一直等待输入框。
 
-    兼容两种驱动:Roxy 原生 Selenium(rect/ActionChains)与
-    Cloak 的 Playwright 适配层(_handle().bounding_box()/page.mouse)。
+    兼容 Cloak 的 Playwright 适配层(_handle().bounding_box()/page.mouse)与
+    原生 Selenium 元素(rect/ActionChains)。
     返回 True 表示检测到过质询(无论最终是否通过);False 表示页面无质询。
     """
     if not _cf_challenge_present(driver):
@@ -409,7 +373,7 @@ def _human_scroll_to(driver, el) -> None:
 def _human_click(driver, el, *, label: str = "") -> None:
     """快速人工化点击。
 
-    之前用 ActionChains 在 Roxy/Chrome 150 上偶发卡住 1-2 分钟，导致邮箱提交很慢。
+    之前用 ActionChains 偶发卡住 1-2 分钟，导致邮箱提交很慢。
     这里改为 CDP 派发鼠标事件；没有 CDP 时再用 JS/原生 click 兜底。
     """
     _human_scroll_to(driver, el)
@@ -523,7 +487,7 @@ def _page_warmup(driver, *, reason: str = "") -> None:
 def _find_any(driver, selectors: list[str], timeout: int | None = None):
     from selenium.webdriver.common.by import By
 
-    end = time.time() + (timeout or int(_cfg.ROXY_SELENIUM_TIMEOUT))
+    end = time.time() + (timeout or int(_cfg.CLOAK_SELENIUM_TIMEOUT))
     last = None
     while time.time() < end:
         for selector in selectors:
@@ -679,7 +643,7 @@ def _click_email_entry_option(driver) -> bool:
 
 def _wait_for_email_input(driver, timeout: int | None = None):
     """进入邮箱登录/注册方式并返回已找到的可见邮箱输入框。"""
-    end = time.time() + (timeout or int(_cfg.ROXY_SELENIUM_TIMEOUT))
+    end = time.time() + (timeout or int(_cfg.CLOAK_SELENIUM_TIMEOUT))
     last_state = None
     clicked_email_option = False
     while time.time() < end:
@@ -896,7 +860,7 @@ def _submit_email_form_stable(driver, email: str) -> dict:
         submit.scrollIntoView({block:'center', inline:'nearest'});
 
         // 不要在 execute_script 同步执行 submit.click()：
-        // ChromeDriver 会等前端 submit/navigation，Roxy/Chrome 150 上可能卡到 page/script timeout。
+        // ChromeDriver 会等前端 submit/navigation，可能卡到 page/script timeout。
         // setTimeout 让 Selenium 先返回，点击在页面事件循环里异步发生，和补交逻辑一致。
         setTimeout(() => {
           try {
@@ -930,7 +894,7 @@ def _submit_email_form_stable(driver, email: str) -> dict:
 
 def _submit_email_step(driver, email: str | None = None) -> None:
     # 不再优先走浏览器内 NextAuth fetch：
-    # Roxy/Chrome 150 下 execute_async_script + fetch 偶发卡到 script timeout；
+    # execute_async_script + fetch 偶发卡到 script timeout；
     # 实测 UI 首次提交后若停在 /auth/login?email=...，由 _recover_email_submit_if_stuck 补交表单更稳定。
     email_value = str(email or _current_email_input_value(driver) or "").strip()
     stable = _stabilize_email_input_before_submit(driver, email_value)
@@ -982,10 +946,10 @@ def _recover_email_submit_if_stuck(driver, email: str) -> dict:
 
 
 def _submit_email_via_browser_nextauth(driver, email: str) -> dict:
-    """在 Roxy 浏览器上下文里调用 ChatGPT NextAuth signin。
+    """在浏览器上下文里调用 ChatGPT NextAuth signin。
 
-    UI submit 在 Roxy/Chrome 150 上会偶发只跳到 `/auth/login?email=...` 后停住。
-    这里改走浏览器页面内 fetch，仍使用当前 Roxy 浏览器的 cookie / 指纹环境，
+    UI submit 偶发只跳到 `/auth/login?email=...` 后停住。
+    这里改走浏览器页面内 fetch，仍使用当前浏览器的 cookie / 指纹环境，
     拿到 auth.openai.com authorize URL 后让浏览器跳转。
     """
     try:
@@ -997,7 +961,7 @@ def _submit_email_via_browser_nextauth(driver, email: str) -> dict:
 
     did = str(uuid.uuid4())
     auth_log_id = str(uuid.uuid4())
-    old_script_timeout = int(getattr(_cfg, "ROXY_SELENIUM_TIMEOUT", 90) or 90)
+    old_script_timeout = int(getattr(_cfg, "CLOAK_SELENIUM_TIMEOUT", 90) or 90)
     try:
         try:
             driver.set_script_timeout(25)
@@ -1237,7 +1201,7 @@ def _submit_email_and_wait_next(
 
 
 def _el_input_value(el) -> str:
-    """读 input 当前值:Cloak 用原生 input_value,Roxy 用 get_attribute。"""
+    """读 input 当前值:Cloak 用原生 input_value,原生 Selenium 元素用 get_attribute。"""
     try:
         iv = getattr(el, "input_value", None)
         if callable(iv):
@@ -1350,7 +1314,7 @@ def _type_otp(driver, code: str) -> None:
             _type_otp_single_input(driver, els[0], code)
             return
 
-    # 特征属性选择器(Selenium/Roxy 路径下 _visible 可靠)
+    # 特征属性选择器(Selenium 路径下 _visible 可靠)
     for selector in [
         "input[autocomplete='one-time-code']",
         "input[name='code']",
@@ -2571,294 +2535,3 @@ def _check_manual_stop() -> None:
         check_stop_requested()
     except ImportError:
         return
-
-
-def run_roxy_registration(
-    email: str | None,
-    name: str,
-    birthday: str,
-    proxy: str = None,
-    otp_code: str = None,
-    batch_dir: Path | None = None,
-    on_email_acquired: Callable[[str], None] | None = None,
-) -> dict:
-    """Roxy 指纹浏览器自动化注册入口。"""
-    client = RoxyBrowserClient()
-    # 粘性代理一致性(2026-09-20):入口(main.run_registration)解析过的代理
-    # ——可能是 PROXY_POOL {sid} 展开值或 Clash worker 端口——直接交给 Roxy
-    # 创建环境,避免客户端再抽一条导致同一次注册出现两个出口。
-    client.proxy_override = str(proxy or "").strip()
-    opened = client.open_profile()
-    driver = None
-    create_acknowledged = False
-    openai_password: str | None = None
-    traffic_tracker: SeleniumTrafficTracker | None = None
-    data_saver: BrowserDataSaver | None = None
-    network_traffic: dict | None = None
-
-    def _traffic_checkpoint() -> None:
-        if traffic_tracker is not None:
-            try:
-                traffic_tracker.checkpoint()
-            except Exception as exc:
-                logger.debug("[Roxy注册] 刷新浏览器流量统计失败：%s", exc)
-
-    try:
-        driver = _build_driver(opened)
-        try:
-            traffic_tracker = SeleniumTrafficTracker(driver, label="Roxy")
-        except Exception as exc:
-            # 统计失败不应影响注册主流程。
-            logger.warning("[Roxy注册] 初始化浏览器流量统计失败，继续注册：%s: %s", type(exc).__name__, str(exc)[:180])
-        data_saver = BrowserDataSaver(label="Roxy")
-        if traffic_tracker is not None:
-            traffic_tracker.attach_data_saver(data_saver)
-        data_saver.install_selenium(driver)
-        _center_browser_window(driver)
-        driver.set_page_load_timeout(int(_cfg.ROXY_SELENIUM_TIMEOUT))
-        try:
-            driver.set_script_timeout(12)
-        except Exception:
-            pass
-        logger.info("[Roxy注册] 开始：%s，profile=%s", email, opened.profile_id)
-
-        otp_after_ts = time.time()
-        logger.info("[Roxy注册] 打开登录页：https://chatgpt.com/auth/login")
-        _safe_get(
-            driver,
-            "https://chatgpt.com/auth/login",
-            timeout=min(45, int(getattr(_cfg, "ROXY_SELENIUM_TIMEOUT", 90) or 90)),
-            attempts=2,
-            accept_hosts=("chatgpt.com", "auth.openai.com"),
-        )
-        _traffic_checkpoint()
-        human_delay("navigate")
-        _page_warmup(driver, reason="login_page")
-        logger.info("[Roxy注册] 登录页加载完成，准备填写邮箱")
-        _maybe_accept(driver)
-        _check_manual_stop()
-
-        # 填邮箱。OpenAI UI 会随出口 IP/语言变化；这里只按 DOM 技术属性找邮箱入口，
-        # 并排除 Google/Apple/Microsoft 等第三方入口，不依赖按钮可见文字。
-        def _email_supplier_after_input() -> str:
-            nonlocal email
-            _check_manual_stop()
-            email = acquire_email_after_input(email)
-            if on_email_acquired:
-                on_email_acquired(email)
-            return email
-
-        next_state = _submit_email_and_wait_next(
-            driver,
-            email,
-            attempts=3,
-            email_supplier=_email_supplier_after_input,
-        )
-        _traffic_checkpoint()
-        _check_manual_stop()
-
-        # 新版注册流如果邮箱后直接进入验证码页，也优先点击“使用密码继续”进入
-        # /create-account/password，设置密码并把密码写入账号 extra.registration_password。
-        openai_password = _fill_password_page_if_present(driver, email, timeout=25)
-        _traffic_checkpoint()
-        _check_manual_stop()
-
-        current_otp = otp_code
-        max_otp_attempts = 3
-        for otp_attempt in range(1, max_otp_attempts + 1):
-            if current_otp is None:
-                logger.info("[Roxy注册][OTP] 等待验证码：%s（第 %s/%s 次）", email, otp_attempt, max_otp_attempts)
-                try:
-                    current_otp = wait_for_otp(email, after_ts=otp_after_ts)
-                except Exception as exc:
-                    if otp_attempt >= max_otp_attempts:
-                        raise
-                    # 兜底：OpenAI 重发验证码时常常是同一封邮件（时间戳不变），
-                    # after_ts 过滤会把它当成旧邮件忽略。先宽松取最新一条验证码，
-                    # 取到就直接用它重试提交，避免误点“重新发送”后死等。
-                    fallback_otp = None
-                    try:
-                        fallback_otp = wait_for_otp(email, after_ts=0.0, max_wait=15, poll_interval=3)
-                    except Exception:
-                        fallback_otp = None
-                    if fallback_otp:
-                        logger.info(
-                            "[Roxy注册][OTP] 取码接口超时但宽松取到最新验证码，直接重试提交：%s (fallback)",
-                            fallback_otp,
-                        )
-                        current_otp = fallback_otp
-                        continue
-                    logger.warning(
-                        "[Roxy注册][OTP] 一直未收到验证码，点击“重新发送电子邮件”后继续等待（下一轮 %s/%s）：%s: %s",
-                        otp_attempt + 1,
-                        max_otp_attempts,
-                        type(exc).__name__,
-                        str(exc)[:180],
-                    )
-                    otp_after_ts = time.time()
-                    resend = _click_resend_email_otp(driver, timeout=25)
-                    if resend.get("reason") == "left_verification_page":
-                        logger.info("%s[OTP] 等待验证码期间页面已跳转,按已通过继续", _log_prefix(driver))
-                        break
-                    human_delay("api")
-                    current_otp = None
-                    continue
-            logger.info("[Roxy注册][OTP] 收到验证码：%s", current_otp)
-            _clear_otp_inputs(driver)
-            _type_otp(driver, current_otp)
-            logger.info("[Roxy注册][OTP] 已填写邮箱验证码")
-            _check_manual_stop()
-            human_delay("otp_input")
-            try:
-                _click_continue(driver)
-                logger.info("[Roxy注册][OTP] 已提交邮箱验证码，等待资料页或登录态")
-            except Exception as exc:
-                logger.info("[Roxy注册][OTP] 未找到显式提交按钮，继续等待页面状态：%s", str(exc)[:120])
-
-            outcome = _wait_after_email_otp_submit(driver, timeout=30)
-            _traffic_checkpoint()
-            if outcome == 'accepted':
-                break
-            if otp_attempt >= max_otp_attempts:
-                raise RuntimeError("邮箱验证码连续错误/过期，已达到最大重试次数")
-            logger.warning("[Roxy注册][OTP] 验证码错误/过期，准备重新发送并重新获取验证码（%s/%s）", otp_attempt + 1, max_otp_attempts)
-            otp_after_ts = time.time()
-            resend = _click_resend_email_otp(driver, timeout=25)
-            if resend.get("reason") == "left_verification_page":
-                logger.info("%s[OTP] 重发时发现页面已跳转,按验证通过继续", _log_prefix(driver))
-                break
-            _traffic_checkpoint()
-            human_delay("api")
-            current_otp = None
-
-        # about-you / profile 信息页：必须完成或确认已有登录态，不能静默跳过。
-        logger.info("[Roxy注册] 开始等待资料页/登录态")
-        _check_manual_stop()
-        profile_submitted = _complete_profile_page(driver, name, birthday, timeout=60)
-        _traffic_checkpoint()
-        if profile_submitted:
-            create_acknowledged = True
-            # 给 OAuth 回调 / session cookie 写入一点时间。
-            human_delay("post_auth")
-
-        logger.info("[Roxy注册] 等待 ChatGPT 跳转并写入 session/accessToken")
-        _check_manual_stop()
-        session_info = _fetch_chatgpt_session(driver, timeout=120)
-        _traffic_checkpoint()
-        access_token = session_info["accessToken"]
-        logger.info("[Roxy注册] 已拿到 accessToken：%s", email)
-        _check_manual_stop()
-
-        if _twofa_cfg.ENABLE_2FA:
-            logger.warning("[Roxy注册] 当前 Roxy 自动化路径暂不执行 2FA 设置，已跳过")
-        totp_secret = None
-
-        codex_result = {
-            "status": "skipped",
-            "ok": True,
-            "message": "ENABLE_CODEX_AUTO=False，跳过 Codex",
-        }
-        try:
-            from config import codex as _codex_cfg
-            if bool(getattr(_codex_cfg, "ENABLE_CODEX_AUTO", False)):
-                oauth_driver = str(getattr(_codex_cfg, "CODEX_OAUTH_DRIVER", "") or "").strip().lower()
-                if oauth_driver in ("platform", "platform_free", "grok2api"):
-                    # platform 免接码为纯协议流程，不复用 Roxy 窗口，走统一分发
-                    from core.codex_oauth import run_codex_oauth
-                    logger.info("[Roxy注册][Codex] CODEX_OAUTH_DRIVER=platform，走免接码协议授权，不创建新环境")
-                    _check_manual_stop()
-                    codex_result = run_codex_oauth(email, force=True)
-                else:
-                    # 注册流程本身已创建 Roxy 一号一环境。这里不能再新建第二个 Roxy 环境；
-                    # 复用当前注册窗口，先清理 Cookie/session/localStorage/cache，再开始 Codex 授权。
-                    from core.roxy_codex_oauth import run_roxy_codex_oauth
-                    logger.info("[Roxy注册][Codex] ENABLE_CODEX_AUTO=True，复用当前注册 Roxy 窗口执行 Codex 授权，不创建新环境")
-                    _check_manual_stop()
-                    codex_result = run_roxy_codex_oauth(
-                        email,
-                        reuse_existing_profile=True,
-                        existing_driver=driver,
-                        existing_opened=opened,
-                        force=True,
-                        clear_existing_state=True,
-                    )
-                _traffic_checkpoint()
-            else:
-                logger.info("[Roxy注册][Codex] ENABLE_CODEX_AUTO=False，注册后跳过 Codex OAuth")
-        except Exception as exc:
-            codex_result = {"status": "failed", "ok": False, "message": f"{type(exc).__name__}: {str(exc)[:180]}"}
-
-        # 统计注册浏览器关闭前的完整会话；注册后停留期间的网络请求也计入。
-        post_register_dwell(email, label="Roxy注册")
-        _traffic_checkpoint()
-        if traffic_tracker is not None:
-            network_traffic = traffic_tracker.stop()
-        if data_saver is not None:
-            data_saver.stop()
-        account_id = save_account_data(
-            email=email,
-            access_token=access_token,
-            totp_secret=totp_secret,
-            email_source=resolve_email_source(email),
-            proxy_used=proxy or None,
-            batch_dir=batch_dir,
-            registration_channel="browse",
-            extra={
-                "user": session_info.get("user"),
-                "account": session_info.get("account"),
-                "expires": session_info.get("expires"),
-                "roxybrowser": {"profile_id": opened.profile_id, "open_result": opened.raw},
-                "registration_password": openai_password,
-                "codex": codex_result,
-                "network_traffic": network_traffic,
-            },
-        )
-        codex_ok = codex_result.get("ok") or codex_result.get("status") == "skipped"
-        return {
-            "success": bool(codex_ok),
-            "email": email,
-            "account_id": account_id,
-            "access_token": access_token,
-            "totp_secret": totp_secret,
-            "codex": codex_result,
-            "network_traffic": network_traffic,
-            "error": None if codex_ok else f"Codex 未完成: {codex_result.get('message')}",
-        }
-    except Exception as exc:
-        if traffic_tracker is not None:
-            try:
-                network_traffic = traffic_tracker.stop()
-            except Exception:
-                pass
-        if data_saver is not None:
-            data_saver.stop()
-        logger.error("[Roxy注册] 失败：%s: %s", type(exc).__name__, exc)
-        logger.debug("[Roxy注册] 失败详情", exc_info=True)
-        # 未确认创建前回收邮箱；确认后避免重复使用。
-        try:
-            if email:
-                from core.email_provider import release_email
-                release_email(email, status="failed" if create_acknowledged else "available", note=f"Roxy注册失败: {str(exc)[:180]}")
-        except Exception:
-            pass
-        return {
-            "success": False,
-            "email": email,
-            "network_traffic": network_traffic,
-            "error": f"{type(exc).__name__}: {str(exc)[:300]}",
-        }
-    finally:
-        if traffic_tracker is not None:
-            try:
-                traffic_tracker.stop()
-            except Exception:
-                pass
-        if data_saver is not None:
-            data_saver.stop()
-        if driver and not bool(_cfg.ROXY_KEEP_BROWSER_OPEN):
-            try:
-                driver.quit()
-            except Exception:
-                pass
-        if not bool(_cfg.ROXY_KEEP_BROWSER_OPEN):
-            client.cleanup_profile(opened)

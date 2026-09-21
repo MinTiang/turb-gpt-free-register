@@ -20,8 +20,8 @@
         socks5h://my.viapapad052122%40outlook.com:Password4!@resin.example.com:5178
       代理网关解码后收到的用户名是完整邮箱;同一邮箱在 turb 注册与 hub
       使用两侧算出的 username 完全一致 → 粘性网关返回同一个出口 IP。
-    - 浏览器通道(cloak/roxy)注意：Chromium 不支持 SOCKS5 认证,粘性代理
-      请用 http(s) 形式(roxy 通道 socks5 由 Roxy 客户端拨号,不受此限)。
+    - 浏览器通道(cloak)注意：Chromium 不支持 SOCKS5 认证,粘性代理
+      请用 http(s) 形式。
 """
 from config.env_loader import apply_env_overrides
 import random

@@ -1,5 +1,10 @@
 # -*- coding: utf-8 -*-
-"""通过 RoxyBrowser 指纹浏览器执行 Codex OAuth 授权。"""
+"""通过 Cloak/浏览器（Selenium 风格 driver）执行 Codex OAuth 授权。
+
+本模块原为 RoxyBrowser 专用实现（core/roxy_codex_oauth.py），现为共享的浏览器
+Codex 授权流程：唯一使用方是 CloakBrowser 驱动，注册成功后传入注册窗口的
+existing_driver/existing_opened 复用同一环境跑授权，不支持自建 profile。
+"""
 from __future__ import annotations
 
 import logging
@@ -8,15 +13,13 @@ import time
 from contextvars import ContextVar
 from urllib.parse import urlparse
 
-from config import roxybrowser as _roxy_cfg
+from config import cloakbrowser as _cloak_cfg
 from core.email_provider import wait_for_otp
 from core.humanize import delay as human_delay
 from core import sms_provider
 from core.openai_auth import AccountUnusableError, detect_account_unusable_response_body
-from core.roxybrowser_client import RoxyBrowserClient
 from core import codex_oauth as _codex_proto
-from core.roxy_registration import (
-    _build_driver,
+from core.page_ops import (
     _center_browser_window,
     _click_any,
     _click_continue,
@@ -37,7 +40,7 @@ from core.roxy_registration import (
 )
 
 _base_logger = logging.getLogger(__name__)
-_CODEX_BROWSER_KIND: ContextVar[str] = ContextVar("codex_browser_kind", default="Roxy")
+_CODEX_BROWSER_KIND: ContextVar[str] = ContextVar("codex_browser_kind", default="Cloak")
 
 
 def _codex_prefix() -> str:
@@ -55,7 +58,7 @@ def _detect_browser_kind(opened=None) -> str:
             return "Cloak"
     except Exception:
         pass
-    return "Roxy"
+    return "Cloak"
 
 
 class _CodexLogger:
@@ -153,7 +156,7 @@ def _extract_callback_url_from_any_window(driver) -> str:
 
 
 def _wait_for_callback(driver, timeout: int | None = None) -> str:
-    end = time.time() + (timeout or int(_roxy_cfg.ROXY_CODEX_CALLBACK_TIMEOUT))
+    end = time.time() + (timeout or int(_cloak_cfg.CLOAK_CODEX_CALLBACK_TIMEOUT))
     last_url = ""
     while time.time() < end:
         try:
@@ -612,7 +615,7 @@ def _read_email_otp_validate_dead_code(driver) -> str:
     return ""
 
 
-# 邮箱验证码页判断复用 roxy_registration 的强版本（URL + 输入框属性识别，
+# 邮箱验证码页判断复用 core/page_ops 的强版本（URL + 输入框属性识别，
 # 且明确排除 /log-in/password），不使用本地弱化版，避免点完一次性验证码后
 # 页面已渲染 OTP 输入框却因 URL 不含 email-verification 而识别失败。
 
@@ -1311,7 +1314,7 @@ def _do_phone_verification_if_present(driver) -> None:
                 if attempt < max_retries:
                     _refresh_add_phone_for_retry(driver, reason=str(exc)[:120])
                 _sleep_before_phone_retry(attempt, max_retries)
-        raise RuntimeError(f"Roxy 手机验证重试 {max_retries} 次仍失败，最后错误：{last_err}")
+        raise RuntimeError(f"浏览器手机验证重试 {max_retries} 次仍失败，最后错误：{last_err}")
     finally:
         try:
             http.close()
@@ -1321,7 +1324,7 @@ def _do_phone_verification_if_present(driver) -> None:
 
 def _finish_consent_workspace(driver) -> str:
     """点击 Codex consent/workspace 页面里的继续/允许按钮，直到 callback。"""
-    end = time.time() + int(_roxy_cfg.ROXY_CODEX_CALLBACK_TIMEOUT)
+    end = time.time() + int(_cloak_cfg.CLOAK_CODEX_CALLBACK_TIMEOUT)
     while time.time() < end:
         callback = _extract_callback_url_from_any_window(driver)
         if callback:
@@ -1345,8 +1348,8 @@ def _finish_consent_workspace(driver) -> str:
 
 
 
-def clear_roxy_browser_auth_state(driver) -> None:
-    """清空当前 Roxy 浏览器里的 OpenAI/ChatGPT 登录态与缓存，用于注册后复用同一环境跑 Codex。"""
+def clear_browser_auth_state(driver) -> None:
+    """清空当前浏览器里的 OpenAI/ChatGPT 登录态与缓存，用于注册后复用同一环境跑 Codex。"""
     origins = [
         "https://auth.openai.com",
         "https://chatgpt.com",
@@ -1384,20 +1387,24 @@ def clear_roxy_browser_auth_state(driver) -> None:
     time.sleep(1.0)
     logger.info("[Codex][Browser] 注册窗口登录态清理完成，准备开始 Codex 授权")
 
-def _run_roxy_codex_oauth_once(
+
+def _run_browser_codex_oauth_once(
     email: str,
     otp_provider=None,
     proxy: str | None = None,
     force: bool = False,
     existing_driver=None,
     existing_opened=None,
-    reuse_existing_profile: bool = False,
+    reuse_existing_profile: bool = True,
     clear_existing_state: bool = True,
 ) -> dict:
-    """指纹浏览器 Codex OAuth 入口。
+    """Cloak/浏览器 Codex OAuth 单轮入口。
 
-    existing_driver/existing_opened 用于“注册成功后立刻跑 Codex”：
-    复用注册时的 Roxy 窗口，不新建环境，只清理浏览器状态后开始授权。
+    不支持自建 profile：必须传入 existing_driver（CloakBrowser 注册窗口）。
+    调用方在注册成功后立刻跑 Codex 时复用注册窗口，不新建环境，
+    只清理浏览器状态后开始授权。
+
+    reuse_existing_profile 仅为兼容旧调用签名保留，恒为 True（无自建 profile 分支）。
     """
     from core import codex_oauth as proto
 
@@ -1408,11 +1415,17 @@ def _run_roxy_codex_oauth_once(
     if otp_provider is None:
         otp_provider = wait_for_otp
 
-    client = None if reuse_existing_profile else RoxyBrowserClient()
-    opened = existing_opened if reuse_existing_profile else client.open_profile()
+    # 已移除自建 profile 能力：只复用注册窗口传入的 driver/opened。
+    # 唯一使用方 Cloak 驱动总是传入 existing_driver + existing_opened。
+    if not existing_driver:
+        return proto._codex_result(
+            status="failed",
+            email=email,
+            message="缺少 existing_driver：浏览器 Codex 授权不支持自建 profile，需由注册流程传入 Cloak 窗口",
+        )
+    opened = existing_opened
     browser_kind_token = _CODEX_BROWSER_KIND.set(_detect_browser_kind(opened))
-    driver = existing_driver if reuse_existing_profile else None
-    owns_driver = not reuse_existing_profile
+    driver = existing_driver
     try:
         auth_source = proto._codex_auth_url_source()
         code_verifier = None
@@ -1434,13 +1447,15 @@ def _run_roxy_codex_oauth_once(
         else:
             raise RuntimeError(f"[Codex][Browser] 不支持的 CODEX_AUTH_URL_SOURCE={auth_source!r}")
 
-        if not driver:
-            driver = _build_driver(opened)
-            _center_browser_window(driver)
-        driver.set_page_load_timeout(int(_roxy_cfg.ROXY_SELENIUM_TIMEOUT))
-        logger.info("[Codex][Browser] 开始授权：%s，profile=%s，reuse_existing_profile=%s", email, opened.profile_id, reuse_existing_profile)
-        if reuse_existing_profile and clear_existing_state:
-            clear_roxy_browser_auth_state(driver)
+        _center_browser_window(driver)
+        driver.set_page_load_timeout(int(_cloak_cfg.CLOAK_SELENIUM_TIMEOUT))
+        logger.info(
+            "[Codex][Browser] 开始授权：%s，profile=%s，复用注册窗口",
+            email,
+            getattr(opened, "profile_id", None) or "cloakbrowser",
+        )
+        if clear_existing_state:
+            clear_browser_auth_state(driver)
 
         _fill_email_and_otp(driver, email, otp_provider, auth_url)
         human_delay("api")
@@ -1521,32 +1536,28 @@ def _run_roxy_codex_oauth_once(
         logger.debug("[Codex][Browser] 失败详情", exc_info=True)
         return proto._codex_result(status="failed", email=email, message=f"{type(exc).__name__}: {str(exc)[:220]}")
     finally:
-        # 注册后复用窗口时，driver/profile 生命周期由注册流程统一清理，
-        # 这里不能 quit/delete，否则会提前销毁注册环境。
-        if owns_driver and driver and not bool(_roxy_cfg.ROXY_KEEP_BROWSER_OPEN):
-            try:
-                driver.quit()
-            except Exception:
-                pass
-        if owns_driver and client and not bool(_roxy_cfg.ROXY_KEEP_BROWSER_OPEN):
-            client.cleanup_profile(opened)
+        # driver/profile 生命周期由调用方（注册流程 / codex_oauth 分发）统一清理，
+        # 这里不能 quit，否则会提前销毁注册环境。
         try:
             _CODEX_BROWSER_KIND.reset(browser_kind_token)
         except Exception:
             pass
 
 
-def run_roxy_codex_oauth(
+def run_browser_codex_oauth(
     email: str,
     otp_provider=None,
     proxy: str | None = None,
     force: bool = False,
     existing_driver=None,
     existing_opened=None,
-    reuse_existing_profile: bool = False,
+    reuse_existing_profile: bool = True,
     clear_existing_state: bool = True,
 ) -> dict:
-    """指纹浏览器 Codex OAuth 入口；CPA callback 409 timeout 时重新开启一轮授权。"""
+    """Cloak/浏览器 Codex OAuth 入口；CPA callback 409 timeout 时重新开启一轮授权。
+
+    必须传入 existing_driver（CloakBrowser 注册窗口），不支持自建 profile。
+    """
     from core import codex_oauth as proto
 
     max_rounds = 2
@@ -1557,7 +1568,7 @@ def run_roxy_codex_oauth(
                 "[Codex][Browser] CPA callback 返回 Timeout waiting for OAuth callback，重新开启第 %s/%s 轮 Codex 授权：%s",
                 round_no, max_rounds, email,
             )
-        result = _run_roxy_codex_oauth_once(
+        result = _run_browser_codex_oauth_once(
             email=email,
             otp_provider=otp_provider,
             proxy=proxy,
@@ -1578,3 +1589,8 @@ def run_roxy_codex_oauth(
         last_result["message"] = f"CPA callback 超时，已重新授权 {max_rounds} 轮仍失败：{last_result.get('message') or ''}"
         return last_result
     return proto._codex_result(status="failed", email=email, message="CPA callback 超时，重新授权失败")
+
+
+# 向后兼容别名（旧模块名 core.roxy_codex_oauth 的调用方）。
+run_roxy_codex_oauth = run_browser_codex_oauth
+clear_roxy_browser_auth_state = clear_browser_auth_state

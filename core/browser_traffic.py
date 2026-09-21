@@ -2,7 +2,7 @@
 """浏览器注册流程的网络流量统计。
 
 统计的是浏览器侧能观察到的 HTTP 请求/响应字节，不会读取或保存请求内容。
-Playwright 直接使用 ``Request.sizes()``；Selenium/Roxy 优先读取 Chrome
+Playwright 直接使用 ``Request.sizes()``；Selenium 优先读取 Chrome
 performance log，无法读取时退回到 Resource Timing。两种方式都不包含
 TLS/IP/代理隧道等协议额外开销，因此不等同于代理服务商的计费流量。
 """
@@ -731,7 +731,7 @@ class _TrafficAccumulator:
 class PlaywrightTrafficTracker(_TrafficAccumulator):
     """统计一个 BrowserContext 内所有 Page 的 HTTP/WebSocket 流量。"""
 
-    def __init__(self, context: Any, *, label: str = "BrowserUse"):
+    def __init__(self, context: Any, *, label: str = "Playwright"):
         super().__init__(label=label, method="playwright.request.sizes")
         self.context = context
         self._requests: dict[int, Any] = {}
@@ -1192,13 +1192,13 @@ class PlaywrightTrafficTracker(_TrafficAccumulator):
 
 
 class SeleniumTrafficTracker(_TrafficAccumulator):
-    """统计 Roxy/Selenium 的 Chrome performance log 流量。
+    """统计 Selenium 的 Chrome performance log 流量。
 
     Selenium 没有统一的网络事件订阅 API，ChromeDriver 会把 CDP Network
     事件放进 performance log；本类在 checkpoint/stop 时批量取出并解析。
     """
 
-    def __init__(self, driver: Any, *, label: str = "Roxy"):
+    def __init__(self, driver: Any, *, label: str = "Selenium"):
         super().__init__(label=label, method="selenium.chrome.performance_log")
         self.driver = driver
         self._log_supported: bool | None = None

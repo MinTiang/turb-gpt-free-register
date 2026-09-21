@@ -18,8 +18,8 @@ from core.cloakbrowser_driver import build_cloak_driver
 from core.email_provider import acquire_email_after_input, wait_for_otp, resolve_email_source
 from core.humanize import delay as human_delay
 
-# 复用 Roxy 注册流程里已维护好的页面操作函数。
-from core.roxy_registration import (  # noqa: F401
+# 复用共享页面操作函数库(core/page_ops.py,原 roxy_registration 提取)。
+from core.page_ops import (  # noqa: F401
     _maybe_accept, _submit_email_and_wait_next, _fill_password_page_if_present,
     _clear_otp_inputs, _type_otp, _click_continue, _wait_after_email_otp_submit,
     _click_resend_email_otp, _complete_profile_page, _fetch_chatgpt_session, _check_manual_stop,
@@ -110,7 +110,7 @@ def _run_cloak_registration_impl(
         # 密码分支(REGISTER_WITH_PASSWORD 配置驱动):验证码页点击“使用密码继续”
         # 切换到密码表单,设置密码后回到验证码页继续 OTP 流程。
         if bool(getattr(_register_cfg, "REGISTER_WITH_PASSWORD", True)):
-            from core.roxy_registration import _click_continue_with_password_if_present
+            from core.page_ops import _click_continue_with_password_if_present
             switch = _click_continue_with_password_if_present(driver)
             logger.info("[Cloak注册] 密码切换结果: %s", switch.get("reason"))
             human_delay("form")
@@ -195,10 +195,10 @@ def _run_cloak_registration_impl(
                     _check_manual_stop()
                     codex_result = run_codex_oauth(email, force=True)
                 else:
-                    from core.roxy_codex_oauth import run_roxy_codex_oauth
+                    from core.browser_codex_oauth import run_browser_codex_oauth
                     logger.info("[Cloak注册][Codex] ENABLE_CODEX_AUTO=True，复用当前 CloakBrowser 窗口执行 Codex 授权")
                     _check_manual_stop()
-                    codex_result = run_roxy_codex_oauth(
+                    codex_result = run_browser_codex_oauth(
                         email,
                         reuse_existing_profile=True,
                         existing_driver=driver,

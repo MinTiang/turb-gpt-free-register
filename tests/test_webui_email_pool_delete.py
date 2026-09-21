@@ -28,19 +28,26 @@ class WebUiEmailPoolDeleteTests(unittest.TestCase):
             "_SQLITE_READY_PATH": None,
         }
 
-    def test_single_delete_all_does_not_fall_back_to_outlook(self):
+    @staticmethod
+    def _outlook_record(email: str) -> dict:
+        return {
+            "email": email,
+            "password": "password",
+            "client_id": "client",
+            "refresh_token": "refresh",
+        }
+
+    def test_single_delete_with_all_source(self):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             with patch.multiple(db, **self._storage_patches(root)):
-                db.import_generic_api_emails([
-                    {"email": "generic@example.com", "code_url": "https://mail.example/code"},
-                ])
+                db.import_outlook_accounts([self._outlook_record("outlook@example.com")])
                 app = create_app(auth_code="test-auth")
                 client = app.test_client()
 
                 response = client.post(
                     "/api/outlook/delete",
-                    json={"email": "generic@example.com", "source": "all"},
+                    json={"email": "outlook@example.com", "source": "all"},
                     headers={"X-Auth-Code": "test-auth"},
                 )
 
@@ -52,18 +59,10 @@ class WebUiEmailPoolDeleteTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as td:
             root = Path(td)
             with patch.multiple(db, **self._storage_patches(root)):
-                db.import_generic_api_emails([
-                    {"email": "generic@example.com", "code_url": "https://mail.example/code"},
-                ])
                 db.import_outlook_accounts([
-                    {
-                        "email": "outlook@example.com",
-                        "password": "password",
-                        "client_id": "client",
-                        "refresh_token": "refresh",
-                    },
+                    self._outlook_record("outlook@example.com"),
+                    self._outlook_record("outlook2@example.com"),
                 ])
-                db.claim_next_domain_email("domain@example.com")
                 app = create_app(auth_code="test-auth")
                 client = app.test_client()
 
@@ -72,9 +71,8 @@ class WebUiEmailPoolDeleteTests(unittest.TestCase):
                     json={
                         "source": "all",
                         "items": [
-                            {"email": "generic@example.com", "source": "generic_api"},
                             {"email": "outlook@example.com", "source": "outlook"},
-                            {"email": "domain@example.com", "source": "cloudflare_domain"},
+                            {"email": "outlook2@example.com", "source": "all"},
                         ],
                     },
                     headers={"X-Auth-Code": "test-auth"},
@@ -82,7 +80,7 @@ class WebUiEmailPoolDeleteTests(unittest.TestCase):
 
                 body = response.get_json()
                 self.assertEqual(response.status_code, 200)
-                self.assertEqual(body["deleted_count"], 3)
+                self.assertEqual(body["deleted_count"], 2)
                 self.assertEqual(body["skipped"], [])
                 self.assertEqual(db.list_email_pool_page(source="all", limit=10)["total"], 0)
 
@@ -95,12 +93,29 @@ class WebUiEmailPoolDeleteTests(unittest.TestCase):
 
                 response = client.post(
                     "/api/outlook/delete",
-                    json={"email": "missing@example.com", "source": "generic_api"},
+                    json={"email": "missing@example.com", "source": "outlook"},
                     headers={"X-Auth-Code": "test-auth"},
                 )
 
                 self.assertEqual(response.status_code, 200)
                 self.assertEqual(response.get_json(), {"ok": True, "deleted": False})
+
+    def test_delete_rejects_removed_email_source(self):
+        """已下线邮箱来源（generic_api 等）不能再作为删除来源。"""
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            with patch.multiple(db, **self._storage_patches(root)):
+                app = create_app(auth_code="test-auth")
+                client = app.test_client()
+
+                response = client.post(
+                    "/api/outlook/delete",
+                    json={"email": "missing@example.com", "source": "generic_api"},
+                    headers={"X-Auth-Code": "test-auth"},
+                )
+
+                self.assertEqual(response.status_code, 400)
+                self.assertFalse(response.get_json()["ok"])
 
 
 if __name__ == "__main__":

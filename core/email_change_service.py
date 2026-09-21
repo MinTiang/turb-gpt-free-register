@@ -502,6 +502,9 @@ def _run(account_id: int, source: str) -> dict:
 def enqueue(account_id: int, source: str, trigger: str = "manual") -> dict:
     account_id = int(account_id)
     source = str(source or "").strip().lower()
+    # 精简后换绑只支持 Outlook 邮箱池（其余邮箱源客户端已删除）。
+    if source != "outlook":
+        return {"accepted": False, "error": "换绑目前只支持 outlook 邮箱来源"}
     if not _SLOTS.acquire(blocking=False):
         return {"accepted": False, "error": "邮箱换绑队列已满"}
     if not db.claim_account_email_change(account_id, source, trigger):
