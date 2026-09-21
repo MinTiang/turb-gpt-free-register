@@ -166,19 +166,15 @@ class UploadCpaAuthFileTests(unittest.TestCase):
     def test_upload_url_headers_multipart_and_retry(self):
         calls = []
 
-        class FakeCurlSession:
-            def __init__(self):
-                self.proxies = {}
-
-            def post(self, url, headers=None, files=None, timeout=None):
-                calls.append({"url": url, "headers": headers, "files": files, "timeout": timeout})
-                if len(calls) == 1:
-                    return FakeResp(status_code=500, text="server boom")
-                return FakeResp(status_code=200, json_data={"ok": True})
+        def fake_post(url, headers=None, files=None, timeout=None):
+            calls.append({"url": url, "headers": headers, "files": files, "timeout": timeout})
+            if len(calls) == 1:
+                return FakeResp(status_code=500, text="server boom")
+            return FakeResp(status_code=200, json_data={"ok": True})
 
         with patch.object(pmod.proto, "_cpa_management_origin", return_value="http://127.0.0.1:8317"), \
              patch.object(pmod.proto, "_cpa_management_key", return_value="key-123"), \
-             patch.object(pmod.curl_requests, "Session", side_effect=lambda *a, **k: FakeCurlSession()), \
+             patch.object(pmod.requests, "post", side_effect=fake_post), \
              patch.object(pmod, "time") as fake_time:
             fake_time.sleep = MagicMock()
             payload = {"type": "codex", "email": "user@example.com"}

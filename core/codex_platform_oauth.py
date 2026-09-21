@@ -41,6 +41,7 @@ from core.openai_auth import (
     network_preflight,
 )
 from core import db
+import requests
 from curl_cffi import requests as curl_requests
 
 from core import codex_oauth as proto
@@ -712,7 +713,6 @@ def _upload_cpa_auth_file(file_name: str, payload: dict) -> dict:
     (NotImplementedError: files is not supported, use `multipart`)，而本上传是
     管理接口调用、不需要 TLS 指纹伪装。
     """
-    import requests
     origin = proto._cpa_management_origin()
     key = proto._cpa_management_key()
     headers = {
