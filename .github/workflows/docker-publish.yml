@@ -1,8 +1,7 @@
 # 构建镜像并推送到 GHCR(ghcr.io/mintiang/turb-gpt-free-register)
 # 触发:仅 v* 开头的标签提交(v0.0.1 等);workflow_dispatch 可手动触发。
-# amd64 / arm64 两个 job 并行,各自直接推送平台专属标签:
-#   v0.0.1-amd64 / latest-amd64 / v0.0.1-arm64 / latest-arm64
-# 部署时按机器架构拉对应标签(compose 默认 latest-amd64)。
+# amd64 / arm64 两个 job 并行构建(按 digest 直推),最后 merge job 把两个
+# 平台合成同一个多架构 manifest:latest + v* 版本号,pull 时自动选架构。
 name: docker-publish
 
 on:
@@ -41,20 +40,53 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # 标签规则:tag 触发 → v0.0.1-amd64 + latest-amd64;手动触发 → latest-amd64
-      # GITHUB_OUTPUT 要求 name=value 格式;同名 key 追加两次 = 多行值
-      - id: tags
-        run: |
-          VER="latest"
-          if [ "${{ github.ref_type }}" = "tag" ]; then VER="${{ github.ref_name }}"; fi
-          echo "tags=${IMAGE}:${VER}-${{ matrix.arch }}" >> "$GITHUB_OUTPUT"
-          echo "tags=${IMAGE}:latest-${{ matrix.arch }}" >> "$GITHUB_OUTPUT"
-
+      # 按 digest 直推(不占用标签),标签由 merge job 统一打
       - uses: docker/build-push-action@v6
+        id: build
         with:
           context: .
           platforms: linux/${{ matrix.arch }}
-          push: true
-          tags: ${{ steps.tags.outputs.tags }}
+          outputs: type=image,name=${{ env.IMAGE }},push-by-digest=true,name-canonical=true,push=true
           cache-from: type=gha,scope=${{ matrix.arch }}
           cache-to: type=gha,mode=max,scope=${{ matrix.arch }}
+
+      - name: 导出 digest
+        run: |
+          mkdir -p /tmp/digests
+          digest="${{ steps.build.outputs.digest }}"
+          touch "/tmp/digests/${digest#sha256:}"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: digests-${{ matrix.arch }}
+          path: /tmp/digests/*
+          if-no-files-found: error
+          retention-days: 1
+
+  merge:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/digests
+          pattern: digests-*
+          merge-multiple: true
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: 合成多架构 manifest(两个平台 → latest + 版本号)
+        working-directory: /tmp/digests
+        run: |
+          TAGS="-t ${IMAGE}:latest"
+          if [ "${{ github.ref_type }}" = "tag" ]; then
+            TAGS="$TAGS -t ${IMAGE}:${{ github.ref_name }}"
+          fi
+          docker buildx imagetools create $TAGS \
+            $(printf "${IMAGE}@sha256:%s " *)
