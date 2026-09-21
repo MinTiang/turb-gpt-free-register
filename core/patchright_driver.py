@@ -12,7 +12,11 @@ Patchright（pip install patchright）是 Playwright 的反检测补丁分支，
 """
 from __future__ import annotations
 
+import glob
 import logging
+import os
+import subprocess
+import sys
 from dataclasses import dataclass
 from typing import Any
 
@@ -34,6 +38,40 @@ logger = logging.getLogger(__name__)
 class PatchrightOpenResult:
     profile_id: str = "patchright"
     raw: dict | None = None
+
+
+def _default_browsers_dir() -> str:
+    """playwright 系浏览器的默认安装目录(镜像里走 PLAYWRIGHT_BROWSERS_PATH 卷)。"""
+    if sys.platform.startswith("win"):
+        return os.path.expandvars(r"%LOCALAPPDATA%\ms-playwright")
+    if sys.platform == "darwin":
+        return os.path.expanduser("~/Library/Caches/ms-playwright")
+    return os.path.expanduser("~/.cache/ms-playwright")
+
+
+def _ensure_chromium() -> None:
+    """Chromium 二进制缺失时按需下载(容器部署:浏览器不进镜像、启动不阻塞,
+    首次真实使用时才拉取到 PLAYWRIGHT_BROWSERS_PATH 卷,之后常驻复用)。
+
+    只在 channel 走自带 chromium(空配置或 chromium 系)时检查;
+    PATCHRIGHT_CHANNEL=chrome/msedge 用系统浏览器,无需下载。
+    """
+    channel = str(getattr(_cfg, "PATCHRIGHT_CHANNEL", "") or "").strip().lower()
+    if channel in ("chrome", "msedge", "chrome-beta", "msedge-beta"):
+        return
+    base = os.environ.get("PLAYWRIGHT_BROWSERS_PATH") or _default_browsers_dir()
+    installed = any(
+        os.path.exists(os.path.join(d, "INSTALLATION_COMPLETE"))
+        for d in glob.glob(os.path.join(base, "chromium-*"))
+    )
+    if installed:
+        return
+    logger.warning("[Patchright] 未检测到 Chromium 二进制，开始按需下载（python -m patchright install chromium，首次约 150MB）...")
+    subprocess.run(
+        [sys.executable, "-m", "patchright", "install", "chromium"],
+        check=True,
+    )
+    logger.info("[Patchright] Chromium 按需下载完成")
 
 
 def _build_patchright_locale_options(proxy_url: str | None = None) -> dict:
@@ -110,6 +148,10 @@ def build_patchright_driver(proxy: str | None = None) -> tuple[CloakSeleniumDriv
     browser = None
     last_exc: Exception | None = None
     for attempt in launch_attempts:
+        # 自带补丁版 Chromium 兜底分支:二进制缺失时按需下载(容器首用场景,
+        # 落 PLAYWRIGHT_BROWSERS_PATH 卷;桌面端系统有 Chrome/Edge 则走不到这)
+        if "executable_path" not in attempt and "channel" not in attempt:
+            _ensure_chromium()
         try:
             browser = pw.chromium.launch(**attempt)
             launch_kwargs = attempt

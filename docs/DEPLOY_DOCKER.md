@@ -7,9 +7,9 @@ amd64/arm64 双平台并合成同一个多架构标签,推送 `ghcr.io/mintiang/
 ## 镜像内容
 
 - 基础:`python:3.13-slim` + Node.js(sentinel 令牌的 `sentinel-runner.js` 需要)+ Chromium 系统依赖(apt)
-- **浏览器二进制不进镜像**:首启时 entrypoint 检测 `/opt/ms-playwright` 卷,为空才下载
-  playwright/patchright 的 chromium;cloakbrowser 二进制由库自身在首跑检测 `.cloakbrowser`
-  卷缓存,没有才下载(需配置 `CLOAK_LICENSE_KEY`)
+- **浏览器二进制不进镜像、启动时也不下载**(服务秒级启动):cloakbrowser 由库自身
+  在首跑检测 `.cloakbrowser` 卷缓存;patchright 的 chromium 在**首次注册真正用到时**
+  按需下载(`core/patchright_driver._ensure_chromium`,落 `/opt/ms-playwright` 卷)
 - 非 root 运行(uid 1000);运行态全部落卷,镜像无状态
 
 ## 卷一览
@@ -20,8 +20,8 @@ amd64/arm64 双平台并合成同一个多架构标签,推送 `ghcr.io/mintiang/
 | `app-data` | `/app/data` | clash_nodes.json 等节点状态 |
 | `app-logs` | `/app/logs` | WebUI 运行日志 |
 | `app-reglogs` | `/app/注册日志` | 每任务注册日志 |
-| `app-cloak` | `/home/app/.cloakbrowser` | cloakbrowser 浏览器二进制缓存 |
-| `app-pw` | `/opt/ms-playwright` | playwright/patchright 浏览器二进制(首启下载) |
+| `app-cloak` | `/home/app/.cloakbrowser` | cloakbrowser 浏览器二进制缓存(首跑下载) |
+| `app-pw` | `/opt/ms-playwright` | patchright 浏览器二进制(首次注册使用时下载) |
 | bind | `/app/.env` | 配置(WebUI 配置页写回,**勿加 `:ro`**) |
 
 ## 部署步骤
@@ -44,7 +44,7 @@ amd64/arm64 双平台并合成同一个多架构标签,推送 `ghcr.io/mintiang/
 
    ```bash
    docker compose up -d        # 本地无镜像时自动构建;也可 compose pull 拉 GHCR
-   docker compose logs -f      # 首启会下载 playwright/cloak 浏览器二进制(落卷),耐心等
+   docker compose logs -f      # 启动秒级;浏览器二进制在首个注册任务使用时按需下载
    # WebUI: http://localhost:5000
    ```
 
