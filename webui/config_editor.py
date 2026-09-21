@@ -390,7 +390,11 @@ EDITABLE_FIELDS = [
     },
     {
         "key": "CODEX_OAUTH_DRIVER", "file": "codex.py", "type": "str", "group": "Codex",
-        "label": "Codex授权驱动", "help": "默认推荐 roxy；protocol=原协议授权；roxy=用 RoxyBrowser；cloak=用 CloakBrowser；browser_use=用 Browser Use Cloud；skyvern=用 Skyvern；same_as_registration=跟随注册驱动",
+        "label": "Codex授权驱动", "help": "默认推荐 roxy；platform=免接码（platform OAuth 直接换 token 上传 CPA，无需接码短信，忽略授权地址来源）；protocol=原协议授权；roxy=用 RoxyBrowser；cloak=用 CloakBrowser；browser_use=用 Browser Use Cloud；skyvern=用 Skyvern；same_as_registration=跟随注册驱动",
+    },
+    {
+        "key": "PLATFORM_OAUTH_UPLOAD_TO_CPA", "file": "codex.py", "type": "bool", "group": "Codex",
+        "label": "Platform凭证上传CPA", "help": "platform 免接码驱动换 token 成功后自动上传 CPA auth-files；关闭则仅本地保存（SQLite）",
     },
     {
         "key": "ROXY_CODEX_CALLBACK_TIMEOUT", "file": "roxybrowser.py", "type": "int", "group": "RoxyBrowser",

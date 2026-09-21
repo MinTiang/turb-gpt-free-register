@@ -48,6 +48,8 @@ CODEX_REQUEST_TIMEOUT: int = 30
 ENABLE_CODEX_AUTO: bool = False
 
 # Codex OAuth 授权驱动：
+#   "platform" = platform OAuth 免接码授权（grok2api 移植，无需接码短信；
+#                忽略 CODEX_AUTH_URL_SOURCE，本地 PKCE 换 token 后直接上传 CPA auth-files）
 #   "protocol" = 原有 curl_cffi 协议授权
 #   "roxy"     = 调用 RoxyBrowser 指纹浏览器完成授权页面/手机验证/回调捕获
 #   "cloak"       = 调用 CloakBrowser 完成授权页面/手机验证/回调捕获
@@ -55,6 +57,24 @@ ENABLE_CODEX_AUTO: bool = False
 #   "browser_use" = 调用 Browser Use Cloud 完成授权页面/手机验证/回调捕获
 #   "same_as_registration" = 跟随 REGISTRATION_DRIVER
 CODEX_OAUTH_DRIVER: str = "roxy"
+
+# ============================================================
+# platform 免接码驱动协议常量（来源 grok2api services/register/openai_register.py 87-93 行，
+# platform.openai.com 官网客户端；该 client 的 authorize + 邮箱 OTP 登录流不触发手机验证，
+# 经 grok2api 生产验证可被 CPA 以 type=codex 接受）
+# ============================================================
+
+PLATFORM_OAUTH_CLIENT_ID: str = "app_2SKx67EdpoN0G6j64rFvigXD"
+PLATFORM_OAUTH_REDIRECT_URI: str = "https://platform.openai.com/auth/callback"
+PLATFORM_OAUTH_AUDIENCE: str = "https://api.openai.com/v1"
+PLATFORM_OAUTH_SCOPE: str = "openid profile email offline_access"
+PLATFORM_OAUTH_AUTH_URL: str = "https://auth.openai.com/api/accounts/authorize"
+PLATFORM_OAUTH_TOKEN_URL: str = "https://auth.openai.com/api/accounts/oauth/token"
+PLATFORM_OAUTH_TOKEN_URL_LEGACY: str = "https://auth.openai.com/oauth/token"
+PLATFORM_OAUTH_AUTH0_CLIENT: str = "eyJuYW1lIjoiYXV0aDAtc3BhLWpzIiwidmVyc2lvbiI6IjEuMjEuMCJ9"
+
+# 换 token 成功后是否自动上传 CPA auth-files；关闭可先只本地保存做对比
+PLATFORM_OAUTH_UPLOAD_TO_CPA: bool = True
 
 
 
@@ -162,4 +182,4 @@ L_ADMIN_AUTH_CODE: str = env_str("L_ADMIN_AUTH_CODE", "")
 L_PHONE_PREFIX: str = ""
 
 # ---- .env overrides for WebUI editable fields ----
-apply_env_overrides(globals(), {'ENABLE_CODEX_AUTO': 'bool', 'CODEX_OAUTH_DRIVER': 'str', 'CODEX_AUTH_URL_SOURCE': 'str', 'CPA_MANAGEMENT_URL': 'str', 'CPA_MANAGEMENT_KEY': 'str', 'CPA_REQUEST_TIMEOUT': 'int', 'CPA_CALLBACK_SUBMIT_RETRIES': 'int', 'CPA_CALLBACK_SUBMIT_RETRY_DELAY': 'int', 'CPA_SAVE_CALLBACK_RECEIPT': 'bool', 'SMS_PROVIDER': 'str', 'SMS_COUNTRY': 'str', 'SMS_SERVICE': 'str', 'SMS_MAX_RETRIES': 'int', 'SMS_CODE_WAIT': 'int', 'SMS_API_KEY': 'str', 'H_API_BASE': 'str', 'H_ADMIN_AUTH_CODE': 'str', 'H_PHONE_PREFIX': 'str', 'H_PHONE_ACQUIRE_MODE': 'str', 'L_API_BASE': 'str', 'L_ADMIN_AUTH_CODE': 'str', 'L_PHONE_PREFIX': 'str'})
+apply_env_overrides(globals(), {'ENABLE_CODEX_AUTO': 'bool', 'CODEX_OAUTH_DRIVER': 'str', 'CODEX_AUTH_URL_SOURCE': 'str', 'CPA_MANAGEMENT_URL': 'str', 'CPA_MANAGEMENT_KEY': 'str', 'CPA_REQUEST_TIMEOUT': 'int', 'CPA_CALLBACK_SUBMIT_RETRIES': 'int', 'CPA_CALLBACK_SUBMIT_RETRY_DELAY': 'int', 'CPA_SAVE_CALLBACK_RECEIPT': 'bool', 'PLATFORM_OAUTH_UPLOAD_TO_CPA': 'bool', 'SMS_PROVIDER': 'str', 'SMS_COUNTRY': 'str', 'SMS_SERVICE': 'str', 'SMS_MAX_RETRIES': 'int', 'SMS_CODE_WAIT': 'int', 'SMS_API_KEY': 'str', 'H_API_BASE': 'str', 'H_ADMIN_AUTH_CODE': 'str', 'H_PHONE_PREFIX': 'str', 'H_PHONE_ACQUIRE_MODE': 'str', 'L_API_BASE': 'str', 'L_ADMIN_AUTH_CODE': 'str', 'L_PHONE_PREFIX': 'str'})

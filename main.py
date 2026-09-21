@@ -560,15 +560,16 @@ def run_registration(
             logger.debug("已跳过 2FA 设置 (config.ENABLE_2FA=False)")
 
         # ==================== 阶段 7.5: Codex OAuth（注册成功→拿回调/CPA凭证）====================
-        # 用全新干净 session 从头登录该邮箱，走 邮箱OTP→手机短信验证(接码)→选workspace
-        # →拿 code 的标准路径（不复用注册 session，避免撞 choose-an-account）。
+        # 复用注册阶段已登录的 session（cookie/device_id/代理与注册完全一致）：
+        #   - CODEX_OAUTH_DRIVER=platform 免接码：登录态直接放行，零验证码（grok2api 同款做法）；
+        #   - 其余驱动在各自内部自建/自管会话，session 参数仅 platform 免接码驱动消费。
         # 产出：
         #   1) codex_result["callback_url"]  命中 redirect_uri 的整条 Location（携带 code/state）
         #   2) codex_result["file_path"]     CPA 可直接导入的 codex-{email}.json
         codex_result = {"status": "skipped", "ok": False, "message": "未触发"}
         try:
             from core.codex_oauth import run_codex_oauth
-            codex_result = run_codex_oauth(email)
+            codex_result = run_codex_oauth(email, session=session)
         except Exception as exc:
             codex_result = {
                 "status": "failed",

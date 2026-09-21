@@ -187,17 +187,25 @@ def _run_cloak_registration_impl(
         try:
             from config import codex as _codex_cfg
             if bool(getattr(_codex_cfg, "ENABLE_CODEX_AUTO", False)):
-                from core.roxy_codex_oauth import run_roxy_codex_oauth
-                logger.info("[Cloak注册][Codex] ENABLE_CODEX_AUTO=True，复用当前 CloakBrowser 窗口执行 Codex 授权")
-                _check_manual_stop()
-                codex_result = run_roxy_codex_oauth(
-                    email,
-                    reuse_existing_profile=True,
-                    existing_driver=driver,
-                    existing_opened=opened,
-                    force=True,
-                    clear_existing_state=True,
-                )
+                oauth_driver = str(getattr(_codex_cfg, "CODEX_OAUTH_DRIVER", "") or "").strip().lower()
+                if oauth_driver in ("platform", "platform_free", "grok2api"):
+                    # platform 免接码为纯协议流程，不复用浏览器窗口，走统一分发
+                    from core.codex_oauth import run_codex_oauth
+                    logger.info("[Cloak注册][Codex] CODEX_OAUTH_DRIVER=platform，走免接码协议授权")
+                    _check_manual_stop()
+                    codex_result = run_codex_oauth(email, force=True)
+                else:
+                    from core.roxy_codex_oauth import run_roxy_codex_oauth
+                    logger.info("[Cloak注册][Codex] ENABLE_CODEX_AUTO=True，复用当前 CloakBrowser 窗口执行 Codex 授权")
+                    _check_manual_stop()
+                    codex_result = run_roxy_codex_oauth(
+                        email,
+                        reuse_existing_profile=True,
+                        existing_driver=driver,
+                        existing_opened=opened,
+                        force=True,
+                        clear_existing_state=True,
+                    )
             else:
                 logger.info("[Cloak注册][Codex] ENABLE_CODEX_AUTO=False，注册后跳过 Codex OAuth")
         except Exception as exc:
