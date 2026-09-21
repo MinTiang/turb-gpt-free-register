@@ -42,14 +42,13 @@ jobs:
           password: ${{ secrets.GITHUB_TOKEN }}
 
       # 标签规则:tag 触发 → v0.0.1-amd64 + latest-amd64;手动触发 → latest-amd64
+      # GITHUB_OUTPUT 要求 name=value 格式;同名 key 追加两次 = 多行值
       - id: tags
         run: |
           VER="latest"
           if [ "${{ github.ref_type }}" = "tag" ]; then VER="${{ github.ref_name }}"; fi
-          {
-            echo "${IMAGE}:${VER}-${{ matrix.arch }}"
-            echo "${IMAGE}:latest-${{ matrix.arch }}"
-          } >> "$GITHUB_OUTPUT"
+          echo "tags=${IMAGE}:${VER}-${{ matrix.arch }}" >> "$GITHUB_OUTPUT"
+          echo "tags=${IMAGE}:latest-${{ matrix.arch }}" >> "$GITHUB_OUTPUT"
 
       - uses: docker/build-push-action@v6
         with:
