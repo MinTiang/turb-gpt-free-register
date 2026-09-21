@@ -1,8 +1,9 @@
 # Docker Compose 部署
 
 镜像发布:push **`v*` 开头的标签**(如 `v0.0.1`)时,GitHub Actions 自动构建
-amd64/arm64 双架构并推送 `ghcr.io/mintiang/turb-gpt-free-register`
-(标签:`latest` + `v*` 版本号;main 分支推送不触发构建)。
+amd64/arm64 两个平台的镜像并推送 `ghcr.io/mintiang/turb-gpt-free-register`,
+平台专属标签:`v0.0.1-amd64` / `latest-amd64` / `v0.0.1-arm64` / `latest-arm64`
+(main 分支推送不触发构建)。部署按机器架构拉对应标签,compose 默认 `latest-amd64`。
 
 ## 镜像内容
 
@@ -61,6 +62,6 @@ amd64/arm64 双架构并推送 `ghcr.io/mintiang/turb-gpt-free-register`
 
 - **数据备份** = 备份 `app-state` 卷(主库)+ `.env`。导出:`docker run --rm -v turb-gpt-free-register_app-state:/d alpine tar cz -C /d .`
 - cloakbrowser 为商业库,容器内首跑需要有效的 `CLOAK_LICENSE_KEY` 且能出网
-- 镜像为 amd64 + arm64 双架构(tag 触发时两个 job 并行构建后合成 manifest);arm64 走 QEMU 模拟构建较慢,公开仓库可把 workflow 里 arm64 切到 `ubuntu-24.04-arm` 原生 runner 提速
+- 镜像按平台标签发布(`latest-amd64` / `latest-arm64` / `v*-amd64` / `v*-arm64`);arm64 走 QEMU 模拟构建较慢
 - WebUI 是敏感控制台,`5000` 端口勿直接暴露公网;远程访问建议走 Tailscale/内网或加反代认证
 - 镜像内不含 `.env` 与任何运行数据;`WEBUI_AUTH_CODE` 务必设置
