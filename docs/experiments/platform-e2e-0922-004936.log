@@ -1,0 +1,18 @@
+00:49:37 [INFO] [Outlook] 选中账号: whhercm349207@outlook.com（DB id=5）
+00:49:37 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=whhercm349207@outlook.com
+00:49:38 [INFO] [指纹] 出口IP地理信息: ip=138.199.35.220 country=US city=Los Angeles timezone=America/Los_Angeles
+00:49:38 [INFO] [注册] 开始：whhercm349207@outlook.com，代理=socks5://...sid-***...@socks5://127.0.0.1:7897
+00:49:38 [INFO] [注册] 本次随机生日: 1987-03-21
+00:49:43 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (1/5): SSLError: Failed to perform, curl: (35) TLS connect error: error:00000000:invalid library (0):OPENSSL_internal:invalid library (0). See https://curl.s，1.0s 后重试
+00:49:49 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (2/5): SSLError: Failed to perform, curl: (35) TLS connect error: error:00000000:invalid library (0):OPENSSL_internal:invalid library (0). See https://curl.s，2.0s 后重试
+00:49:56 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (3/5): SSLError: Failed to perform, curl: (35) TLS connect error: error:00000000:invalid library (0):OPENSSL_internal:invalid library (0). See https://curl.s，4.0s 后重试
+00:50:05 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (4/5): SSLError: Failed to perform, curl: (35) TLS connect error: error:00000000:invalid library (0):OPENSSL_internal:invalid library (0). See https://curl.s，8.0s 后重试
+00:50:18 [ERROR] [失败] whhercm349207@outlook.com: SSLError: Failed to perform, curl: (35) TLS connect error: error:00000000:invalid library (0):OPENSSL_internal:invalid library (0). See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+00:50:18 [INFO] [邮箱:outlook] whhercm349207@outlook.com 已恢复 available
+
+=== RESULT ===
+{
+ "success": false,
+ "email": "whhercm349207@outlook.com",
+ "error": "Failed to perform, curl: (35) TLS connect error: error:00000000:invalid library (0):OPENSSL_internal:invalid library (0). See https://curl.se/libcurl/c/libcurl-errors.html first for more details."
+}

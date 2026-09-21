@@ -1,0 +1,66 @@
+01:15:21 [INFO] [指纹] 出口IP地理信息: ip=138.199.35.196 country=US city=Los Angeles timezone=America/Los_Angeles
+01:15:21 [INFO] [注册] 开始：vcbjsutr07107@outlook.com，代理=socks5h://...sid-***...@socks5h://127.0.0.1:7897
+01:15:21 [INFO] [注册] 本次随机生日: 1984-04-06
+01:15:22 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm']
+01:15:22 [WARNING] [熔断] 当前会话收到 HTTP 403，进入冷却 900s，停止后续请求：https://chatgpt.com/
+01:15:22 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 0 条）
+01:15:22 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (1/5)，将依赖后续 API 路由继续
+01:15:26 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm']
+01:15:26 [INFO] [指纹] 已从 ChatGPT 登录页同步前端版本：build=prod-60b22e75fd72e6843095f797652f6377804698bc seq=10762726
+01:15:26 [INFO] [指纹] 已采纳服务端下发的 oai-did=0e0f381b…
+01:15:26 [INFO] [预检:chatgpt-home] 通过 (2/5)
+01:15:28 [INFO] [Bootstrap] 匿名态 ChatGPT 预热开始
+01:15:29 [INFO] [Bootstrap] 匿名态 ChatGPT 预热完成
+01:15:31 [INFO] [步骤2.5] 导航 /auth/login_with（对齐真实页面链路）...
+01:15:32 [INFO] [步骤2.5] login_with 导航完成: https://chatgpt.com/auth/login_with?callback_path=%2F&screen_hint=signup&login_hint=vcbjsutr07107%40outlook.com&auth_session_logging_id=7910aec0-f486-423f-8452-
+01:15:34 [INFO] [步骤1] 获取 OAuth Providers...
+01:15:34 [INFO] [步骤1] 成功获取 4 个 providers: ['openai', 'openai-dev', 'openai-sidetron', 'openai-sidetron-dev']
+01:15:35 [INFO] [步骤2] 获取 CSRF Token...
+01:15:35 [INFO] [步骤2] 获取 CSRF Token 成功: 1a391f3c2a46abd5d395...
+01:15:36 [INFO] [步骤3] 发起 OAuth Signin 请求, 邮箱: vcbjsutr07107@outlook.com
+01:15:36 [INFO] [步骤3] 获取 authorize URL 成功，已确认 signup/oai-did 上下文
+01:15:37 [INFO] [步骤4] 跟随 authorize URL 重定向 (尝试 1/5)...
+01:15:42 [WARNING] [步骤4] authorize 临时失败 (SSLError: Failed to perform, curl: (35) TLS connect error: error:00000000:invalid library (0):OPENSSL_internal:invalid library (0))，1.0s 后重试...
+01:15:43 [INFO] [步骤4] 跟随 authorize URL 重定向 (尝试 2/5)...
+01:15:45 [INFO] [CF] Cookie 状态更新 url=https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=0e0f381b-6012-4300-a153-6a5e1be119b5&prompt=login&screen_hint=signup&ext-oai-did=0e0f381b-6012-4300-a153-6a5e1be119b5&auth_session_logging_id=7910aec0-f486-423f-8452-4c872e30d805&login_hint=vcbjsutr07107%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=IzWXbKV-wqiVoGmAGb900gxBdTvclASPH6EueGEtNsE keys=['.auth.openai.com:__cf_bm', '.chatgpt.com:__cf_bm']
+01:15:45 [INFO] [步骤4] 重定向完成, 最终URL: https://auth.openai.com/email-verification
+01:15:48 [INFO] [OTP] 等待验证码：vcbjsutr07107@outlook.com（第 1/3 次）
+01:15:48 [INFO] [Outlook] 开始轮询 vcbjsutr07107@outlook.com 的收件箱（mode=auto, Graph + IMAP 本地直连，REST 兜底），最长 90s, settle=5s...
+01:15:50 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:15:50 [INFO] [Outlook] 邮件诊断 top=[{'p': 'remote_graph', 'date': '2026-09-21T17:15:49Z', 'openai': True, 'after': True, 'otp': True, 'subject': 'Your temporary ChatGPT login code'}, {'p': 'remote_graph', 'date': '2026-09-21T13:28:44Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'Your temporary ChatGPT login code'}, {'p': 'remote_graph', 'date': '2026-09-21T13:28:38Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'Your temporary ChatGPT login code'}, {'p': 'remote_graph', 'date': '2026-09-21T10:28:27Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'Your temporary ChatGPT verification code'}, {'p': 'remote_graph', 'date': '2026-09-21T10:28:09Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'Your temporary ChatGPT verification code'}]
+01:15:50 [INFO] [Outlook] 首次锁定 OTP=300427, source=remote_graph, ts=2026-09-21T17:15:49Z, subject='Your temporary ChatGPT login code', 等 5s 看是否有更晚邮件...
+01:15:50 [INFO] [Outlook] 已锁定候选 OTP=300427，等 settle 中（剩余 settle ~4s, 总剩余 87s）...
+01:15:54 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:15:54 [INFO] [Outlook] 已锁定候选 OTP=300427，等 settle 中（剩余 settle ~1s, 总剩余 84s）...
+01:15:57 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:15:57 [INFO] [Outlook] settle 完成，返回 OTP=300427, source=remote_graph, protocol=graph, subject='Your temporary ChatGPT login code'
+01:16:02 [INFO] [CF] Cookie 状态更新 url=https://sentinel.openai.com/backend-api/sentinel/frame.html?sv=20260810913b keys=['.auth.openai.com:__cf_bm', '.chatgpt.com:__cf_bm', '.sentinel.openai.com:__cf_bm']
+01:16:02 [INFO] [Sentinel] 请求 sentinel token, flow=email_otp_validate
+01:16:03 [INFO] [Sentinel] 获取 sentinel token 成功, persona=chatgpt-noauth
+01:16:03 [INFO] [Sentinel] 需要 PoW: seed=0.799152644677577, difficulty=06fb2a
+01:16:03 [INFO] [Sentinel] 服务端要求项: ['turnstile', 'so', 'pow']
+01:16:03 [INFO] [SentinelRunner] 调用 Node 生成 token, flow=email_otp_validate
+01:16:03 [INFO] [SentinelRunner] token 生成成功, flow=email_otp_validate, 包含 turnstile=True, 包含 so=True, 字段: {'p': 689, 't': 1088, 'c': 2444, 'id': 36, 'flow': 18, '_so': 624}
+01:16:03 [INFO] [Sentinel] 检测到 SO 字段，已构建 so-token 头
+01:16:04 [INFO] [步骤10] 已添加 openai-sentinel-so-token 头
+01:16:04 [INFO] [步骤10] 提交邮箱验证码: 300427
+01:16:05 [WARNING] [熔断] 当前会话收到 HTTP 403，进入冷却 900s，停止后续请求：https://auth.openai.com/api/accounts/email-otp/validate
+01:16:05 [ERROR] [步骤10] 请求失败, 状态码: 403
+01:16:05 [ERROR] [步骤10] 响应内容: {
+  "error": {
+    "message": "You do not have an account because it has been deleted or deactivated. If you believe this was an error, please contact us through our help center at help.openai.com.",
+    "type": "invalid_request_error",
+    "param": null,
+    "code": "account_deactivated",
+    "redirect_uri": "https://chatgpt.com/auth/login_with?callback_path=/"
+  }
+}
+01:16:05 [ERROR] [失败] vcbjsutr07107@outlook.com: AccountUnusableError: 账号已废弃（account_deactivated），邮箱不可再用
+01:16:05 [WARNING] [邮箱:outlook] vcbjsutr07107@outlook.com 账号已废弃，标记为 failed，不再重新注册
+
+=== RESULT ===
+{
+ "success": false,
+ "email": "vcbjsutr07107@outlook.com",
+ "error": "账号已废弃（account_deactivated），邮箱不可再用"
+}

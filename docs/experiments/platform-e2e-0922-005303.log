@@ -1,0 +1,18 @@
+00:53:03 [INFO] [Outlook] 选中账号: whhercm349207@outlook.com（DB id=5）
+00:53:03 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=whhercm349207@outlook.com
+00:53:04 [INFO] [指纹] 出口IP地理信息: ip=138.199.35.210 country=US city=Los Angeles timezone=America/Los_Angeles
+00:53:04 [INFO] [注册] 开始：whhercm349207@outlook.com，代理=socks5h://...sid-***...@socks5h://127.0.0.1:7897
+00:53:04 [INFO] [注册] 本次随机生日: 2007-05-11
+00:53:16 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (1/5): Timeout: Failed to perform, curl: (28) Operation timed out after 12016 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-erro，1.0s 后重试
+00:53:29 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (2/5): Timeout: Failed to perform, curl: (28) Operation timed out after 12003 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-erro，2.0s 后重试
+00:53:44 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (3/5): Timeout: Failed to perform, curl: (28) Operation timed out after 12009 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-erro，4.0s 后重试
+00:54:00 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (4/5): Timeout: Failed to perform, curl: (28) Operation timed out after 12011 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-erro，8.0s 后重试
+00:54:20 [ERROR] [失败] whhercm349207@outlook.com: Timeout: Failed to perform, curl: (28) Operation timed out after 12014 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+00:54:20 [INFO] [邮箱:outlook] whhercm349207@outlook.com 已恢复 available
+
+=== RESULT ===
+{
+ "success": false,
+ "email": "whhercm349207@outlook.com",
+ "error": "Failed to perform, curl: (28) Operation timed out after 12014 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-errors.html first for more details."
+}
