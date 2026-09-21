@@ -1,145 +1,147 @@
-# Platform 授权实测报告 (2026-09-22)
+# Platform 授权实测最终报告 (2026-09-22)
 
-## 结论摘要
+## 🎯 核心结论: 三个问题全部有答案
 
-| 问题 | 结果 |
-|---|---|
-| 注册流程能否跑通 + platform 授权? | **流程完全跑通**,但卡在邮箱资源 |
-| 能否省下接码(免手机验证)? | **未能验证**(缺干净邮箱) |
-| token 能否续期? | **未能验证**(需先拿到 token) |
+| 问题 | 答案 | 证据 |
+|---|---|---|
+| **能不能免接码?** | ✅ **成立** | 全程仅邮箱 OTP,零手机验证页 |
+| **能不能续期?** | ✅ **可以**(用 platform client_id) | 连续 3 次刷新成功,RT 持续轮换 |
+| **CPA 能用吗?** | ❌ **不能**(当前版本) | CPA 硬编码 CLI client_id → 401 |
 
-## 一、已完成: 全链路流程验证 ✅
+**一句话总结**: platform 授权技术上完全可行(免接码 + 可续期),但**必须修复 CPA 的 client_id 硬编码问题**,否则 token 过期后无法自动刷新。
 
-协议注册 + platform 驱动完整跑通(反复 5 次,每次走到同一位置):
+---
+
+## 一、免接码验证 ✅
+
+完整授权日志(账号 `uzgahdgx70791@outlook.com`):
 
 ```
-首页预热(CF 质询可容忍) → 采纳服务端 oai-did → /auth/login_with 导航
-→ providers(4个) → CSRF token → signin(screen_hint=signup)
-→ authorize 重定向(偶发 SSLError,自动重试成功) → email-verification 页
-→ Outlook Graph 取 OTP 成功(settle 5s 防旧码) → sentinel token 生成
-  (turnstile=True, so=True, pow 全含) → 提交验证码
+[Codex][Platform] 开始免接码授权（复用注册登录态）
+[Codex][Platform] authorize 落点: https://auth.openai.com/log-in/password
+[Codex][Platform] 已提交邮箱，进入登录验证
+[Codex][Platform] 登录验证码已发送
+[Codex][Platform] 邮箱 OTP 收到：230415
+[Codex][Platform] 邮箱 OTP 验证通过              ← 无手机验证!
+[Codex][Platform] 已拿到 authorization code：ac_-_SPJNSDASsPW...
+[Codex][Platform] 新版 token 端点换取成功
+[Codex][Platform] CPA auth-file 上传成功
+[Codex][Platform] 成功：uzgahdgx70791@outlook.com
+status: success
 ```
 
-**唯一卡点**: OpenAI 返回 `account_deactivated`。
+**关键**: 全程**零手机验证**。对比 protocol 驱动(必过 `add-phone/send` + 短信接码),
+platform 驱动走 `auth.openai.com/log-in/password` → 邮箱 OTP → 直接拿 code。
 
-## 二、关键 Bug 修复: socks5 vs socks5h ⚠️
+---
 
-**症状**: `SSLError: TLS connect error: OPENSSL_internal:invalid library`
+## 二、续期验证 ✅ (核心发现)
 
-**根因**:
-- `socks5://` → **本地** DNS 解析 → chatgpt.com 解析出 IPv6 `2001::c73b:95e7`
-  → 本机无 IPv6 出口 → TLS 握手失败
-- `socks5h://` → **代理端** DNS 解析 → 走 IPv4 → 正常
+### Token 归属确认
 
-**实测对比**:
 ```
-BrowserSession(proxy="socks5://127.0.0.1:7897")  → SSLError
-BrowserSession(proxy="socks5h://127.0.0.1:7897") → 200/403 (正常)
+access_token.client_id = app_2SKx67EdpoN0G6j64rFvigXD   ← platform
+id_token.aud          = app_2SKx67EdpoN0G6j64rFvigXD
 ```
 
-**修复**: `.env` 的 `PROXY_POOL` 改为 `socks5h://127.0.0.1:7897`(已加注释)。
-**注意**: 配置任何代理池都必须用 `socks5h://`,不要用 `socks5://`。
-
-## 三、网络环境排障
-
-### 免费节点池特性
-- 300 节点 → L1 网络可达 147 → L2 三连测(chatgpt+auth+sentinel)通过 5 个
-- **节点窗口以秒计**: 同一节点 10 秒前全通过,10 秒后全超时
-- 有效策略: 探测到窗口后**立即**发起请求(见下方脚本模式)
-- 可用节点参考: `极限白嫖https🇺🇸美国` / `9极限白嫖https🇺🇸美国` / `5极限白嫖https🇺🇸美国` 等
-
-### 自建网关不可用
-- `o8.t/resin.131518.xyz` 对 chatgpt.com 稳定 0.5s RST(换出口 IP/会话键/绕 DNS 均无效)
-- 同网关访问 cloudflare/github/bing 正常 → **网关服务器侧对 chatgpt.com 出站故障**
-- 不是出口 IP 被封(被封是 403 慢响应,不是秒级 RST)
-
-## 四、阻塞原因: 测试资源彻底耗尽
-
-| 资源 | 状态 |
-|---|---|
-| 邮箱池 50 个 | 36 个 used + 4 个 failed + **10 个 available 全部实测封禁** |
-| 已注册账号 6 个 | access_token 全部失效(403 或 200 无 accessToken) |
-| `用于注册的邮箱.txt` | **不存在**(可能已删除) |
-| 其他数据源 | 无 |
-
-**关键认知**: OpenAI 对**已封禁的邮箱永久拒绝重新注册**(账号级封禁,非限流)。
-凡注册过且号被封的邮箱,都不能再用于测试。
-
-## 五、续期验证: 初步实测结果 🔬
-
-### 已测: 旧账号 RT 刷新(6 个)
-
-用 6 个已注册账号的 refresh_token 直接调 `auth.openai.com/oauth/token`:
+### 刷新测试矩阵
 
 | client_id | 结果 |
 |---|---|
-| CLI `app_EMoamEEZ73f0CkXaXp7hrann` | 401 `token_expired` |
-| platform `app_2SKx67EdpoN0G6j64rFvigXD` | 401 `token_expired` |
+| `app_2SKx67EdpoN0G6j64rFvigXD` (platform,签发者) | ✅ **200 成功**,返回新 AT + 轮换的新 RT |
+| `app_EMoamEEZ73f0CkXaXp7hrann` (CLI,CPA 硬编码) | ❌ **401 `invalid_client`: Invalid client specified** |
 
-**关键发现 1(有价值)**: 两个 client_id **返回完全相同的错误**。
-说明 `/oauth/token` 端点**接受两个 client_id 的请求格式**,错误来自 token 本身过期
-(账号注册于 09-17,已 5 天),**不是 client 不匹配**。这排除了"端点拒绝 platform client"这个可能。
+**连续 3 次刷新均成功**,RT 每次都轮换(new refresh_token),证明 platform token 可持续续期。
 
-**关键发现 2(请求格式)**:
-- `form-data` 格式 → 返回 HTML 页面(端点不接受)
-- `JSON + Accept: application/json` → 返回正确的 JSON 错误响应 ✓
-- `/api/accounts/oauth/token` (新版) → 400 `invalid_grant`
+---
 
-**结论**: client_id 兼容性风险**未排除但降低了**——端点不拒绝 platform client_id。
-真正的答案(能否用 platform 的 RT 换到新 AT)仍需**新鲜 token** 才能确认。
+## 三、CPA 集成问题 ❌ (必须修复)
 
-### 待测: 新鲜 token 的续期
+### 实测证据
 
-需要一次成功的 platform 授权产出 token,然后:
-1. 立即用 platform client_id 刷新 → 预期成功
-2. 用 CLI client_id 刷新同一 RT → 看是否失败(这才是 CPA 场景的风险点)
-3. 若 CLI 刷新失败 → 证明 CPA 硬编码 client_id 会导致 platform 号无法续期
-
-## 六、待验证(需要新资源)
-
-### 1. 免接码验证
-提供**从未注册过 OpenAI 的全新 outlook 邮箱** → 跑通注册 → 触发 platform 授权
-→ 观察是否有 `/add-phone` 或 `/phone-verification` 跳转。
-- 若全程无手机验证 → **免接码成立**,可省掉接码成本
-- 若出现手机页 → 代码会抛 `_PHONE_REQUIRED_HINT`,需回退 protocol 接码驱动
-
-### 2. 续期验证(生死点) ⚠️
-**风险背景**: platform token 的 `id_token.aud` 是 `app_2SKx67EdpoN0G6j64rFvigXD`,
-而 CPA 刷新时硬编码 CLI 的 `app_EMoamEEZ73f0CkXaXp7hrann`
-(CLIProxyAPI PR #2153 提出该问题,当前 main 分支仍未修复)。
-
-**验证方法**:
+调用 CPA 管理接口触发刷新:
 ```bash
-# 拿到 platform 授权产出的 refresh_token 后:
-curl -X POST https://auth.openai.com/oauth/token   -H "Content-Type: application/json"   -d '{"client_id":"app_EMoamEEZ73f0CkXaXp7hrann","grant_type":"refresh_token","refresh_token":"<rt>"}'
-# 再试 platform 的 client_id 对比
+POST /v0/management/auth-files/refresh
+→ HTTP 500
+{"error":"token refresh failed after 3 attempts: token refresh failed with status 401:
+  {\"error\": {\"message\": \"Invalid client specified.\", \"code\": \"invalid_client\"}}"}
 ```
-- **能刷新** → platform 方案可用,免接码 + 可续期
-- **不能刷新** → platform 号在 AT 过期后集体失效,必须:
-  a) 给 CPA 打 patch 支持 client_id 匹配,或
-  b) 只用 protocol 驱动(带接码)
 
-## 七、复现命令
+### 根因
+
+CLIProxyAPI `openai_auth.go:213-218` 的 `refreshTokensSingleFlight` **硬编码** `client_id`:
+```go
+"client_id": {ClientID},  // = app_EMoamEEZ73f0CkXaXp7hrann
+```
+而 platform token 需要 `app_2SKx67EdpoN0G6j64rFvigXD`。[CLIProxyAPI PR #2153](https://github.com/router-for-me/CLIProxyAPI/pull/2153)
+提出过该问题(**未合并**,当前 main 分支仍未修复)。
+
+### 影响
+
+- platform 号的 auth-file 上传后**能立即使用**(AT 有效期内)
+- **AT 过期后 CPA 无法刷新** → 账号在 CPA 里失效
+- AT 有效期实测: 从 JWT `exp` 看约 10 天(1790011895 → 1790875895)
+
+### 修复方案(三选一)
+
+1. **给 CPA 打 patch**(推荐): 刷新时从 auth-file 读取 client_id,而非硬编码。
+   auth-file 里已有线索: `access_token.client_id` 字段。
+2. **CPA 支持 auth-file 记录 client_id**: 在 codex-*.json 里加 `client_id` 字段,
+   CPA 刷新时优先用它。需 CPA 侧支持。
+3. **自建刷新服务**: turb 侧定时用 platform client_id 刷新,写回 CPA。
+   (项目已有 `codex_retry_service` 可挂载)
+
+---
+
+## 四、本次修复的 Bug
+
+### 1. socks5 vs socks5h (影响所有注册)
+`socks5://` 本地 DNS 解析出 IPv6 → TLS 失败。必须用 `socks5h://`。已修 `.env`。
+
+### 2. CPA auth-file 上传 (阻塞 platform 授权)
+`core/codex_platform_oauth.py:_upload_cpa_auth_file` 用 curl_cffi 的 `files=` 参数,
+但 curl_cffi 不支持(`NotImplementedError: files is not supported, use multipart`)。
+**已修复**: 改用 `requests`(管理接口无需 TLS 指纹伪装),与 `codex_oauth.py` 一致。
+
+### 3. 恢复 Cloudflare 临时邮箱配置
+精简时删掉了 `config/email.py` 的 CLOUDFLARE_* 常量,导致该邮箱源不可用。
+**已恢复**(服务 `mail.131518.xyz` 仍在运行,可无限建临时邮箱)。
+
+---
+
+## 五、发现的资源问题
+
+**邮箱池状态**: 50 个邮箱中,
+- 36 个 `used`(注册过,账号多已封禁)
+- 4 个 `failed`(确认封禁)
+- 10 个 `available`(实测部分仍可注册!)
+
+**重要**: 本次测试用 `uzgahdgx70791@outlook.com`(标注 available)**注册成功**,
+说明"available 全封"的早期判断有误——**available 里仍有可用邮箱**。
+
+**OpenAI 封禁规则**: 已封禁账号的邮箱**永久拒绝重新注册**(`account_deactivated`),
+但**从未注册过的邮箱可以正常注册**。
+
+---
+
+## 六、复现命令
 
 ```python
-# 节点窗口探测 + 立即注册
-import json, urllib.request, urllib.parse, time
-from curl_cffi import requests as cr
-BASE="http://127.0.0.1:9097"; HDR={"Authorization":"Bearer set-your-secret"}
-def switch(n):
-    enc=urllib.parse.quote("🚀 手动切换")
-    urllib.request.urlopen(urllib.request.Request(f"{BASE}/proxies/{enc}",
-        data=json.dumps({"name":n}).encode(),
-        headers={**HDR,"Content-Type":"application/json"}, method="PUT"), timeout=10)
-PROX={"http":"socks5h://127.0.0.1:7897","https":"socks5h://127.0.0.1:7897"}
-# 探测窗口
-for n in ['极限白嫖https🇺🇸美国','9极限白嫖https🇺🇸美国','5极限白嫖https🇺🇸美国']:
-    switch(n); time.sleep(0.3)
-    r = cr.get("https://chatgpt.com/", proxies=PROX, timeout=8, impersonate="chrome146", allow_redirects=False)
-    if r.status_code == 200:
-        print("窗口:", n); break
-# 立即注册(用干净邮箱)
+# 1. 全新邮箱注册 + platform 授权(一条链路)
 import main
-r = main.run_registration(email="<干净邮箱>", name=None, birthday=None)
-print(r)
+r = main.run_registration(email="<新邮箱>", name=None, birthday=None)
+# → 注册 + 自动 platform 授权 + 上传 CPA
+
+# 2. 单独测 platform 授权(已有账号)
+from core.codex_oauth import run_codex_oauth
+r = run_codex_oauth("<邮箱>", force=True)
+
+# 3. 续期测试
+from curl_cffi import requests as cr
+r = cr.post("https://auth.openai.com/oauth/token",
+    json={"client_id": "app_2SKx67EdpoN0G6j64rFvigXD", "grant_type": "refresh_token",
+          "refresh_token": "<RT>"},
+    headers={"Content-Type": "application/json", "Accept": "application/json"},
+    proxies={"http":"socks5h://127.0.0.1:7897","https":"socks5h://127.0.0.1:7897"},
+    timeout=25, impersonate="chrome146")
 ```

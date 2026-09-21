@@ -1,0 +1,129 @@
+01:30:54 [INFO] [指纹] 出口IP地理信息: ip=138.199.35.196 country=US city=Los Angeles timezone=America/Los_Angeles
+01:30:54 [INFO] [注册] 开始：uzgahdgx70791@outlook.com，代理=socks5h://...sid-***...@socks5h://127.0.0.1:7897
+01:30:54 [INFO] [注册] 本次随机生日: 2007-06-13
+01:30:56 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm']
+01:30:56 [INFO] [指纹] 已从 ChatGPT 登录页同步前端版本：build=prod-b05eddc5ba0cdac4ad1ccc6f6bd4f11418ba91fc seq=10762726
+01:30:56 [INFO] [指纹] 已采纳服务端下发的 oai-did=5877d3f4…
+01:30:56 [INFO] [预检:chatgpt-home] 通过 (1/5)
+01:30:57 [INFO] [Bootstrap] 匿名态 ChatGPT 预热开始
+01:30:59 [INFO] [Bootstrap] 匿名态 ChatGPT 预热完成
+01:31:02 [INFO] [步骤2.5] 导航 /auth/login_with（对齐真实页面链路）...
+01:31:04 [INFO] [步骤2.5] login_with 导航完成: https://chatgpt.com/auth/login_with?callback_path=%2F&screen_hint=signup&login_hint=uzgahdgx70791%40outlook.com&auth_session_logging_id=bf49acd5-e218-48f1-8479-
+01:31:05 [INFO] [步骤1] 获取 OAuth Providers...
+01:31:05 [INFO] [步骤1] 成功获取 4 个 providers: ['openai', 'openai-dev', 'openai-sidetron', 'openai-sidetron-dev']
+01:31:06 [INFO] [步骤2] 获取 CSRF Token...
+01:31:07 [INFO] [步骤2] 获取 CSRF Token 成功: 5882db6aa8b7c88ccae6...
+01:31:07 [INFO] [步骤3] 发起 OAuth Signin 请求, 邮箱: uzgahdgx70791@outlook.com
+01:31:08 [INFO] [步骤3] 获取 authorize URL 成功，已确认 signup/oai-did 上下文
+01:31:08 [INFO] [步骤4] 跟随 authorize URL 重定向 (尝试 1/5)...
+01:31:10 [INFO] [CF] Cookie 状态更新 url=https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=5877d3f4-2bde-4e07-ac1a-48a3d01d0564&prompt=login&screen_hint=signup&ext-oai-did=5877d3f4-2bde-4e07-ac1a-48a3d01d0564&auth_session_logging_id=bf49acd5-e218-48f1-8479-32b83226b411&login_hint=uzgahdgx70791%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=Ndl0zZ8vzIKXqhlkEZ4tcVvBy7DlLEgHN0m4m8w-8ls keys=['.auth.openai.com:__cf_bm', '.chatgpt.com:__cf_bm']
+01:31:10 [INFO] [步骤4] 重定向完成, 最终URL: https://auth.openai.com/email-verification
+01:31:12 [INFO] [OTP] 等待验证码：uzgahdgx70791@outlook.com（第 1/3 次）
+01:31:12 [INFO] [Outlook] 开始轮询 uzgahdgx70791@outlook.com 的收件箱（mode=auto, Graph + IMAP 本地直连，REST 兜底），最长 90s, settle=5s...
+01:31:15 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:31:15 [INFO] [Outlook] 邮件诊断 top=[{'p': 'remote_graph', 'date': '2026-09-21T17:31:14Z', 'openai': True, 'after': True, 'otp': True, 'subject': 'Your temporary ChatGPT login code'}, {'p': 'remote_graph', 'date': '2026-09-21T08:42:16Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'ChatGPT 임시 인증 코드'}, {'p': 'remote_graph', 'date': '2026-09-21T08:41:50Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'ChatGPT 임시 인증 코드'}, {'p': 'remote_graph', 'date': '2026-08-28T11:21:20Z', 'openai': False, 'after': False, 'otp': False, 'subject': 'SpaceXAI confirmation code: 235-222'}, {'p': 'remote_graph', 'date': '2026-08-28T04:12:15Z', 'openai': False, 'after': False, 'otp': False, 'subject': 'SpaceXAI confirmation code: 890-929'}]
+01:31:15 [INFO] [Outlook] 首次锁定 OTP=281371, source=remote_graph, ts=2026-09-21T17:31:14Z, subject='Your temporary ChatGPT login code', 等 5s 看是否有更晚邮件...
+01:31:15 [INFO] [Outlook] 已锁定候选 OTP=281371，等 settle 中（剩余 settle ~4s, 总剩余 86s）...
+01:31:19 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:31:19 [INFO] [Outlook] 已锁定候选 OTP=281371，等 settle 中（剩余 settle ~0s, 总剩余 82s）...
+01:31:23 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:31:23 [INFO] [Outlook] settle 完成，返回 OTP=281371, source=remote_graph, protocol=graph, subject='Your temporary ChatGPT login code'
+01:31:30 [INFO] [CF] Cookie 状态更新 url=https://sentinel.openai.com/backend-api/sentinel/frame.html?sv=20260810913b keys=['.auth.openai.com:__cf_bm', '.chatgpt.com:__cf_bm', '.sentinel.openai.com:__cf_bm']
+01:31:30 [INFO] [Sentinel] 请求 sentinel token, flow=email_otp_validate
+01:31:31 [INFO] [Sentinel] 获取 sentinel token 成功, persona=chatgpt-noauth
+01:31:31 [INFO] [Sentinel] 需要 PoW: seed=0.3389401154314817, difficulty=070ea4
+01:31:31 [INFO] [Sentinel] 服务端要求项: ['turnstile', 'so', 'pow']
+01:31:31 [INFO] [SentinelRunner] 调用 Node 生成 token, flow=email_otp_validate
+01:31:31 [INFO] [SentinelRunner] token 生成成功, flow=email_otp_validate, 包含 turnstile=True, 包含 so=True, 字段: {'p': 589, 't': 1072, 'c': 2424, 'id': 36, 'flow': 18, '_so': 628}
+01:31:31 [INFO] [Sentinel] 检测到 SO 字段，已构建 so-token 头
+01:31:32 [INFO] [步骤10] 已添加 openai-sentinel-so-token 头
+01:31:32 [INFO] [步骤10] 提交邮箱验证码: 281371
+01:31:33 [INFO] [步骤10] 验证码验证成功: external_url
+01:31:33 [INFO] [步骤10] 验证响应摘要: {"continue_url": "https://chatgpt.com/api/auth/callback/openai?code=ac_CZvSJnE5yzY0zJgdy2V849kvHquudV4WrFCG95wvtyU.BifoFxyQMJf--PwqFogCibcRSdREn6WqMkErw907YQ8&scope=openid+email+profile+offline_access+model.request+model.read+organization.read+organization.write&state=Ndl0zZ8vzIKXqhlkEZ4tcVvBy7DlLEgHN0m4m8w-8ls", "method": "GET", "page": {"type": "external_url", "backstack_behavior": "default", "payload": {"url": "https://chatgpt.com/api/auth/callback/openai?code=ac_CZvSJnE5yzY0zJgdy2V849kvHquudV4WrFCG95wvtyU.BifoFxyQMJf--PwqFogCibcRSdREn6WqMkErw907YQ8&scope=openid+email+profile+offline_access+model.request+model.read+organization.read+organization.write&state=Ndl0zZ8vzIKXqhlkEZ4tcVvBy7DlLEgHN0m4m8w-8ls"}}, "oai-client-auth-session": {"app_name_enum": "chat", "auth_session_logging_id": "bf49acd5-e218-48f1-8479-32b83226b411", "country_code_hint": "US", "destination_app_name": "ChatGPT Web", "email": "uzgahdgx70791@outlook.com", "email_verification_mode": "passwordless_login", "openai_cl
+01:31:34 [INFO] [步骤10] 后续分支判断: page_type=external_url, has_continue_url=True
+01:31:34 [INFO] [注册] OTP 后进入 OAuth 回调分支，跳过 create_account：uzgahdgx70791@outlook.com
+01:31:34 [INFO] [登录态] 完成 OAuth 回调并拉取 Token：uzgahdgx70791@outlook.com (尝试 1/5)
+01:31:34 [INFO] [OAuth回调] 跟随 continue_url 完成 OAuth 回调...
+01:31:37 [INFO] [指纹] 已从 ChatGPT 登录页同步前端版本：build=prod-dc41aa76529c4a429a448ea31e0a48528d714953 seq=11102355
+01:31:37 [INFO] [OAuth回调] 完成, 最终落点: https://chatgpt.com/
+01:31:39 [INFO] [Session] 拉取 ChatGPT session 信息...
+01:31:39 [INFO] [Session] 成功，user_id=user-0ees4wfyTi0DopYzE7flmD8x, email=uzgahdgx70791@outlook.com, plan=free, mfa=False
+01:31:39 [INFO] [登录态] 已拿到 accessToken：uzgahdgx70791@outlook.com
+01:31:39 [INFO] [Bootstrap] 登录态 ChatGPT 预热开始
+01:31:41 [INFO] [资格诊断] endpoint=/accounts/optimized/check status=200 fields={"account_user.trial_state":null,"account_user.is_trial":false,"account_user.trial_expires_at":null}
+01:31:41 [INFO] [资格诊断] endpoint=/me status=200 fields={"country":"US","region":"California","region_code":"CA"}
+01:31:42 [INFO] [资格诊断] endpoint=/accounts/check/v4-2023-04-27?timezone_offset_min=420 status=200 fields={"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.account.trial_state":null,"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.account.is_trial":false,"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.account.account_residency_region":"no_constraint","accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.account.is_most_recent_expired_subscription_gratis":false,"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.account.has_previously_paid_subscription":false,"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.account.subscription_seat_pools_enabled":false,"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.account.plan_type":"free","accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.account.tbo_config.plan_eligible":false,"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.account.plan_display_name":"Free","accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.account.eligible_for_reactivation":true,"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.entitlement.subscription_id":null,"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.entitlement.has_active_subscription":false,"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.entitlement.is_active_subscription_gratis":false,"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.entitlement.subscription_plan":"chatgptfreeplan","accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.entitlement.scheduled_plan_change":null,"accounts.1ac74597-7bb4-484d-aeee-dc005b92909b.entitlement.trial":null,"accounts.1ac74
+01:31:49 [INFO] [资格诊断] endpoint=/aip/first-party/eligibility status=200 fields={"health":false,"finances":false}
+01:31:49 [INFO] [Bootstrap] 登录态 ChatGPT 预热完成
+01:31:50 [INFO] [Codex][Platform] 开始免接码授权（复用注册登录态）：uzgahdgx70791@outlook.com
+01:31:53 [INFO] [Codex][Platform] 跟随 platform authorize URL 建立会话...
+01:31:55 [INFO] [Codex][Platform] authorize 落点: https://auth.openai.com/log-in/password, landed=login
+01:31:58 [WARNING] [Codex][Platform] 取 workspace_id 失败，跳过 workspace/select：RuntimeError: [Codex] cookie 里无 workspaces 字段: keys=['session_id', 'country_code_hint', 'promo', 'signup_source', 'auth_session_logging_id', 'requested_oauth_scopes', 'openai_client_id', 'app_na
+01:31:58 [WARNING] [Codex][Platform] 登录态落点未直接给出 callback（RuntimeError: [Codex][Platform] 未能从 continue_url 提取 callback code: continue=https://auth.openai.com/log-in/password），转入邮箱 OTP 登录兜底
+01:31:58 [INFO] [Sentinel] 请求 sentinel token, flow=authorize_continue
+01:31:59 [INFO] [Sentinel] 获取 sentinel token 成功, persona=chatgpt-noauth
+01:31:59 [INFO] [Sentinel] 需要 PoW: seed=0.03394386914727343, difficulty=06317c
+01:31:59 [INFO] [Sentinel] 服务端要求项: ['turnstile', 'so', 'pow']
+01:31:59 [INFO] [SentinelRunner] 调用 Node 生成 token, flow=authorize_continue
+01:31:59 [INFO] [SentinelRunner] token 生成成功, flow=authorize_continue, 包含 turnstile=True, 包含 so=True, 字段: {'p': 569, 't': 1088, 'c': 2360, 'id': 36, 'flow': 18, '_so': 632}
+01:31:59 [INFO] [Sentinel] 检测到 SO 字段，已构建 so-token 头
+01:32:00 [INFO] [Codex][Platform] 已提交邮箱 uzgahdgx70791@outlook.com，进入登录验证
+01:32:05 [INFO] [Codex][Platform] 登录验证码已发送
+01:32:05 [INFO] [Codex][Platform] 等待邮箱 OTP：uzgahdgx70791@outlook.com（第 1/3 次）
+01:32:05 [INFO] [Outlook] 开始轮询 uzgahdgx70791@outlook.com 的收件箱（mode=auto, Graph + IMAP 本地直连，REST 兜底），最长 90s, settle=5s...
+01:32:08 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:32:08 [INFO] [Outlook] 邮件诊断 top=[{'p': 'remote_graph', 'date': '2026-09-21T17:31:39Z', 'openai': True, 'after': False, 'otp': False, 'subject': 'New sign-in to your OpenAI account'}, {'p': 'remote_graph', 'date': '2026-09-21T17:31:14Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'Your temporary ChatGPT login code'}, {'p': 'remote_graph', 'date': '2026-09-21T08:42:16Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'ChatGPT 임시 인증 코드'}, {'p': 'remote_graph', 'date': '2026-09-21T08:41:50Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'ChatGPT 임시 인증 코드'}, {'p': 'remote_graph', 'date': '2026-08-28T11:21:20Z', 'openai': False, 'after': False, 'otp': False, 'subject': 'SpaceXAI confirmation code: 235-222'}]
+01:32:08 [INFO] [Outlook] 暂未收到符合条件的 OpenAI 邮件，3s 后重试（剩余 87s）...
+01:32:12 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:32:12 [INFO] [Outlook] 首次锁定 OTP=327419, source=remote_graph, ts=2026-09-21T17:32:11Z, subject='Your temporary OpenAI login code', 等 5s 看是否有更晚邮件...
+01:32:12 [INFO] [Outlook] 已锁定候选 OTP=327419，等 settle 中（剩余 settle ~4s, 总剩余 83s）...
+01:32:16 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:32:16 [INFO] [Outlook] 已锁定候选 OTP=327419，等 settle 中（剩余 settle ~0s, 总剩余 79s）...
+01:32:20 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:32:20 [INFO] [Outlook] settle 完成，返回 OTP=327419, source=remote_graph, protocol=graph, subject='Your temporary OpenAI login code'
+01:32:20 [INFO] [Codex][Platform] 邮箱 OTP 收到：327419
+01:32:27 [INFO] [Sentinel] 请求 sentinel token, flow=authorize_continue
+01:32:27 [INFO] [Sentinel] 获取 sentinel token 成功, persona=chatgpt-noauth
+01:32:27 [INFO] [Sentinel] 需要 PoW: seed=0.6495318126097188, difficulty=061a80
+01:32:27 [INFO] [Sentinel] 服务端要求项: ['turnstile', 'so', 'pow']
+01:32:27 [INFO] [SentinelRunner] 调用 Node 生成 token, flow=authorize_continue
+01:32:28 [INFO] [SentinelRunner] token 生成成功, flow=authorize_continue, 包含 turnstile=True, 包含 so=True, 字段: {'p': 565, 't': 1024, 'c': 2404, 'id': 36, 'flow': 18, '_so': 628}
+01:32:28 [INFO] [Sentinel] 检测到 SO 字段，已构建 so-token 头
+01:32:29 [INFO] [Codex][Platform] 邮箱 OTP 验证通过
+01:32:30 [INFO] [Codex][Platform] 已拿到 authorization code：ac_pIeJymO_fEzbH...
+01:32:31 [INFO] [Codex][Platform] 新版 token 端点换取成功
+01:32:31 [INFO] [Codex][Platform] 正在上传 CPA auth-file（第 1/5 次）: codex-uzgahdgx70791@outlook.com.json
+01:32:31 [WARNING] [Codex][Platform] CPA auth-file 上传失败且不再重试：attempt=1/5 retryable=False error=files is not supported, use `multipart`. See examples here: https://github.com/lexiforest/curl_cffi/blob/main/examples/upload.py
+01:32:31 [WARNING] [Codex][Platform] 失败：uzgahdgx70791@outlook.com，NotImplementedError: files is not supported, use `multipart`. See examples here: https://github.com/lexiforest/curl_cffi/blob/main/examples/upload.py
+01:32:31 [WARNING] [Codex] 失败：uzgahdgx70791@outlook.com，原因=NotImplementedError: files is not supported, use `multipart`. See examples here: https://github.com/lexiforest/curl_cffi/blob/main/examples/upload.py
+01:32:31 [INFO] [Save] 账号及凭证已保存到 SQLite, id=7, email=uzgahdgx70791@outlook.com
+01:32:31 [INFO] [Plan] 注册后自动套餐查询已跳过: id=7, email=uzgahdgx70791@outlook.com
+01:32:31 [INFO] [完成] uzgahdgx70791@outlook.com，账号ID=7，Token=eyJhbGciOiJSUzI1...
+01:32:31 [INFO] [Flow] 跳过：uzgahdgx70791@outlook.com，原因=ENABLE_FLOW_TRIGGER=False
+01:32:31 [WARNING] [任务结果] uzgahdgx70791@outlook.com 账号已保存但任务标失败，原因: Codex 未完成: NotImplementedError: files is not supported, use `multipart`. See examples here: https://github.com/lexiforest/curl_cffi/blob/main/examples/upload.py
+
+=== RESULT ===
+{
+ "success": false,
+ "email": "uzgahdgx70791@outlook.com",
+ "account_id": 7,
+ "access_token": "eyJhbGciOiJSUzI1NiIsImtpZCI6Im4wejZQcjEtdEItMTdXb1U0VGM5OHp1RDBrNmx5YU1ZQmJ3SkFEOGtSVnMiLCJ0eXAiOiJKV1QifQ.eyJhdWQiOlsiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS92MSJdLCJjbGllbnRfaWQiOiJhcHBfWDh6WTZ2VzJwUTl0UjNkRTduSzFqTDVnSCIsImh0dHBzOi8vYXBpLm9wZW5haS5jb20vYXV0aCI6eyJhbXIiOlsib3RwIiwidXJuOm9wZW5haTphbXI6b3RwX2VtYWlsIl0sImNoYXRncHRfYWNjb3VudF9pZCI6IjFhYzc0NTk3LTdiYjQtNDg0ZC1hZWVlLWRjMDA1YjkyOTA5YiIsImNoYXRncHRfYWNjb3VudF91c2VyX2lkIjoidXNlci0wZWVzNHdmeVRpMERvcFl6RTdmbG1EOHhfXzFhYzc0NTk3LTdiYjQtNDg0ZC1hZWVlLWRjMDA1YjkyOTA5YiIsImNoYXRncHRfY29tcHV0ZV9yZXNpZGVuY3kiOiJub19jb25zdHJhaW50IiwiY2hhdGdwdF9sb2dpbl9maW5hbGl6ZXJfYXV0aF9zZXNzaW9uX2lkIjoiYXV0aHNlc3NfSlZna2lHTTN1RUNBMDdvNXdibk5iMmhwIiwiY2hhdGdwdF9sb2dpbl9maW5hbGl6ZXJfaW52aXRlX2ludGVudF9ib3VuZCI6dHJ1ZSwiY2hhdGdwdF9wbGFuX3R5cGUiOiJmcmVlIiwiY2hhdGdwdF91c2VyX2lkIjoidXNlci0wZWVzNHdmeVRpMERvcFl6RTdmbG1EOHgiLCJ1c2VyX2lkIjoidXNlci0wZWVzNHdmeVRpMERvcFl6RTdmbG1EOHgifSwiaHR0cHM6Ly9hcGkub3BlbmFpLmNvbS9wcm9maWxlIjp7ImVtYWlsIjoidXpnYWhkZ3g3MDc5MUBvdXRsb29rLmNvbSIsImVtYWlsX3ZlcmlmaWVkIjp0cnVlLCJuYW1lIjoiSGFyb2xkIEhlbmRlcnNvbiJ9LCJpc3MiOiJodHRwczovL2F1dGgub3BlbmFpLmNvbSIsInB3ZF9hdXRoX3RpbWUiOjE3OTAwMTE4OTMwMTEsInNjcCI6WyJvcGVuaWQiLCJlbWFpbCIsInByb2ZpbGUiLCJvZmZsaW5lX2FjY2VzcyIsIm1vZGVsLnJlcXVlc3QiLCJtb2RlbC5yZWFkIiwib3JnYW5pemF0aW9uLnJlYWQiLCJvcmdhbml6YXRpb24ud3JpdGUiXSwic2Vzc2lvbl9pZCI6ImF1dGhzZXNzX0pWZ2tpR00zdUVDQTA3bzV3Ym5OYjJocCIsInNsIjp0cnVlLCJzdWIiOiJhdXRoMHxaMTdSQnZqNGZGVWFKRHNNb2JORE5rWnYiLCJpYXQiOjE3OTAwMTE4OTUsImV4cCI6MTc5MDg3NTg5NSwianRpIjoiMDRiNmFhZDgxNjNmNGUzODg5OGVjNzdhNTEwYWM1ZDUiLCJuYmYiOjE3OTAwMTE4OTV9.JW8ZQI6D5h7JRS8qaC6_Lj0XLqgGUF5BDQVG2G9oQjrUh2sM9qTfQ8atOG7A9q_ZTYDaQMhvoWgjFeQag3WvmgZbeiW3zCRL3XN5Y0fJ5sufRttpVm1NZb9xg9dYWZTg8qoehk8asVPncsIEbUVFCPIm-bI_PzSmrB_LiZjhCdzpdaRgdV0THRchaTqTyS46kh3LgFEawRMlqz5TLr5h_QZrqrNClSM0pC_VmDc0BhZQUHnXvdO5l7KZYLHAgnw4c8__APBa_89HQJK3Osc4O93O4V-C6bCN7fPsLbmBpY1QEY7CDAIRdKTr309DRcOwTgB3bXyLJep2R_zFr21DSA",
+ "totp_secret": null,
+ "flow": {
+  "status": "skipped",
+  "ok": false,
+  "http_status": null,
+  "flow_id": null,
+  "message": "ENABLE_FLOW_TRIGGER=False"
+ },
+ "codex": {
+  "status": "failed",
+  "ok": false,
+  "http_status": null,
+  "email": "uzgahdgx70791@outlook.com",
+  "file_path": null,
+  "callback_url": null,
+  "message": "NotImplementedError: files is not supported, use `multipart`. See examples here: https://github.com/lexiforest/curl_cffi/blob/main/examples/upload.py"
+ },
+ "error": "Codex 未完成: NotImplementedError: files is not supported, use `multipart`. See examples here: https://github.com/lexiforest/curl_cffi/blob/main/examples/upload.py"
+}

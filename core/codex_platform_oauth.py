@@ -707,7 +707,12 @@ def _upload_cpa_auth_file(file_name: str, payload: dict) -> dict:
     """
     multipart 上传 codex-{email}.json 到 CPA POST /v0/management/auth-files。
     重试结构照抄 proto._submit_cpa_callback（CPA_CALLBACK_SUBMIT_RETRIES + _is_cpa_callback_retryable）。
+
+    用 requests（非 curl_cffi）：curl_cffi 不支持 files= 参数
+    (NotImplementedError: files is not supported, use `multipart`)，而本上传是
+    管理接口调用、不需要 TLS 指纹伪装。
     """
+    import requests
     origin = proto._cpa_management_origin()
     key = proto._cpa_management_key()
     headers = {
@@ -720,10 +725,9 @@ def _upload_cpa_auth_file(file_name: str, payload: dict) -> dict:
     base_delay = max(1.0, float(getattr(_cfg, "CPA_CALLBACK_SUBMIT_RETRY_DELAY", 6) or 6))
     last_exc = None
     for attempt in range(1, max_attempts + 1):
-        sess = curl_requests.Session()
         try:
             logger.info("[Codex][Platform] 正在上传 CPA auth-file（第 %s/%s 次）: %s", attempt, max_attempts, file_name)
-            resp = sess.post(
+            resp = requests.post(
                 f"{origin}/v0/management/auth-files",
                 headers=headers,
                 files={"file": (file_name, body, "application/json")},
