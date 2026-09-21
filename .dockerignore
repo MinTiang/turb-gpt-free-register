@@ -1,0 +1,18 @@
+# 运行态与本地环境不进镜像(经 compose 卷挂载提供)
+.git
+.env
+turb.sqlite3
+.venv
+venv
+__pycache__
+**/__pycache__
+*.pyc
+.pytest_cache
+data/
+logs/
+run/
+注册日志/
+docs/
+tests/
+.gitignore
+docker-compose.yml

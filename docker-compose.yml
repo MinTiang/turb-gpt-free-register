@@ -1,0 +1,42 @@
+# turb-gpt-free-register 部署编排。详细说明与 .env 需要改的项见 docs/DEPLOY_DOCKER.md。
+#
+# 快速开始:
+#   docker compose up -d          # 镜像不存在时自动本地构建
+#   docker compose logs -f
+#   docker compose pull && docker compose up -d   # 拉取 GHCR 最新镜像更新
+services:
+  turb-webui:
+    image: ghcr.io/mintiang/turb-gpt-free-register:latest
+    build:
+      context: .
+      # 国内网络构建 apt 慢/502 时:APT_MIRROR=mirrors.tuna.tsinghua.edu.cn docker compose build
+      args:
+        APT_MIRROR: ${APT_MIRROR:-deb.debian.org}
+    container_name: turb-webui
+    restart: unless-stopped
+    ports:
+      - "${WEBUI_PORT:-5000}:5000"
+    volumes:
+      # 配置文件:WebUI 配置页会写回,不要加 :ro
+      - ./.env:/app/.env
+      # 运行态全部落卷(turb.sqlite3 经镜像内符号链接落到 app-state 卷)
+      - app-state:/app/state
+      - app-data:/app/data
+      - app-logs:/app/logs
+      - app-reglogs:/app/注册日志
+      # cloakbrowser 二进制缓存(首跑下载,数百 MB,持久化避免重复下载)
+      - app-cloak:/home/app/.cloakbrowser
+      # playwright/patchright 浏览器二进制(首启 entrypoint 检测为空才下载)
+      - app-pw:/opt/ms-playwright
+    # 容器内访问宿主机 Clash(7897/9097/1100x):.env 里把
+    # CLASH_PROXY_HOST/CLASH_API_URL/PROXY_POOL 的 127.0.0.1 改成 host.docker.internal
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+volumes:
+  app-state:
+  app-data:
+  app-logs:
+  app-reglogs:
+  app-cloak:
+  app-pw:

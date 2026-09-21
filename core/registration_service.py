@@ -368,7 +368,8 @@ def _run_one_job(job_id: int, log_file: str) -> None:
                     if not acquired.get("ok"):
                         raise RuntimeError(f"Clash 无可用节点: {acquired.get('error')}")
                     clash_node = acquired
-                    reg_proxy = f"http://127.0.0.1:{acquired.get('proxy_port')}"
+                    from config.clash_manager import CLASH_PROXY_HOST
+                    reg_proxy = f"http://{CLASH_PROXY_HOST}:{acquired.get('proxy_port')}"
                     log_logger.info(
                         f"[Job {job_id}] [Clash] worker{clash_worker} 选中节点 {acquired.get('node')} "
                         f"ip={acquired.get('ip')}(自动模式)"
@@ -444,7 +445,8 @@ def _run_one_job(job_id: int, log_file: str) -> None:
                         clash_node = {}
                         break
                     clash_node = reacquired
-                    reg_proxy = f"http://127.0.0.1:{reacquired.get('proxy_port')}"
+                    from config.clash_manager import CLASH_PROXY_HOST
+                    reg_proxy = f"http://{CLASH_PROXY_HOST}:{reacquired.get('proxy_port')}"
                     log_logger.warning(
                         f"[Job {job_id}] 节点被标记不可用,已切换到 {reacquired.get('node')} 重试: {_err[:200]}"
                     )

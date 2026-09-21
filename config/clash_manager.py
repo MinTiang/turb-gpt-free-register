@@ -13,6 +13,9 @@ CLASH_API_URL: str = "http://127.0.0.1:9097"
 CLASH_API_SECRET: str = "set-your-secret"
 # 本地代理端口(出口质量检测走它)
 CLASH_PROXY_PORT: int = 7897
+# 本地代理/控制器所在主机名。容器部署时本机回环指向容器自身,
+# 需改为 host.docker.internal 才能访问宿主机上的 Clash(Dockerfile/compose 见 docs/DEPLOY_DOCKER.md)
+CLASH_PROXY_HOST: str = "127.0.0.1"
 # 切换目标分组名(Selector)
 CLASH_SWITCH_GROUP: str = "🚀 手动切换"
 
@@ -37,6 +40,7 @@ apply_env_overrides(globals(), {
     'CLASH_API_URL': 'str',
     'CLASH_API_SECRET': 'str',
     'CLASH_PROXY_PORT': 'int',
+    'CLASH_PROXY_HOST': 'str',
     'CLASH_SWITCH_GROUP': 'str',
     'CLASH_AUTO_SWITCH_ENABLED': 'bool',
     'CLASH_QUALITY_CHECK_ENABLED': 'bool',

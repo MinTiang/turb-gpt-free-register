@@ -47,9 +47,16 @@ def worker_proxy_port(worker: int | None) -> int:
     return WORKER_BASE_PORT + int(worker)
 
 
+def _local_proxy_url(port: int | None = None) -> str:
+    """本地 Clash 代理入口 URL;主机名可配置(容器部署指向宿主机)。"""
+    from config.clash_manager import CLASH_PROXY_HOST
+    p = int(port if port is not None else _cfg().CLASH_PROXY_PORT or 7897)
+    return f"http://{CLASH_PROXY_HOST}:{p}"
+
+
 def _worker_proxy(worker: int | None) -> dict:
-    port = worker_proxy_port(worker)
-    return {"http": f"http://127.0.0.1:{port}", "https": f"http://127.0.0.1:{port}"}
+    url = _local_proxy_url(worker_proxy_port(worker))
+    return {"http": url, "https": url}
 
 
 def _cfg():
@@ -115,8 +122,8 @@ def _api(path: str, method: str = "GET", body: dict | None = None, timeout: floa
 
 
 def _proxy() -> dict:
-    port = int(_cfg().CLASH_PROXY_PORT or 7897)
-    return {"http": f"http://127.0.0.1:{port}", "https": f"http://127.0.0.1:{port}"}
+    url = _local_proxy_url()
+    return {"http": url, "https": url}
 
 
 def _group() -> str:
