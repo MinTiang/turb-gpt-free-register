@@ -623,13 +623,18 @@ def save_account_data(
     proxy_used: str | None = None,
     batch_dir: Path | None = None,
     auto_plan_check: bool | None = None,
+    registration_channel: str | None = None,
 ) -> int:
     """
     将账号信息保存到 SQLite；output_path 仅为兼容旧调用方保留。
+    registration_channel: 注册通道标识(hub 对齐枚举 protocol/browse/manual),
+    写入 extra_json.registration_channel 供 hub 推送读取。
     返回新插入/更新的 row id。
     """
     from core.db import insert_account
     extra = dict(extra or {})
+    if str(registration_channel or "").strip():
+        extra["registration_channel"] = str(registration_channel).strip()
     # Remail 的 service token 只存在进程内上下文中。注册成功后把订单上下文
     # 一并保存到账号 extra_json，服务重启时查活即可恢复，不再依赖“同一进程
     # 中先领取邮箱”。普通账号列表不会返回 extra_json。

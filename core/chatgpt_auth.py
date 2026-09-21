@@ -168,10 +168,10 @@ def get_csrf_token(session: BrowserSession, referer: str = "https://chatgpt.com/
     return csrf_token
 
 
-def probe_auth_session(session: BrowserSession) -> dict:
+def probe_auth_session(session: BrowserSession, referer: str = "https://chatgpt.com/auth/login") -> dict:
     """按 Web 登录页顺序在 providers 之后读取一次匿名 NextAuth session。"""
     url = "https://chatgpt.com/api/auth/session"
-    headers = session.get_nextauth_headers(referer="https://chatgpt.com/auth/login")
+    headers = session.get_nextauth_headers(referer=referer)
     logger.info("[步骤1.5] 读取匿名 Auth Session...")
     resp = session.get(url, headers=headers)
     resp.raise_for_status()

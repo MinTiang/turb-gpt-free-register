@@ -154,6 +154,55 @@ def _is_final_session_access_token_timeout(error: object) -> bool:
     )
 
 
+# 失败分类重试预算(2026-09-21 预算制):
+#   IP 类:Clash 路径换节点 1 次;粘性邮箱代理路径换出口会话(邮箱→邮箱-1/-2/-3)
+#          最多 3 次——换满仍失败才真失败
+#   浏览器崩溃类:原地重试 1 次
+#   邮箱/资料/逻辑类、账号已创建、池竭:不重试
+_NODE_SWITCH_BUDGET = 1
+_STICKY_MAX_VARIANTS = 3
+_BROWSER_RETRY_BUDGET = 1
+
+# 节点/IP 类失败签名:命中说明当前出口被 CF 标记或链路劣化,
+# 重试必须换节点;同时该节点进入 bad 跳过窗口,不再发给后续任务。
+_NODE_FAILURE_SIGS = (
+    "403", "已熔断冷却", "cf 质询", "cloudflare", "challenge", "cf-mitigated",
+    "err_connection_reset", "connection reset",
+)
+# 浏览器本地崩溃签名:节点与邮箱都无辜,原节点原地重试即可。
+_BROWSER_FAILURE_SIGS = (
+    "target closed", "target page", "context or browser has been closed",
+    "browser has been closed", "browser has been disconnected",
+    "page.is_closed", "浏览器已关闭", "浏览器已断开",
+)
+
+
+def _classify_registration_failure(error: object) -> str:
+    """分类注册失败原因: 'node'(IP/CF) | 'browser'(本地崩溃) | ''(其他/不重试)。"""
+    text = str(error or "").lower()
+    if not text:
+        return ""
+    if "无可用节点" in text:
+        return ""  # 池子耗尽,重试不会凭空造出节点
+    if any(sig in text for sig in _NODE_FAILURE_SIGS):
+        return "node"
+    if any(sig in text for sig in _BROWSER_FAILURE_SIGS):
+        return "browser"
+    return ""
+
+
+def _sticky_email_pool_active(reg_proxy: str | None) -> bool:
+    """本次任务的出口是否为邮箱粘性模板(决定 IP 类失败能否换出口会话重试)。
+
+    reg_proxy=None 表示由 run_registration 从代理池自取——池里任一条目含
+    {email} 即视为邮箱粘性;显式代理(如 Clash worker 端口/静态代理)按字面判断。
+    """
+    from config.proxy import PROXY_POOL, STICKY_EMAIL_PLACEHOLDER
+    if reg_proxy is None:
+        return any(STICKY_EMAIL_PLACEHOLDER in str(p) for p in PROXY_POOL)
+    return STICKY_EMAIL_PLACEHOLDER in str(reg_proxy)
+
+
 def _should_disable_failed_registration_email(error: object) -> bool:
     """需要直接停用邮箱的注册失败类型。"""
     text = str(error or "")
@@ -260,9 +309,14 @@ class _JobLogContext:
             "%(asctime)s [%(levelname)s] [%(threadName)s] %(message)s",
             datefmt="%H:%M:%S",
         ))
-        # 仅给本线程过滤 —— 用 thread name 做区分，避免污染其他任务的日志
+        # 仅给本线程及其派生子线程过滤 —— 线程名做区分，避免污染其他任务的日志。
+        # 浏览器驱动(cloak/patchright)为规避 Playwright Sync 循环限制会在
+        # "父线程名+驱动名" 的子线程中执行注册,过程日志必须继续写入本任务文件。
         thread_name = threading.current_thread().name
-        self.handler.addFilter(lambda r: r.threadName == thread_name)
+        child_prefix = thread_name + "+"
+        self.handler.addFilter(
+            lambda r: r.threadName == thread_name or str(r.threadName or "").startswith(child_prefix)
+        )
         logging.getLogger().addHandler(self.handler)
         return self
 
@@ -292,9 +346,44 @@ def _run_one_job(job_id: int, log_file: str) -> None:
     db.update_job(job_id, status="running", started_at=datetime.now().isoformat(timespec="seconds"))
 
     email: str | None = None
+    clash_worker: int | None = None
+    clash_node: dict = {}
     try:
         with _JobLogContext(log_file):
             from main import run_registration
+
+            # Clash 自动节点管理(开关: 配置页「启用节点自动管理」):
+            # 开 → 任务占一个 worker 槽位(11001-11003 独立出口),自动选点
+            #      (两级质量筛选 + IP额度 + 12h冷却),并发任务出口互不干扰;
+            # 关 → 与原行为完全一致:走 PROXY_POOL(当前选中节点)。
+            reg_proxy = None
+            try:
+                from config import clash_manager as _clash_cfg
+                if bool(getattr(_clash_cfg, "CLASH_AUTO_SWITCH_ENABLED", False)):
+                    from core import clash_node_manager as _cm
+                    clash_worker = _cm.acquire_worker_slot(timeout=120)
+                    if clash_worker is None:
+                        raise RuntimeError("Clash worker 槽位已满(3个并发上限),请降低并发或等待在跑任务完成")
+                    acquired = _cm.acquire_node_for_registration(worker=clash_worker)
+                    if not acquired.get("ok"):
+                        raise RuntimeError(f"Clash 无可用节点: {acquired.get('error')}")
+                    clash_node = acquired
+                    reg_proxy = f"http://127.0.0.1:{acquired.get('proxy_port')}"
+                    log_logger.info(
+                        f"[Job {job_id}] [Clash] worker{clash_worker} 选中节点 {acquired.get('node')} "
+                        f"ip={acquired.get('ip')}(自动模式)"
+                    )
+            except RuntimeError:
+                raise
+            except Exception as clash_exc:
+                # clash 基础设施异常(连不上 API 等):按原行为降级走代理池
+                log_logger.warning(f"[Job {job_id}] [Clash] 自动节点管理异常,降级走代理池: {clash_exc}")
+                if clash_worker is not None:
+                    from core import clash_node_manager as _cm
+                    _cm.release_worker_slot(clash_worker)
+                    clash_worker = None
+                clash_node = {}
+
             log_logger.info(f"[Job {job_id}] 开始注册任务")
             email, name, birthday = _prepare_registration_args()
             db.update_job(job_id, email=email)
@@ -306,12 +395,78 @@ def _run_one_job(job_id: int, log_file: str) -> None:
                     db.update_job(job_id, email=email)
                     log_logger.info(f"[Job {job_id}] 页面已找到邮箱输入框，已分配邮箱: {email}")
 
-            result = run_registration(
-                email=email,
-                name=name,
-                birthday=birthday,
-                on_email_acquired=_on_email_acquired,
-            )
+            # 失败分类重试(预算制,2026-09-21):IP 类失败按路径换出口——
+            # Clash 路径换节点(1次);粘性邮箱代理路径换会话键(邮箱→邮箱-1/-2/-3,
+            # 最多换 3 次,换满仍失败才真失败);浏览器崩溃原地重试(1次);
+            # 其余失败(邮箱/资料/逻辑/账号已创建/池竭)不重试。
+            result: dict | None = None
+            sticky_variant = 0
+            browser_retries = 0
+            node_switches = 0
+            while True:
+                result = run_registration(
+                    email=email,
+                    name=name,
+                    birthday=birthday,
+                    proxy=reg_proxy,
+                    on_email_acquired=_on_email_acquired,
+                    sticky_variant=sticky_variant,
+                )
+                _ok = isinstance(result, dict) and result.get("success")
+                _err = str((result or {}).get("error") or "") if isinstance(result, dict) else "unknown"
+                if _ok or is_stop_requested(job_id):
+                    break
+                category = _classify_registration_failure(_err)
+                if not category:
+                    break
+                if isinstance(result, dict) and result.get("account_id"):
+                    break  # 账号已创建:重跑会撞"邮箱已注册",留给页面手动重试
+                if category == "browser":
+                    if browser_retries >= _BROWSER_RETRY_BUDGET:
+                        break
+                    browser_retries += 1
+                    log_logger.warning(
+                        f"[Job {job_id}] 浏览器瞬态崩溃,原节点原地重试({browser_retries}/{_BROWSER_RETRY_BUDGET}): {_err[:200]}"
+                    )
+                    check_stop_requested()
+                    continue
+                # node 类:IP/出口问题
+                if clash_node:
+                    if node_switches >= _NODE_SWITCH_BUDGET:
+                        break
+                    node_switches += 1
+                    from core import clash_node_manager as _cm
+                    _cm.mark_node_bad_from_registration(clash_node.get("node") or "", {"detail": _err[:160]})
+                    _cm.release_node_claim(clash_node.get("node") or "", clash_node.get("ip") or "")
+                    reacquired = _cm.acquire_node_for_registration(worker=clash_worker)
+                    if not reacquired.get("ok"):
+                        log_logger.warning(f"[Job {job_id}] 换节点重试未取得可用节点,按原失败结果结束: {reacquired.get('error')}")
+                        clash_node = {}
+                        break
+                    clash_node = reacquired
+                    reg_proxy = f"http://127.0.0.1:{reacquired.get('proxy_port')}"
+                    log_logger.warning(
+                        f"[Job {job_id}] 节点被标记不可用,已切换到 {reacquired.get('node')} 重试: {_err[:200]}"
+                    )
+                    check_stop_requested()
+                    continue
+                # 代理池/粘性代理路径:换粘性出口会话(邮箱-N),换满 3 次真失败
+                if sticky_variant >= _STICKY_MAX_VARIANTS or not _sticky_email_pool_active(reg_proxy):
+                    break  # 换满预算,或静态代理(换会话键不换 IP)→ 按原失败结束
+                sticky_variant += 1
+                log_logger.warning(
+                    f"[Job {job_id}] IP 类失败,更换粘性出口会话(邮箱-{sticky_variant})重试({sticky_variant}/{_STICKY_MAX_VARIANTS}): {_err[:200]}"
+                )
+                check_stop_requested()
+            if clash_node:
+                try:
+                    from core import clash_node_manager as _cm
+                    _cm.record_registration(
+                        clash_node.get("node") or "", str(result.get("email") or email or ""),
+                        success=bool(isinstance(result, dict) and result.get("success")),
+                    )
+                except Exception:
+                    pass
             if is_stop_requested(job_id):
                 _release_unconsumed_job_email(email, "用户手动停止")
                 db.update_job(
@@ -333,6 +488,14 @@ def _run_one_job(job_id: int, log_file: str) -> None:
                     completed_at=datetime.now().isoformat(timespec="seconds"),
                 )
                 log_logger.info(f"[Job {job_id}] 成功: {result.get('email')}")
+                # 注册成功后自动推送到 gpt-account-hub(配置驱动,失败不影响注册结果)
+                try:
+                    from core.hub_push import maybe_push_after_register
+                    push_result = maybe_push_after_register(str(result.get("email") or ""))
+                    if push_result is not None:
+                        log_logger.info(f"[Job {job_id}] [HubPush] {push_result.get('message')}")
+                except Exception as push_exc:
+                    log_logger.warning(f"[Job {job_id}] [HubPush] 自动推送异常(忽略): {push_exc}")
             else:
                 # 注意：失败也可能伴随 account_id（如 Codex 失败但账号已注册成功）
                 err = (result or {}).get("error") if isinstance(result, dict) else "unknown"
@@ -384,6 +547,21 @@ def _run_one_job(job_id: int, log_file: str) -> None:
             completed_at=datetime.now().isoformat(timespec="seconds"),
         )
     finally:
+        # Clash worker 槽位归还:成功/失败/停止/异常路径统一在此清理
+        if clash_worker is not None:
+            try:
+                from core import clash_node_manager as _cm
+                _cm.release_worker_slot(clash_worker)
+            except Exception:
+                pass
+        # 节点占用兜底释放:正常路径由 record_registration 释放,
+        # 注册中途异常没走到记帐时在这里补(重复释放无副作用)
+        if clash_node.get("node"):
+            try:
+                from core import clash_node_manager as _cm
+                _cm.release_node_claim(clash_node["node"], clash_node.get("ip") or "")
+            except Exception:
+                pass
         _deactivate_job(job_id)
 
 

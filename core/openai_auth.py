@@ -7,6 +7,7 @@ OpenAI Auth 模块
 import json
 import logging
 import random
+import re
 import secrets
 import time
 
@@ -269,6 +270,35 @@ def _reset_after_challenge(session: BrowserSession) -> None:
     _reset_retryable_circuit(session)
 
 
+_SENTINEL_SV_RE = re.compile(r"sentinel\.openai\.com/sentinel/([0-9a-z]+)/sdk\.js", re.I)
+
+
+def observe_sentinel_version(html: str) -> bool:
+    """从页面 HTML 自动发现 Sentinel SDK 版本号并热更新 SENTINEL_SV。
+
+    OpenAI 轮换 SDK 版本时（如 20260219f9f6 → 20260810913b），硬编码版本会
+    静默过期。登录页/授权页 HTML 里带有脚本引用，这里解析并同步到
+    config.openai_protocol.SENTINEL_SV（各调用点均为运行时读取，即时生效）。
+    返回是否发生了更新。
+    """
+    if not html:
+        return False
+    match = _SENTINEL_SV_RE.search(str(html))
+    if not match:
+        return False
+    new_sv = match.group(1)
+    try:
+        from config import openai_protocol as _proto
+    except Exception:
+        return False
+    current = str(getattr(_proto, "SENTINEL_SV", "") or "")
+    if new_sv == current:
+        return False
+    _proto.SENTINEL_SV = new_sv
+    logger.warning("[Sentinel] 检测到 SDK 版本变化，自动更新：%s -> %s", current or "(空)", new_sv)
+    return True
+
+
 def network_preflight(session: BrowserSession) -> None:
     """
     注册前网络预检：只建立边缘节点/cookie/基础连通性，不携带邮箱、不触发 OTP。
@@ -315,19 +345,33 @@ def network_preflight(session: BrowserSession) -> None:
                 adopt = getattr(session, "adopt_server_device_id", None)
                 if callable(adopt):
                     adopt()
+                try:
+                    observe_sentinel_version(str(getattr(resp, "text", "") or "")[:400000])
+                except Exception:
+                    pass
                 logger.info("[预检:%s] 通过 (%s/%s)", label, attempt, max_attempts)
                 break
             except Exception as exc:
-                if _is_transient_network_error(exc) and attempt < max_attempts:
-                    backoff = retry_delay * (2 ** (attempt - 1))
-                    logger.warning(
-                        "[预检:%s] 代理链路临时失败 (%s/%s): %s: %s，%.1fs 后重试",
-                        label, attempt, max_attempts, type(exc).__name__, str(exc)[:140], backoff,
-                    )
-                    _interruptible_sleep(backoff)
-                    continue
-                last_exc = exc
-                break
+                retryable = (
+                    _is_transient_network_error(exc)
+                    or _is_retryable_authorize_error(exc)
+                    or _is_cf_challenge_exc(exc)
+                )
+                if not retryable or attempt >= max_attempts:
+                    last_exc = exc
+                    break
+                if _is_cf_challenge_exc(exc):
+                    # 质询响应种下的 __cf_bm 绑定污染状态，重建传输层再重试。
+                    _reset_after_challenge(session)
+                else:
+                    _reset_retryable_circuit(session)
+                backoff = retry_delay * (2 ** (attempt - 1))
+                logger.warning(
+                    "[预检:%s] 代理链路临时失败 (%s/%s): %s: %s，%.1fs 后重试",
+                    label, attempt, max_attempts, type(exc).__name__, str(exc)[:140], backoff,
+                )
+                _interruptible_sleep(backoff)
+                continue
         else:
             # 全部尝试都被质询：不中断主流程，API 路由通常仍可用。
             if challenged:
@@ -359,6 +403,11 @@ def follow_authorize(session: BrowserSession, authorize_url: str) -> str:
             resp.raise_for_status()
             final_url = str(getattr(resp, "url", "") or "")
             _rotate_document_navigation_id(session)
+            # 授权页 HTML 带有版本化 sentinel 脚本引用，顺手同步 SDK 版本。
+            try:
+                observe_sentinel_version(str(getattr(resp, "text", "") or "")[:400000])
+            except Exception:
+                pass
             logger.info(f"[步骤4] 重定向完成, 最终URL: {final_url}")
             return final_url
         except Exception as exc:
@@ -627,6 +676,41 @@ def generate_registration_password(length: int = 14) -> str:
     chars.extend(secrets.choice(alphabet) for _ in range(length - len(chars)))
     random.SystemRandom().shuffle(chars)
     return "".join(chars)
+
+
+def ensure_password_signup_page(session: BrowserSession, landing_url: str = "") -> str:
+    """确保 auth session 处于 create-account/password 页面（密码注册分支）。
+
+    2026-09-18 抓包：新注册默认落 email-verification（passwordless）；页面上的
+    “继续使用密码”选项在服务端等价于把 auth session 切到 create-account/password，
+    随后的 POST /api/accounts/user/register 才会被受理。协议层直接文档导航到该页。
+
+    返回最终落点 URL。若被重定向到登录密码页，说明邮箱已注册，抛出可识别异常。
+    """
+    landing = str(landing_url or "")
+    if "/create-account/password" in landing:
+        return landing
+    url = "https://auth.openai.com/create-account/password"
+    headers = session.get_auth_navigate_headers(
+        referer="https://auth.openai.com/email-verification" if "email-verification" in landing else "https://auth.openai.com/"
+    )
+    headers["sec-fetch-site"] = "same-origin"
+    logger.info("[步骤5.5] 切换到密码注册页 create-account/password ...")
+    resp = _request_with_proxy_retry(
+        session,
+        "切换密码注册页",
+        lambda: session.get(url, headers=headers, allow_redirects=True),
+    )
+    final_url = str(getattr(resp, "url", "") or "")
+    _rotate_document_navigation_id(session)
+    if "/log-in" in final_url:
+        raise RuntimeError(
+            f"切换密码注册页被重定向到登录页（邮箱可能已注册）: {final_url}"
+        )
+    if "/create-account/password" not in final_url:
+        raise RuntimeError(f"密码注册页切换落点异常: {final_url}")
+    logger.info(f"[步骤5.5] 密码注册页就绪: {final_url}")
+    return final_url
 
 
 def register_user(

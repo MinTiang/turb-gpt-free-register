@@ -437,10 +437,19 @@ class RoxyBrowserClient:
         project_id = _project_id_value()
         if project_id:
             body.setdefault("projectId", project_id)
-        if bool(getattr(_cfg, "ROXY_CREATE_USE_PROXY_POOL", False)) and not body.get("proxyInfo"):
+        if not body.get("proxyInfo"):
             from config import proxy as _proxy_cfg
 
-            proxy_url = _proxy_cfg.pick_proxy()
+            # 调用方指定代理优先(main.run_registration 入口已展开 {sid} 粘性
+            # 占位符,如 Clash 自动选点传入的 worker 端口)——保证浏览器窗口
+            # 与任务元数据是同一个代理/同一个出口会话;池子抽取仅作回退。
+            proxy_url = str(getattr(self, "proxy_override", "") or "").strip()
+            if proxy_url:
+                logger.info("[Roxy] 创建环境使用调用方指定代理：proxy=%s", _mask_proxy(proxy_url))
+            elif bool(getattr(_cfg, "ROXY_CREATE_USE_PROXY_POOL", False)):
+                proxy_url = _proxy_cfg.pick_proxy()
+                if not proxy_url:
+                    logger.warning("[Roxy] 已启用 ROXY_CREATE_USE_PROXY_POOL，但 PROXY_POOL 为空，本次创建环境不设置代理")
             if proxy_url:
                 proxy_info = _proxy_url_to_roxy_info(proxy_url)
                 body["proxyInfo"] = proxy_info
@@ -451,8 +460,6 @@ class RoxyBrowserClient:
                     proxy_info.get("host"),
                     proxy_info.get("port"),
                 )
-            else:
-                logger.warning("[Roxy] 已启用 ROXY_CREATE_USE_PROXY_POOL，但 PROXY_POOL 为空，本次创建环境不设置代理")
         if payload:
             body.update(payload)
         if not body.get("workspaceId"):

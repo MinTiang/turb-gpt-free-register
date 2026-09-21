@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import json
 import random
 import string
 import time
@@ -209,6 +210,143 @@ def _browser_actions_enabled() -> bool:
         return True
 
 
+def _cf_challenge_present(driver) -> bool:
+    """页面是否正处于 Cloudflare 人机验证状态(语言无关检测)。
+
+    主标记:Turnstile 组件隐藏输入 input[id^="cf-chl-widget"](任何语言都存在);
+    辅标记:challenge iframe + 多语言文案(英/中/韩/日/德/西/法)。
+    """
+    try:
+        return bool(driver.execute_script(
+            "if (!document.body) return false;"
+            "if (document.querySelector('iframe[src*=\"challenges.cloudflare.com\"]')) return true;"
+            "if (document.querySelector('input[id^=\"cf-chl-widget\"]')) return true;"
+            "const t = ((document.title||'') + ' ' + (document.body.innerText||'')).toLowerCase();"
+            "return ['verify you are human','just a moment','performing security verification',"
+            " 'nur einen moment','잠시만 기다리십시오','しばらくお待ちください','einen moment bitte',"
+            " 'un momento','veuillez patienter','un attimo','checking your browser',"
+            " '잠시만','お待ち']"
+            ".some(s => t.indexOf(s) >= 0);"
+        ))
+    except Exception:
+        return False
+
+
+def _cf_widget_rect(driver) -> dict | None:
+    """取 Turnstile 组件容器的视口几何位置。
+
+    Turnstile 的 iframe 藏在 shadow DOM 里(querySelector 穿不透),但组件的
+    容器/隐藏输入(input[id^="cf-chl-widget"])在主流文档里,可用 JS 取 rect。
+    """
+    try:
+        rect = driver.execute_script("""
+          const inp = document.querySelector('input[id^="cf-chl-widget"]');
+          const box = inp ? (inp.closest('.cf-turnstile') || inp.parentElement) : null;
+          if (!box) return null;
+          const r = box.getBoundingClientRect();
+          if (!r.width || !r.height) return null;
+          return {x: r.x, y: r.y, width: r.width, height: r.height};
+        """)
+        return rect if rect and rect.get("width") and rect.get("height") else None
+    except Exception:
+        return None
+
+
+def _solve_cloudflare_challenge_if_present(driver, timeout: float = 90.0) -> bool:
+    """检测并尝试点击通过 Cloudflare Turnstile 人机验证。
+
+    2026-09-18:auth.openai.com 的 authorize 文档导航在真实浏览器里也会被
+    要求 "Verify you are human" 复选框;自动化流程若不处理会一直等待输入框。
+
+    兼容两种驱动:Roxy 原生 Selenium(rect/ActionChains)与
+    Cloak 的 Playwright 适配层(_handle().bounding_box()/page.mouse)。
+    返回 True 表示检测到过质询(无论最终是否通过);False 表示页面无质询。
+    """
+    if not _cf_challenge_present(driver):
+        return False
+    logger.warning("%s 检测到 Cloudflare 人机验证,尝试自动通过(最长 %.0fs)...", _log_prefix(driver), timeout)
+    from selenium.webdriver.common.by import By
+    deadline = time.time() + timeout
+    clicks = 0
+    while time.time() < deadline:
+        target = None
+        try:
+            # Turnstile 组件的 iframe src 可能为空,组件容器 id 形如 cf-chl-widget-xxxx
+            candidates = driver.find_elements(
+                By.CSS_SELECTOR,
+                'iframe[src*="challenges.cloudflare.com"], [id^="cf-chl-widget"], .cf-turnstile',
+            )
+        except Exception:
+            candidates = []
+        for el in candidates or []:
+            try:
+                if el.is_displayed():
+                    target = el
+                    break
+            except Exception:
+                continue
+        if target is not None and clicks < 8:
+            try:
+                rect = None
+                try:
+                    rect = target.rect  # Selenium WebElement
+                except Exception:
+                    rect = None
+                if not rect and hasattr(target, "_handle"):
+                    try:
+                        handle = target._handle()
+                        rect = handle.bounding_box() if handle else None  # Cloak/Playwright
+                    except Exception:
+                        rect = None
+                if rect and rect.get("width") and rect.get("height"):
+                    x = float(rect["x"]) + 30.0
+                    y = float(rect["y"]) + float(rect["height"]) / 2.0
+                    page = getattr(driver, "page", None)
+                    if page is not None:
+                        # Cloak/Playwright:人化移动后按几何位置点击复选框
+                        page.mouse.move(
+                            x - random.uniform(4, 10), y - random.uniform(2, 8),
+                        )
+                        time.sleep(random.uniform(0.25, 0.6))
+                        page.mouse.click(x, y)
+                    else:
+                        from selenium.webdriver.common.action_chains import ActionChains
+                        ActionChains(driver).move_to_element_with_offset(
+                            target, 30 - float(rect["width"]) / 2, 0,
+                        ).click().perform()
+                    clicks += 1
+                    logger.info("%s 已点击 Turnstile 复选框(第 %s 次)", _log_prefix(driver), clicks)
+            except Exception as exc:
+                logger.debug("%s Turnstile 点击失败:%s: %s", _log_prefix(driver), type(exc).__name__, str(exc)[:120])
+        if target is None and clicks < 8:
+            # iframe/组件元素不可见(常见于 shadow DOM "Verifying..." 变体):
+            # 用隐藏输入 cf-chl-widget 的容器 rect 做几何点击,人化移动后触发验证。
+            rect = _cf_widget_rect(driver)
+            if rect:
+                x = float(rect["x"]) + 30.0
+                y = float(rect["y"]) + float(rect["height"]) / 2.0
+                page = getattr(driver, "page", None)
+                try:
+                    if page is not None:
+                        page.mouse.move(x - random.uniform(4, 10), y - random.uniform(2, 8))
+                        time.sleep(random.uniform(0.25, 0.6))
+                        page.mouse.click(x, y)
+                    else:
+                        from selenium.webdriver.common.action_chains import ActionChains
+                        ActionChains(driver).move_by_offset(int(x), int(y)).click().perform()
+                    clicks += 1
+                    logger.info("%s 已按组件容器坐标点击 Turnstile(第 %s 次, x=%s y=%s)", _log_prefix(driver), clicks, int(x), int(y))
+                except Exception as exc:
+                    logger.debug("%s 容器坐标点击失败:%s: %s", _log_prefix(driver), type(exc).__name__, str(exc)[:120])
+        # 等待验证通过(通过后页面自动跳转,标记消失)
+        time.sleep(random.uniform(2.5, 4.0))
+        if not _cf_challenge_present(driver):
+            logger.info("%s Cloudflare 人机验证已通过", _log_prefix(driver))
+            return True
+    logger.warning("%s Cloudflare 人机验证等待超时(点击 %s 次)", _log_prefix(driver), clicks)
+    return True
+
+
 def _apply_browser_automation_mask(driver) -> None:
     """连接 Selenium 后尽量降低明显自动化特征；失败不影响主流程。"""
     if not _browser_actions_enabled():
@@ -239,6 +377,19 @@ def _apply_browser_automation_mask(driver) -> None:
 
 
 def _human_scroll_to(driver, el) -> None:
+    # Cloak/Playwright 适配层:CloakElement 不能作为 execute_script 参数
+    # (序列化后 scrollIntoView 丢失),走原生 scroll_into_view/focus。
+    scroll_native = getattr(el, "scroll_into_view", None)
+    focus_native = getattr(el, "focus", None)
+    if callable(scroll_native) and callable(focus_native):
+        try:
+            scroll_native()
+            if _browser_actions_enabled():
+                time.sleep(random.uniform(0.08, 0.35))
+                focus_native()
+            return
+        except Exception:
+            pass
     try:
         block = random.choice(["center", "nearest", "center"])
         driver.execute_script("arguments[0].scrollIntoView({block: arguments[1], inline:'nearest'});", el, block)
@@ -1030,17 +1181,32 @@ def _submit_email_and_wait_next(
     last_state = None
     current_email = str(email or "").strip()
     for attempt in range(1, attempts + 1):
-        if current_email:
-            _type_email_address(driver, current_email, timeout=20)
-        else:
-            # 先确认页面已有可用输入框，再领取邮箱；不能把领取动作放在页面导航之前。
-            email_input = _wait_for_email_input(driver, timeout=20)
-            if email_supplier is None:
-                raise RuntimeError("已找到邮箱输入框，但未提供邮箱分配器")
-            current_email = str(email_supplier() or "").strip()
-            if not current_email:
-                raise RuntimeError("邮箱分配器返回了空邮箱地址")
-            _human_type_text(driver, email_input, current_email, clear=True)
+        # authorize/登录文档导航可能被 Cloudflare 人机验证拦截(真浏览器可点击通过)
+        if _solve_cloudflare_challenge_if_present(driver, timeout=180):
+            # 质询通过后页面可能已自动跳转到验证码/密码页,无需重填邮箱
+            state_name = _wait_email_submit_next_state(driver, current_email, timeout=15)
+            if state_name in ("password", "otp", "logged_in"):
+                logger.info("%s 人机验证通过后已进入下一步：%s", _log_prefix(driver), state_name)
+                return state_name
+        try:
+            if current_email:
+                _type_email_address(driver, current_email, timeout=20)
+            else:
+                # 先确认页面已有可用输入框，再领取邮箱；不能把领取动作放在页面导航之前。
+                email_input = _wait_for_email_input(driver, timeout=20)
+                if email_supplier is None:
+                    raise RuntimeError("已找到邮箱输入框，但未提供邮箱分配器")
+                current_email = str(email_supplier() or "").strip()
+                if not current_email:
+                    raise RuntimeError("邮箱分配器返回了空邮箱地址")
+                _human_type_text(driver, email_input, current_email, clear=True)
+        except Exception as exc:
+            # 页面跳转竞态(Execution context destroyed 等):瞬时错误重试
+            if attempt < attempts and "context" in str(exc).lower():
+                logger.warning("%s 页面跳转竞态,重试(%s/%s)：%s", _log_prefix(driver), attempt, attempts, str(exc)[:120])
+                time.sleep(1.5)
+                continue
+            raise
         state = _email_input_value_state(driver)
         last_state = state
         values = [str(i.get("value") or "") for i in (state.get("inputs") or [])]
@@ -1059,27 +1225,167 @@ def _submit_email_and_wait_next(
             logger.info("%s 邮箱提交后已进入下一步：%s", _log_prefix(driver), state_name)
             return state_name
         logger.warning("%s 邮箱提交后仍未进入下一步：%s，准备重填重试 state=%s", _log_prefix(driver), state_name, _email_input_value_state(driver))
+        # authorize 重定向可能停在 Cloudflare 人机验证页;真浏览器点击通过后
+        # 会继续跳转到密码/验证码页,此时不能再盲目重填邮箱。
+        if _solve_cloudflare_challenge_if_present(driver, timeout=180):
+            state_name = _wait_email_submit_next_state(driver, current_email, timeout=30)
+            if state_name in ("password", "otp", "logged_in"):
+                logger.info("%s 人机验证通过后已进入下一步：%s", _log_prefix(driver), state_name)
+                return state_name
         time.sleep(1.0)
     raise RuntimeError(f"邮箱提交后未进入密码页/验证码页，最后状态={last_state}")
+
+
+def _el_input_value(el) -> str:
+    """读 input 当前值:Cloak 用原生 input_value,Roxy 用 get_attribute。"""
+    try:
+        iv = getattr(el, "input_value", None)
+        if callable(iv):
+            return str(iv() or "")
+    except Exception:
+        pass
+    try:
+        return str(el.get_attribute("value") or "")
+    except Exception:
+        return ""
+
+
+def _type_otp_single_input(driver, el, code: str) -> None:
+    """单输入框 OTP:输入后回读校验;受控输入竞态可能丢字,不一致时重输/JS 直填。"""
+    max_attempts = 3
+    for verify_attempt in range(1, max_attempts + 1):
+        _human_type_text(driver, el, code, clear=True)
+        current = _el_input_value(el)
+        if current == code:
+            logger.info("%s OTP 回读校验一致:%s", _log_prefix(driver), current)
+            return
+        logger.warning(
+            "%s OTP 回读不一致(%s/%s): value=%r expected=%r, 清空重输",
+            _log_prefix(driver), verify_attempt, max_attempts, current, code,
+        )
+    # 人工输入连续丢字:改用整体 fill/JS 直填(无逐字丢字风险)
+    try:
+        fill = getattr(el, "fill", None)
+        if callable(fill):
+            clear = getattr(el, "clear", None)
+            if callable(clear):
+                try:
+                    clear()
+                except Exception:
+                    pass
+            el.fill(code)
+        else:
+            _set_element_value(driver, el, code)
+    except Exception:
+        _set_element_value(driver, el, code)
+    current = _el_input_value(el)
+    if current == code:
+        logger.info("%s OTP fill 直填校验一致:%s", _log_prefix(driver), current)
+        return
+    raise RuntimeError(f"OTP 输入回读校验失败: value={current!r} expected={code!r}")
 
 
 def _type_otp(driver, code: str) -> None:
     from selenium.webdriver.common.by import By
 
-    # 单输入框
+    # 2026-09-18:email-verification 页可能被 Cloudflare Turnstile 门控
+    # ("Verifying..."/复选框),OTP 输入框要等质询通过后才渲染——先等它出现。
+    # cloak 下 locator.is_displayed/is_enabled 会失真(用户实测可见可输入但接口
+    # 返回 False),改用 JS 几何+状态判定输入框是否真正可用。
+    try:
+        otp_wait_deadline = time.time() + 300
+        usability_js = (
+            "const inputs = [...document.querySelectorAll('input')];"
+            "const isPasswordInput = el => el.type === 'password' "
+            "|| String(el.getAttribute('autocomplete')||'').toLowerCase().includes('password') "
+            "|| /password/i.test(el.id || '') || /password/i.test(el.name || '');"
+            "return inputs.some(el => {"
+            "  if (el.type === 'hidden' || isPasswordInput(el)) return false;"
+            "  const r = el.getBoundingClientRect();"
+            "  if (r.width <= 2 || r.height <= 2) return false;"
+            "  if (el.disabled || el.readOnly) return false;"
+            "  const st = getComputedStyle(el);"
+            "  return st.visibility !== 'hidden' && st.display !== 'none';"
+            "});"
+        )
+        while time.time() < otp_wait_deadline:
+            try:
+                if driver.execute_script(usability_js):
+                    break
+            except Exception:
+                pass
+            _solve_cloudflare_challenge_if_present(driver, timeout=45)
+            time.sleep(1)
+    except Exception as exc:
+        logger.debug("%s 等待 OTP 输入框时异常(继续正常流程):%s", _log_prefix(driver), str(exc)[:120])
+
+    # 单输入框:优先 JS 几何定位"可用输入框"(cloak 下 _visible 会失真,
+    # 用户实测可见可输入但 locator 接口返回 False),JS 返回精确 CSS 选择器。
+    usable_sel = None
+    try:
+        usable_sel = driver.execute_script(
+            "const inputs = [...document.querySelectorAll('input')];"
+            "const isPasswordInput = el => el.type === 'password' "
+            "|| String(el.getAttribute('autocomplete')||'').toLowerCase().includes('password') "
+            "|| /password/i.test(el.id || '') || /password/i.test(el.name || '');"
+            "const el = inputs.find(el => {"
+            "  if (el.type === 'hidden' || isPasswordInput(el)) return false;"
+            "  const r = el.getBoundingClientRect();"
+            "  if (r.width <= 2 || r.height <= 2) return false;"
+            "  if (el.disabled || el.readOnly) return false;"
+            "  const st = getComputedStyle(el);"
+            "  return st.visibility !== 'hidden' && st.display !== 'none';"
+            "});"
+            "if (!el) return null;"
+            "if (el.id) return '#' + CSS.escape(el.id);"
+            "if (el.name) return '[name=\"' + el.name + '\"]';"
+            "return 'input';"
+        )
+    except Exception as exc:
+        logger.debug("%s JS 定位 OTP 输入框失败:%s", _log_prefix(driver), str(exc)[:120])
+    if usable_sel:
+        els = driver.find_elements(By.CSS_SELECTOR, usable_sel)
+        if els:
+            logger.info("%s OTP 输入框(JS 定位): selector=%s", _log_prefix(driver), usable_sel)
+            _type_otp_single_input(driver, els[0], code)
+            return
+
+    # 特征属性选择器(Selenium/Roxy 路径下 _visible 可靠)
     for selector in [
         "input[autocomplete='one-time-code']",
         "input[name='code']",
         "input[inputmode='numeric']",
         "input[type='tel']",
+        "input[placeholder*='code' i]",
+        "input[aria-label*='code' i]",
+        "input[id*='code' i]",
+        "input[name*='code' i]",
     ]:
         els = [e for e in driver.find_elements(By.CSS_SELECTOR, selector) if _visible(e)]
-        if len(els) == 1:
-            _human_type_text(driver, els[0], code, clear=True)
+        if els:
+            _type_otp_single_input(driver, els[0], code)
             return
 
-    # 6 个分格输入框
-    boxes = [e for e in driver.find_elements(By.CSS_SELECTOR, "input") if _visible(e)]
+    # 兜底 1:页面唯一可见输入框(排除密码字段——2026-09-18 实测曾把 OTP
+    # 输进 create-account/password 的 new-password 框导致整任务卡死)
+    def _not_password_input(e) -> bool:
+        try:
+            attrs = " ".join(str(e.get_attribute(k) or "") for k in ("type", "autocomplete", "id", "name")).lower()
+            return "password" not in attrs
+        except Exception:
+            return True
+
+    try:
+        els = [e for e in driver.find_elements(By.CSS_SELECTOR, "input") if _visible(e) and _not_password_input(e)]
+        if len(els) == 1:
+            logger.info("%s OTP 输入框无特征属性,使用页面唯一可见输入框", _log_prefix(driver))
+            _type_otp_single_input(driver, els[0], code)
+            return
+    except Exception:
+        pass
+
+    # 兜底 2:6 个分格输入框
+    boxes = [e for e in driver.find_elements(By.CSS_SELECTOR, "input") if _visible(e) and _not_password_input(e)]
     numeric_boxes = []
     for e in boxes:
         attrs = " ".join(str(e.get_attribute(k) or "") for k in ("inputmode", "autocomplete", "aria-label", "name", "id", "type"))
@@ -1093,6 +1399,12 @@ def _type_otp(driver, code: str) -> None:
             e.send_keys(ch)
             if _browser_actions_enabled():
                 human_delay("keystroke")
+        # 回读校验:分格竞态同样可能丢字,不一致时 JS 直填修正
+        typed = "".join(_el_input_value(e) for e in numeric_boxes[: len(code)])
+        if typed != code:
+            logger.warning("%s 分格 OTP 回读不一致: %r expected=%r, JS 直填修正", _log_prefix(driver), typed, code)
+            for e, ch in zip(numeric_boxes, code):
+                _set_element_value(driver, e, ch)
         return
 
     raise RuntimeError("找不到 OTP 输入框")
@@ -1155,10 +1467,17 @@ def _clear_otp_inputs(driver) -> None:
 
 
 def _click_resend_email_otp(driver, timeout: int = 20) -> dict:
-    """点击重新发送邮箱验证码。优先按 DOM 属性识别，文本仅兜底。"""
+    """点击重新发送邮箱验证码。优先按 DOM 属性识别，文本仅兜底。
+
+    页面已离开验证码页(验证实际已通过/已跳转)时优雅返回 left_verification_page,
+    不抛异常——调用方据此按"已通过"处理,避免把成功的注册报成失败。
+    """
     end = time.time() + timeout
     last = None
     while time.time() < end:
+        if not _is_email_verification_page(driver):
+            logger.info("%s[OTP] 页面已离开验证码页,重发不再需要,按已通过处理", _log_prefix(driver))
+            return {"ok": False, "reason": "left_verification_page"}
         try:
             btn = driver.execute_script(r"""
             const visible = el => !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length));
@@ -1198,39 +1517,96 @@ def _wait_after_email_otp_submit(driver, timeout: int = 30) -> str:
     """
     end = time.time() + timeout
     last = {}
+    invalid_seen_at = None  # 错误标记首次出现时间;瞬态命中不算数
     while time.time() < end:
         time.sleep(0.5)
         if not _is_email_verification_page(driver):
             return 'accepted'
+        # 2026-09-18:页面已登录进 chatgpt.com(拿到了 accessToken)= 注册已完成,
+        # 绝不能再走重发/报错分支。
+        try:
+            if _has_access_token(driver):
+                logger.info("%s[OTP] 检测到登录态 accessToken,判定验证已完成", _log_prefix(driver))
+                return 'accepted'
+        except Exception:
+            pass
         last = _email_otp_page_state(driver)
-        invalid = any(str(i.get('ariaInvalid') or '').lower() == 'true' for i in (last.get('inputs') or []))
-        if invalid or (last.get('errors') or []):
-            return 'invalid'
-    if _is_email_verification_page(driver):
-        # 超时仍停留：若无明确错误标记，判定为提交成功、跳转缓慢，按 accepted 放行。
-        has_error_mark = bool(last.get('errors')) or any(
-            str(i.get('ariaInvalid') or '').lower() == 'true' for i in (last.get('inputs') or [])
+        has_error = (
+            any(str(i.get('ariaInvalid') or '').lower() == 'true' for i in (last.get('inputs') or []))
+            or bool(last.get('errors'))
         )
-        if has_error_mark:
-            logger.warning("%s[OTP] 提交后仍停留验证码页且存在错误标记，按验证码无效处理 snapshot=%s", _log_prefix(driver), last)
+        if has_error:
+            if invalid_seen_at is None:
+                # React 过渡期 [class*=error] 会瞬态命中;持续存在才是真错误。
+                invalid_seen_at = time.time()
+            elif time.time() - invalid_seen_at >= 1.5:
+                return 'invalid'
+        else:
+            invalid_seen_at = None
+    if _is_email_verification_page(driver):
+        # 超时仍停留:错误标记持续存在才判无效,否则按跳转缓慢放行。
+        if invalid_seen_at is not None:
+            logger.warning("%s[OTP] 提交后仍停留验证码页且错误标记持续,按验证码无效处理 snapshot=%s", _log_prefix(driver), last)
             return 'invalid'
         logger.warning(
-            "%s[OTP] 提交后 %ss 仍在验证码页但无错误标记，按跳转缓慢处理（accepted） snapshot=%s",
-            _log_prefix(driver), timeout, last
+            "%s[OTP] 提交后 %ss 仍在验证码页但无持续错误标记,按跳转缓慢处理（accepted）",
+            _log_prefix(driver), timeout,
         )
         return 'accepted'
     return 'accepted'
 
 
+def _submit_active_form(driver) -> bool:
+    """语言无关的表单提交:对当前焦点/页面第一个表单触发 requestSubmit/Enter。
+
+    2026-09-18 抓包:OpenAI 前端按钮的 data-dd-action-name 值是稳定英文
+    (Continue/validate),但按钮文字随 IP 语言变化——文字匹配不可靠。
+    直接提交所在表单与语言完全无关。
+    """
+    try:
+        result = driver.execute_script(
+            "const form = document.activeElement && document.activeElement.form"
+            " ? document.activeElement.form"
+            " : document.querySelector('form');"
+            "if (!form) return false;"
+            "if (typeof form.requestSubmit === 'function') { form.requestSubmit(); return true; }"
+            "if (typeof form.submit === 'function') { form.submit(); return true; }"
+            "return false;"
+        )
+        return bool(result)
+    except Exception:
+        return False
+
+
 def _click_continue(driver) -> None:
+    try:
+        _click_continue_inner(driver)
+    except Exception as exc:
+        # 所有选择器未命中时,退回语言无关的表单直提(requestSubmit)
+        if _submit_active_form(driver):
+            logger.info("%s 按钮未命中,已通过表单 requestSubmit 提交(原错误: %s)", _log_prefix(driver), str(exc)[:120])
+            return
+        raise
+
+
+def _click_continue_inner(driver) -> None:
+    # 优先结构定位(语言无关):data-dd-action-name 是 OpenAI 前端埋的稳定英文标识
     _click_any(driver, [
+        "button[type='submit'][value='validate']",
+        "button[data-dd-action-name='Continue']",
+        "button[data-dd-action-name='continue']",
+        "form button[type='submit']",
         "button[type='submit']",
         "//button[@data-dd-action-name='Continue']",
         "//button[@data-dd-action-name='continue']",
         "//button[@data-login-web-auth-control='true' and @type='submit']",
+        # 文字匹配仅作最后兜底
         "//button[contains(., 'Continue')]",
         "//button[contains(., '続行')]",
         "//button[contains(., '继续')]",
+        "//button[contains(., '계속')]",
+        "//button[contains(., '次へ')]",
+        "//button[contains(., 'Weiter')]",
         "//button[contains(., 'Sign up')]",
         "//button[contains(., 'Create')]",
         "//button[contains(., 'Next')]",
@@ -1658,19 +2034,36 @@ def _click_passwordless_signup_if_present(driver) -> dict:
         const btn = candidates.find(isPasswordlessOtp);
         if (!btn) return {ok:false, reason:'missing_passwordless_button'};
         btn.scrollIntoView({block:'center'});
+        const br = btn.getBoundingClientRect();
+        if (!br.width || !br.height) return {ok:false, reason:'zero_rect'};
+        // 跨语言边界只回传几何数据(DOM 元素序列化会丢失)
         return {
           ok:true,
           reason:'passwordless_send_otp_target',
-          button: btn,
+          rect: {x: br.x, y: br.y, width: br.width, height: br.height},
           name: btn.getAttribute('name') || '',
           value: btn.getAttribute('value') || '',
           text: (btn.textContent || '').trim().slice(0, 80)
         };
         """) or {"ok": False, "reason": "empty_result"}
-        if result.get("ok") and result.get("button"):
-            _human_click(driver, result.get("button"), label="passwordless_otp")
-            result["reason"] = "clicked_passwordless_send_otp"
-            result.pop("button", None)
+        if result.get("ok") and result.get("rect"):
+            rect = result["rect"]
+            x = float(rect["x"]) + float(rect["width"]) / 2.0
+            y = float(rect["y"]) + float(rect["height"]) / 2.0
+            page = getattr(driver, "page", None)
+            try:
+                if page is not None:
+                    page.mouse.move(x - random.uniform(3, 8), y - random.uniform(2, 6))
+                    time.sleep(random.uniform(0.2, 0.5))
+                    page.mouse.click(x, y)
+                else:
+                    from selenium.webdriver.common.action_chains import ActionChains
+                    ActionChains(driver).move_by_offset(int(x), int(y)).click().perform()
+                result["reason"] = "clicked_passwordless_send_otp"
+                result.pop("rect", None)
+            except Exception as exc:
+                result["ok"] = False
+                result["reason"] = f"rect click failed: {type(exc).__name__}: {str(exc)[:120]}"
         return result
     except Exception as exc:
         return {"ok": False, "reason": f"{type(exc).__name__}: {exc}"}
@@ -1687,35 +2080,59 @@ def _click_continue_with_password_if_present(driver) -> dict:
         const candidates = [...document.querySelectorAll('a,button,[role="link"],[role="button"]')].filter(el => visible(el) && enabled(el));
         const isPasswordCreate = el => {
           const href = String(el.getAttribute('href') || '').toLowerCase();
-          const attrs = [
-            href, el.id, el.getAttribute('aria-label'), el.getAttribute('title'),
-            el.getAttribute('data-testid'), el.getAttribute('data-login-web-auth-control'),
-            el.getAttribute('data-dd-action-name'), el.className, el.textContent
+          // 语言无关结构标识(高分):跳转路由 + Datadog 埋点名(值恒为英文)
+          const structural = [
+            href,
+            String(el.getAttribute('data-dd-action-name') || ''),
+            String(el.getAttribute('data-testid') || ''),
+            String(el.getAttribute('data-login-web-auth-control') || ''),
           ].join(' ').toLowerCase();
+          if (structural.includes('/create-account/password')) return 100;
+          if (structural.includes('continue_with_password') || structural.includes('continue-with-password')) return 90;
+          if (structural.includes('continuewithpassword')) return 80;
+          if (structural.includes('password')) return 50;
+          // 文字匹配仅作最后兜底(多语言不可穷举)
           const text = norm(el.textContent || '');
-          return (
-            href.includes('/create-account/password') ||
-            attrs.includes('/create-account/password') ||
-            attrs.includes("data-dd-action-name") ||
-            text.includes('continuewithpassword') ||
-            text.includes('continuewithapassword')
-          );
+          if (text.includes('continuewithpassword') || text.includes('continuewithapassword')) return 30;
+          if (text.includes('passwortfortfahren') || text.includes('motdepasse')) return 30;
+          return 0;
         };
-        const btn = candidates.find(isPasswordCreate);
-        if (!btn) return {ok:false, reason:'missing_continue_with_password'};
-        btn.scrollIntoView({block:'center'});
+        let best = null, bestScore = 0;
+        for (const el of candidates) {
+          const s = isPasswordCreate(el);
+          if (s > bestScore) { bestScore = s; best = el; }
+        }
+        if (!best) return {ok:false, reason:'missing_continue_with_password'};
+        best.scrollIntoView({block:'center'});
+        const r = best.getBoundingClientRect();
+        if (!r.width || !r.height) return {ok:false, reason:'zero_rect'};
+        // 跨语言边界只回传几何数据(DOM 元素经序列化会丢失/变字符串)
         return {
-          ok:true,
-          reason:'continue_with_password_target',
-          button: btn,
-          href: btn.getAttribute('href') || '',
-          text: (btn.textContent || '').trim().slice(0, 80)
+          ok: true,
+          reason: 'continue_with_password_target',
+          rect: {x: r.x, y: r.y, width: r.width, height: r.height},
+          text: (best.textContent || '').trim().slice(0, 80)
         };
         """) or {"ok": False, "reason": "empty_result"}
-        if result.get("ok") and result.get("button"):
-            _human_click(driver, result.get("button"), label="continue_with_password")
-            result["reason"] = "clicked_continue_with_password"
-            result.pop("button", None)
+        if result.get("ok") and result.get("rect"):
+            # 跨语言边界只传几何数据:按坐标人化点击(Playwright/Selenium 双兼容)
+            rect = result["rect"]
+            x = float(rect["x"]) + 30.0
+            y = float(rect["y"]) + float(rect["height"]) / 2.0
+            page = getattr(driver, "page", None)
+            try:
+                if page is not None:
+                    page.mouse.move(x - random.uniform(4, 10), y - random.uniform(2, 8))
+                    time.sleep(random.uniform(0.25, 0.6))
+                    page.mouse.click(x, y)
+                else:
+                    from selenium.webdriver.common.action_chains import ActionChains
+                    ActionChains(driver).move_by_offset(int(x), int(y)).click().perform()
+                result["reason"] = "clicked_continue_with_password"
+                logger.info("%s 已点击 使用密码继续 (x=%s y=%s)", _log_prefix(driver), int(x), int(y))
+            except Exception as exc:
+                result["ok"] = False
+                result["reason"] = f"rect click failed: {type(exc).__name__}: {str(exc)[:120]}"
         return result
     except Exception as exc:
         return {"ok": False, "reason": f"{type(exc).__name__}: {exc}"}
@@ -1723,17 +2140,33 @@ def _click_continue_with_password_if_present(driver) -> dict:
 
 def _fill_password_page_if_present(driver, email: str, timeout: int = 25) -> str | None:
     """邮箱提交后兼容 create-account/password。返回本次设置的 OpenAI 账号密码；未遇到密码页返回 None。"""
+    from config import register as _register_cfg
     end = time.time() + timeout
+    started = time.time()
+    switch_missing_since = None
     last = {}
     while time.time() < end:
         if _is_email_verification_page(driver):
+            # REGISTER_WITH_PASSWORD=False(2026-09-20 起默认)时验证码页就是无密码
+            # 流程的预期页面:禁止主动点击“使用密码继续”,否则会切进
+            # create-account/password 的 user/register 密码分支。
+            if not bool(getattr(_register_cfg, "REGISTER_WITH_PASSWORD", False)):
+                logger.info("%s 无密码模式：验证码页不切密码分支，直接交给 OTP 流程：email=%s", _log_prefix(driver), email)
+                return None
             result = _click_continue_with_password_if_present(driver)
             if result.get("ok"):
                 logger.info("%s 邮箱验证码页已点击“使用密码继续”：email=%s detail=%s", _log_prefix(driver), email, result)
                 time.sleep(0.8)
                 continue
-            logger.info("%s 已在邮箱验证码页，但未找到“使用密码继续”按钮：detail=%s", _log_prefix(driver), result)
-            return None
+            # 按钮缺失 ≠ 没有密码分支:调用方可能刚点过切换、页面正在跳转。
+            # 给过渡宽限期,期间持续等待密码页出现;宽限后仍在验证码页才放弃。
+            if switch_missing_since is None:
+                switch_missing_since = time.time()
+            elif time.time() - switch_missing_since >= 8.0:
+                logger.info("%s 验证码页无“使用密码继续”按钮(等待 %.0fs 后确认),按无密码分支继续", _log_prefix(driver), time.time() - switch_missing_since)
+                return None
+            time.sleep(0.5)
+            continue
         if _has_access_token(driver):
             return None
         last = _password_page_state(driver)
@@ -1761,6 +2194,8 @@ def _fill_password_page_if_present(driver, email: str, timeout: int = 25) -> str
             return None
         password = _registration_password()
         logger.info("%s 检测到 create-account/password，准备设置密码（%s 位）：email=%s", _log_prefix(driver), len(password), email)
+        # JS 只回传 selector(2026-09-18:DOM 元素经 Playwright json_value 序列化
+        # 会变成空 dict,回传给 execute_script 再用必炸 scrollIntoView is not a function)。
         result = driver.execute_script(r"""
         const visible = el => !!el && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length)
           && getComputedStyle(el).visibility !== 'hidden' && getComputedStyle(el).display !== 'none'
@@ -1768,24 +2203,19 @@ def _fill_password_page_if_present(driver, email: str, timeout: int = 25) -> str
         const input = [...document.querySelectorAll('input[type="password"],input[name*="password" i],input[autocomplete="new-password"]')]
           .find(visible);
         if (!input) return {ok:false, reason:'missing_password_input'};
-        const form = input.closest('form');
-        const scope = form || document;
-        const buttons = [...scope.querySelectorAll('button,input[type="submit"]')]
-          .filter(el => !!el && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length) && !el.disabled && el.getAttribute('aria-disabled') !== 'true')
-          .map((el, idx) => {
-            const r = el.getBoundingClientRect();
-            const ir = input.getBoundingClientRect();
-            return {el, idx, below: r.top >= ir.bottom - 10, dist: Math.max(0, r.top - ir.bottom) + Math.abs((r.left+r.right-ir.left-ir.right)/2)/10};
-          })
-          .filter(x => x.below)
-          .sort((a,b) => a.dist - b.dist || a.idx - b.idx);
-        if (!buttons.length) return {ok:false, reason:'missing_submit'};
-        buttons[0].el.scrollIntoView({block:'center'});
-        return {ok:true, reason:'password_targets', input, button: buttons[0].el};
+        const sel = input.id ? '#' + CSS.escape(input.id)
+          : (input.name ? 'input[name=' + JSON.stringify(input.name) + ']'
+          : 'input[type="password"]');
+        input.scrollIntoView({block:'center'});
+        return {ok:true, reason:'password_input_selector', selector: sel};
         """) or {}
         if not result.get('ok'):
             raise RuntimeError(f"密码页处理失败：{result} state={last}")
-        _human_type_text(driver, result.get("input"), password, clear=True)
+        from selenium.webdriver.common.by import By as _By
+        _pw_els = [e for e in driver.find_elements(_By.CSS_SELECTOR, result["selector"]) if _visible(e)]
+        if not _pw_els:
+            raise RuntimeError(f"密码输入框选择器未命中: {result['selector']} state={last}")
+        _human_type_text(driver, _pw_els[0], password, clear=True)
         # React/Auth0 会在 input/change 后异步校验密码强度并启用 Continue。
         # 之前输入完 0.4~1.4s 就点，偶发点在按钮还未真正可提交/事件未绑定完成时，页面无反应。
         human_delay("form", minimum=2.0, maximum=3.6)
@@ -1817,20 +2247,38 @@ def _fill_password_page_if_present(driver, email: str, timeout: int = 25) -> str
         const target = scored[0]?.el;
         if (!target) return {ok:false, reason:'missing_enabled_submit'};
         target.scrollIntoView({block:'center'});
+        const tr = target.getBoundingClientRect();
+        if (!tr.width || !tr.height) return {ok:false, reason:'zero_rect'};
+        // 跨语言边界只回传几何数据(DOM 元素序列化会丢失)
         return {
           ok:true,
           reason:'enabled_submit_target',
-          button: target,
+          rect: {x: tr.x, y: tr.y, width: tr.width, height: tr.height},
           text: (target.textContent || target.getAttribute('value') || '').trim().slice(0, 80),
           type: target.getAttribute('type') || '',
           dd: target.getAttribute('data-dd-action-name') || '',
           ariaDisabled: target.getAttribute('aria-disabled') || ''
         };
         """) or {}
-        if not submit_result.get("ok") or not submit_result.get("button"):
+        if not submit_result.get("ok") or not submit_result.get("rect"):
             raise RuntimeError(f"密码页找不到可点击的 Continue 按钮：{submit_result} state={_password_page_state(driver)}")
-        _human_click(driver, submit_result.get("button"), label="password_submit")
-        logger.info("%s 已填写并点击密码页 Continue：detail=%s", _log_prefix(driver), {k: v for k, v in submit_result.items() if k != "button"})
+        _rect = submit_result["rect"]
+        _cx = float(_rect["x"]) + float(_rect["width"]) / 2.0
+        _cy = float(_rect["y"]) + float(_rect["height"]) / 2.0
+        _page = getattr(driver, "page", None)
+        try:
+            if _page is not None:
+                _page.mouse.move(_cx - random.uniform(3, 8), _cy - random.uniform(2, 6))
+                time.sleep(random.uniform(0.2, 0.5))
+                _page.mouse.click(_cx, _cy)
+            else:
+                from selenium.webdriver.common.action_chains import ActionChains
+                ActionChains(driver).move_by_offset(int(_cx), int(_cy)).click().perform()
+        except Exception:
+            # 坐标点击失败时退回语言无关的表单直提
+            if not _submit_active_form(driver):
+                raise
+        logger.info("%s 已填写并点击密码页 Continue：detail=%s", _log_prefix(driver), {k: v for k, v in submit_result.items() if k != "rect"})
         # 提交密码后通常进入邮箱验证码页，最多等一段时间。
         wait_end = time.time() + 20
         retried_submit = False
@@ -2066,7 +2514,7 @@ def _switch_to_chatgpt_window_if_any(driver) -> bool:
     return False
 
 
-def _fetch_chatgpt_session(driver, timeout: int = 90, auto_jump_wait: int = 15) -> dict:
+def _fetch_chatgpt_session(driver, timeout: int = 90, auto_jump_wait: int = 45) -> dict:
     """等待页面完成跳转并从 ChatGPT 页面内读取登录 session/accessToken。
 
     旧逻辑会在 auth.openai.com 上一直等到总超时，Cloak/部分 Chromium 场景下
@@ -2074,7 +2522,7 @@ def _fetch_chatgpt_session(driver, timeout: int = 90, auto_jump_wait: int = 15) 
     自动跳转 `auto_jump_wait` 秒；超过后立即主动打开 chatgpt.com 读 session。
     """
     end = time.time() + timeout
-    auto_jump_end = time.time() + max(3, int(auto_jump_wait or 15))
+    auto_jump_end = time.time() + max(3, int(auto_jump_wait or 45))
     last_data = None
     forced_chatgpt_open = False
 
@@ -2083,6 +2531,10 @@ def _fetch_chatgpt_session(driver, timeout: int = 90, auto_jump_wait: int = 15) 
             current = str(driver.current_url or '')
         except Exception:
             current = ''
+
+        # 等待跳转期间页面若是 CF 质询(德/韩等语言门控),自动尝试通过
+        if 'auth.openai.com' in current and _cf_challenge_present(driver):
+            _solve_cloudflare_challenge_if_present(driver, timeout=45)
 
         if 'chatgpt.com' not in current:
             if _switch_to_chatgpt_window_if_any(driver):
@@ -2132,6 +2584,10 @@ def run_roxy_registration(
 ) -> dict:
     """Roxy 指纹浏览器自动化注册入口。"""
     client = RoxyBrowserClient()
+    # 粘性代理一致性(2026-09-20):入口(main.run_registration)解析过的代理
+    # ——可能是 PROXY_POOL {sid} 展开值或 Clash worker 端口——直接交给 Roxy
+    # 创建环境,避免客户端再抽一条导致同一次注册出现两个出口。
+    client.proxy_override = str(proxy or "").strip()
     opened = client.open_profile()
     driver = None
     create_acknowledged = False
@@ -2240,7 +2696,10 @@ def run_roxy_registration(
                         str(exc)[:180],
                     )
                     otp_after_ts = time.time()
-                    _click_resend_email_otp(driver, timeout=25)
+                    resend = _click_resend_email_otp(driver, timeout=25)
+                    if resend.get("reason") == "left_verification_page":
+                        logger.info("%s[OTP] 等待验证码期间页面已跳转,按已通过继续", _log_prefix(driver))
+                        break
                     human_delay("api")
                     current_otp = None
                     continue
@@ -2264,7 +2723,10 @@ def run_roxy_registration(
                 raise RuntimeError("邮箱验证码连续错误/过期，已达到最大重试次数")
             logger.warning("[Roxy注册][OTP] 验证码错误/过期，准备重新发送并重新获取验证码（%s/%s）", otp_attempt + 1, max_otp_attempts)
             otp_after_ts = time.time()
-            _click_resend_email_otp(driver, timeout=25)
+            resend = _click_resend_email_otp(driver, timeout=25)
+            if resend.get("reason") == "left_verification_page":
+                logger.info("%s[OTP] 重发时发现页面已跳转,按验证通过继续", _log_prefix(driver))
+                break
             _traffic_checkpoint()
             human_delay("api")
             current_otp = None
@@ -2332,6 +2794,7 @@ def run_roxy_registration(
             email_source=resolve_email_source(email),
             proxy_used=proxy or None,
             batch_dir=batch_dir,
+            registration_channel="browse",
             extra={
                 "user": session_info.get("user"),
                 "account": session_info.get("account"),

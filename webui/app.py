@@ -502,6 +502,95 @@ def create_app(auth_code: str | None = None) -> Flask:
             return jsonify({"ok": False, "error": "账号不存在"}), 404
         return jsonify({"ok": True, "updated": True, "id": acc_id, "archived": archived})
 
+    # ----------------------------------------------------------
+    # Clash 节点管理
+    # ----------------------------------------------------------
+    @app.get("/api/clash/nodes")
+    def api_clash_nodes():
+        """全部节点 + 质量状态 + 冷却/限额(页面节点管理表)。"""
+        try:
+            from core import clash_node_manager as cm
+            return jsonify({"ok": True, "nodes": cm.nodes_overview()})
+        except Exception as exc:
+            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
+
+    @app.post("/api/clash/check")
+    def api_clash_check():
+        """质量检测。Body {node?}: 指定节点或全量。"""
+        data = request.get_json(silent=True) or {}
+        try:
+            from core import clash_node_manager as cm
+            if data.get("node"):
+                result = cm.quality_check_node(str(data["node"]))
+                return jsonify({"ok": True, "results": [result]})
+            return jsonify({"ok": True, "results": cm.check_all_nodes()})
+        except Exception as exc:
+            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
+
+    @app.post("/api/clash/switch")
+    def api_clash_switch():
+        """手动切换分组选中节点。Body {node}。"""
+        data = request.get_json(silent=True) or {}
+        node = str(data.get("node") or "").strip()
+        if not node:
+            return jsonify({"ok": False, "error": "缺少 node"}), 400
+        try:
+            from core import clash_node_manager as cm
+            r = cm.switch_node(node, verify_ip=bool(data.get("verify", True)))
+            cm._record_quality(node, "unknown" if not r.get("ok") else "good",
+                               {"exit_ip": r.get("ip", ""), "manual": True} if r.get("ok") else {"error": r.get("error", "")})
+            return jsonify(r)
+        except Exception as exc:
+            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
+
+    @app.post("/api/clash/reset")
+    def api_clash_reset():
+        """重置节点状态。Body {node?, mode: cooldown|count|quality|all}。"""
+        data = request.get_json(silent=True) or {}
+        mode = str(data.get("mode") or "all")
+        if mode not in ("cooldown", "count", "quality", "all"):
+            return jsonify({"ok": False, "error": "mode 非法"}), 400
+        try:
+            from core import clash_node_manager as cm
+            return jsonify(cm.reset_node(data.get("node") or None, mode=mode))
+        except Exception as exc:
+            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
+
+    @app.post("/api/accounts/hub-push")
+    def api_accounts_hub_push():
+        """手动推送账号到 gpt-account-hub。Body {email} 或 {account_ids:[...]}(批量)。"""
+        data = request.get_json(silent=True) or {}
+        emails: list[str] = []
+        if data.get("email"):
+            emails.append(str(data["email"]).strip())
+        for raw in data.get("account_ids") or data.get("ids") or []:
+            try:
+                acc = db.get_account(int(raw))
+                if acc and acc.get("email"):
+                    emails.append(str(acc["email"]).strip())
+            except Exception:
+                continue
+        if not emails:
+            return jsonify({"ok": False, "error": "缺少 email 或 account_ids"}), 400
+        if len(emails) > 50:
+            return jsonify({"ok": False, "error": "单次最多推送 50 个账号"}), 400
+        from core.hub_push import push_account_to_hub
+        results = []
+        ok_count = 0
+        for email in dict.fromkeys(emails):
+            try:
+                r = push_account_to_hub(email, reason="manual")
+            except Exception as exc:
+                r = {"ok": False, "status": "error", "message": f"{type(exc).__name__}: {exc}"}
+            results.append({"email": email, **{k: v for k, v in r.items() if k != "resp"}})
+            ok_count += 1 if r.get("ok") else 0
+        return jsonify({
+            "ok": ok_count > 0,
+            "pushed": ok_count,
+            "total": len(results),
+            "results": results,
+        })
+
     @app.post("/api/accounts/archive-bulk")
     def api_accounts_archive_bulk():
         """批量归档/取消归档账号。Body {account_ids:[...], archived:true|false}。"""

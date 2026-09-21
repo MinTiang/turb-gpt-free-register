@@ -87,7 +87,7 @@ class OpenAIRegistrationFlowTests(unittest.TestCase):
         openai_auth.network_preflight(session)
 
         self.assertEqual(session.header_args, [("", {})])
-        self.assertEqual(session.requests[0][0], "https://chatgpt.com/auth/login")
+        self.assertEqual(session.requests[0][0], "https://chatgpt.com/")
         self.assertEqual(session.requests[0][1]["sec-fetch-site"], "none")
         self.assertEqual(session.requests[0][3], 12.0)
 
@@ -152,7 +152,7 @@ class OpenAIRegistrationFlowTests(unittest.TestCase):
         sdk_path = Path(__file__).resolve().parents[1] / "sentinel" / "sdk.js"
         self.assertEqual(
             hashlib.sha256(sdk_path.read_bytes()).hexdigest(),
-            "49d0284bf3eea8a59ebcad0e6b5dd8a53edd4c72606f15bbf51ebe5610a88efd",
+            "97bc85bf6072d10329ff68c373aac488984450f8fe971f58265953a74eeb71c3",
         )
 
     def test_register_user_matches_password_registration_request(self):
@@ -220,9 +220,9 @@ class OpenAIRegistrationFlowTests(unittest.TestCase):
         ])
         self.assertEqual(
             captured[0][1]["script_src_samples"],
-            ["https://sentinel.openai.com/sentinel/20260810913b/sdk.js"],
+            ["https://sentinel.openai.com/backend-api/sentinel/sdk.js"],
         )
-        self.assertIn("/sentinel/", captured[1][1]["script_src_samples"][0])
+        self.assertIn("sentinel.openai.com/", captured[1][1]["script_src_samples"][0])
         self.assertTrue(captured[1][1]["script_src_samples"][0].endswith("/sdk.js"))
         self.assertIsNone(captured[0][1]["build_id"])
         self.assertIsNone(captured[1][1]["build_id"])

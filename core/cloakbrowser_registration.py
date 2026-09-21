@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from pathlib import Path
 from typing import Callable
 
 from config import cloakbrowser as _cfg
 from config import twofa as _twofa_cfg
+from config import register as _register_cfg
 from core.account_export import save_account_data, post_register_dwell
 from core.browser_data_saver import BrowserDataSaver
 from core.browser_traffic import PlaywrightTrafficTracker
@@ -26,7 +28,33 @@ from core.roxy_registration import (  # noqa: F401
 logger = logging.getLogger(__name__)
 
 
-def run_cloak_registration(
+def _run_with_timeout(fn, seconds: float, *, label: str):
+    """带看门狗超时地执行收尾调用;超时放弃(线程留守)并返回 None。
+
+    Cloak 的流量统计/监听器移除在浏览器页面卡态时可能被 CDP 调用无限挂住,
+    曾导致 worker 单线程卡死不进下一任务。注册主流程的成果(token)必须先行,
+    收尾统计属于可弃部分。
+    """
+    result: dict = {}
+
+    def _target():
+        try:
+            result["value"] = fn()
+        except Exception as exc:
+            result["error"] = exc
+
+    worker = threading.Thread(target=_target, daemon=True, name=f"timeout-{label}")
+    worker.start()
+    worker.join(max(1.0, float(seconds)))
+    if worker.is_alive():
+        logger.warning("[Cloak注册] %s 超时 %.0fs,放弃收尾统计并继续(线程留守)", label, seconds)
+        return None
+    if "error" in result:
+        raise result["error"]
+    return result.get("value")
+
+
+def _run_cloak_registration_impl(
     email: str | None,
     name: str,
     birthday: str,
@@ -79,10 +107,20 @@ def run_cloak_registration(
         )
         _check_manual_stop()
 
-        # 如果邮箱提交后直接进入验证码页，也尝试点击“使用密码继续”进入密码创建页；
+        # 密码分支(REGISTER_WITH_PASSWORD 配置驱动):验证码页点击“使用密码继续”
+        # 切换到密码表单,设置密码后回到验证码页继续 OTP 流程。
+        if bool(getattr(_register_cfg, "REGISTER_WITH_PASSWORD", True)):
+            from core.roxy_registration import _click_continue_with_password_if_present
+            switch = _click_continue_with_password_if_present(driver)
+            logger.info("[Cloak注册] 密码切换结果: %s", switch.get("reason"))
+            human_delay("form")
         # _fill_password_page_if_present 会在设置成功后返回本次 OpenAI 注册密码。
         openai_password = _fill_password_page_if_present(driver, email, timeout=25)
         _check_manual_stop()
+        if openai_password:
+            # 密码设置(user/register)会触发一次新的 email-otp/send;重置取码基准,
+            # 避免取到切换密码前验证码页发出的旧验证码。
+            otp_after_ts = time.time()
 
         current_otp = otp_code
         max_otp_attempts = 3
@@ -121,7 +159,10 @@ def run_cloak_registration(
             if otp_attempt >= max_otp_attempts:
                 raise RuntimeError("邮箱验证码连续错误/过期，已达到最大重试次数")
             otp_after_ts = time.time()
-            _click_resend_email_otp(driver, timeout=25)
+            resend = _click_resend_email_otp(driver, timeout=25)
+            if resend.get("reason") == "left_verification_page":
+                logger.info("[Cloak注册][OTP] 重发时发现页面已跳转,按验证通过继续")
+                break
             human_delay("api")
             current_otp = None
 
@@ -164,10 +205,12 @@ def run_cloak_registration(
 
         # 统计注册浏览器关闭前的完整会话；注册后停留期间的网络请求也计入。
         post_register_dwell(email, label="Cloak注册")
+        logger.info("[Cloak注册] 停留结束,开始收尾(流量统计→入库)")
         if traffic_tracker is not None:
-            network_traffic = traffic_tracker.stop()
+            network_traffic = _run_with_timeout(traffic_tracker.stop, 90, label="流量统计收尾") or network_traffic
         if data_saver is not None:
-            data_saver.stop()
+            _run_with_timeout(data_saver.stop, 20, label="省流量收尾")
+        logger.info("[Cloak注册] 收尾完成,入库账号")
         account_id = save_account_data(
             email=email,
             access_token=access_token,
@@ -175,6 +218,7 @@ def run_cloak_registration(
             email_source=resolve_email_source(email),
             proxy_used=((opened.raw or {}).get("proxy") if opened else None) or proxy or None,
             batch_dir=batch_dir,
+            registration_channel="browse",
             extra={
                 "user": session_info.get("user"),
                 "account": session_info.get("account"),
@@ -199,11 +243,11 @@ def run_cloak_registration(
     except Exception as exc:
         if traffic_tracker is not None:
             try:
-                network_traffic = traffic_tracker.stop()
+                network_traffic = _run_with_timeout(traffic_tracker.stop, 60, label="流量统计收尾(异常路径)") or network_traffic
             except Exception:
                 pass
         if data_saver is not None:
-            data_saver.stop()
+            _run_with_timeout(data_saver.stop, 15, label="省流量收尾(异常路径)")
         logger.error("[Cloak注册] 失败：%s: %s", type(exc).__name__, exc)
         logger.debug("[Cloak注册] 失败详情", exc_info=True)
         try:
@@ -220,14 +264,54 @@ def run_cloak_registration(
         }
     finally:
         if traffic_tracker is not None:
-            try:
-                traffic_tracker.stop()
-            except Exception:
-                pass
+            _run_with_timeout(traffic_tracker.stop, 30, label="流量统计收尾(finally)")
         if data_saver is not None:
-            data_saver.stop()
+            _run_with_timeout(data_saver.stop, 10, label="省流量收尾(finally)")
         if driver and not bool(_cfg.CLOAK_KEEP_BROWSER_OPEN):
-            try:
-                driver.quit()
-            except Exception:
-                pass
+            _run_with_timeout(driver.quit, 30, label="浏览器关闭")
+
+
+
+def run_cloak_registration(
+    email: str | None,
+    name: str,
+    birthday: str,
+    proxy: str = None,
+    otp_code: str = None,
+    batch_dir: Path | None = None,
+    on_email_acquired: Callable[[str], None] | None = None,
+) -> dict:
+    """线程隔离入口。
+
+    cloakbrowser 内部使用 Playwright Sync API,其事件循环绑定在启动线程上:
+    同一线程第二次启动必报 "Sync API inside asyncio loop"。因此每个注册任务
+    在专属短命线程中执行,循环状态随线程销毁,WebUI 复用线程不再受影响。
+    """
+    result_box: dict = {}
+
+    def _target():
+        result_box["result"] = _run_cloak_registration_impl(
+            email=email,
+            name=name,
+            birthday=birthday,
+            proxy=proxy,
+            otp_code=otp_code,
+            batch_dir=batch_dir,
+            on_email_acquired=on_email_acquired,
+        )
+
+    # 线程名从父线程派生:任务的 FileHandler 过滤器据此把过程日志写入本任务文件。
+    worker = threading.Thread(
+        target=_target,
+        name=f"{threading.current_thread().name}+cloak",
+        daemon=True,
+    )
+    worker.start()
+    worker.join(900)
+    if worker.is_alive():
+        logger.error("[Cloak注册] 任务超时(900s),放弃本次(浏览器线程留守,稍后自动退出)")
+        return {"success": False, "email": email, "error": "Cloak 注册超时(900s)"}
+    result = result_box.get("result")
+    if result is None:
+        return {"success": False, "email": email, "error": "Cloak 注册线程异常退出"}
+    return result

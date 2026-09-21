@@ -14,8 +14,10 @@ from config import REGISTER_EMAIL, REGISTER_NAME  # 这两个一般不在 WebUI 
 # 可热改的，按模块属性方式读
 from config import twofa as _twofa_cfg
 from config import email as _email_cfg
+from config import register as _register_cfg
 from config import roxybrowser as _roxy_cfg
 from config import openai_protocol as _protocol_cfg
+from config.proxy import expand_sticky_proxy, pick_proxy, STICKY_EMAIL_PLACEHOLDER
 from core.session import BrowserSession
 from core.chatgpt_auth import get_providers, get_csrf_token, signin_openai, navigate_login_with
 from core.openai_auth import (
@@ -28,6 +30,10 @@ from core.openai_auth import (
     navigate_about_you,
     EmailOtpInvalidError,
     create_account,
+    ensure_password_signup_page,
+    register_user,
+    navigate_email_otp_send,
+    generate_registration_password,
 )
 from core.account_export import (
     follow_oauth_callback,
@@ -163,16 +169,22 @@ def run_registration(
     otp_code: str = None,
     batch_dir=None,
     on_email_acquired: Callable[[str], None] | None = None,
+    sticky_variant: int = 0,
 ):
     """
     执行完整的 ChatGPT 注册流程（OTP-only，无密码）。
 
-    OpenAI 当前默认流程（2026-09-17 抓包对齐）：
-    首页预热 → /auth/login_with?screen_hint=signup&login_hint=... 文档导航
-    → providers/csrf → signin(screen_hint=signup)
-    → follow_authorize 重定向链自动落到 /email-verification 并触发 OTP 发送
+    OpenAI 默认流程（2026-09-18 密码注册抓包对齐，REGISTER_WITH_PASSWORD=True）：
+    首页预热 → /auth/login_with?screen_hint=login_or_signup&login_hint=... 文档导航
+    → providers/csrf → signin(screen_hint=login_or_signup)
+    → follow_authorize → create-account/password 页
+    → sentinel(username_password_create) → user/register 提交邮箱+密码
+    → GET email-otp/send → email-verification
     → sentinel(email_otp_validate) + validate_email_otp → about-you 提交昵称生日
-    → create_account → OAuth 回调建立登录态。
+    → create_account → OAuth 回调建立登录态。密码落库 extra_json.registration_password。
+
+    REGISTER_WITH_PASSWORD=False 时退回无密码流程：signin(screen_hint=signup)
+    → authorize 直落 email-verification 自动发 OTP，其余一致。
 
     Args:
         email: 注册邮箱
@@ -180,6 +192,7 @@ def run_registration(
         birthday: 生日，格式 YYYY-MM-DD
         proxy: 代理地址（不传则从 PROXY_POOL 随机抽）
         otp_code: 邮箱验证码（如果为None，会等待手动输入）
+        sticky_variant: 粘性邮箱会话变体号,0=纯邮箱,>0=邮箱-variant(换出口重试用)
     """
     # 可选注册驱动：
     #   protocol     = 原有纯协议（curl_cffi）
@@ -188,6 +201,23 @@ def run_registration(
     #   patchright   = 本地 Patchright（Playwright 反检测分支）+ Selenium 适配层
     #   browser_use  = Browser Use Cloud stealth Chromium + Playwright
     #   skyvern      = Skyvern Browser Sessions + Playwright
+    # 粘性代理解析(2026-09-20):占位符在入口一次性展开(pick_proxy 抽取时也会
+    # 展开,这里再过一遍幂等)。同一次注册内协议会话与浏览器驱动共用同一个
+    # 展开值,保证全程同 IP;"" 仍表示显式禁用代理。
+    if proxy is None:
+        proxy = pick_proxy()
+    # {email} 占位符要求邮箱已确定:cloak/roxy 等延迟领取路径在粘性邮箱代理
+    # 下必须改为启动浏览器前领取——浏览器一启动就要锁定出口会话。
+    if STICKY_EMAIL_PLACEHOLDER in str(proxy or "") and not str(email or "").strip():
+        if not _email_cfg.USE_EMAIL_SERVICE:
+            raise RuntimeError(
+                "代理模板包含 {email} 占位符，但当前为手动模式且未提供邮箱。"
+                "请在 WebUI 配置页设置 REGISTER_EMAIL，或开启 USE_EMAIL_SERVICE 从邮箱池领取。"
+            )
+        email = acquire_email()
+        if on_email_acquired:
+            on_email_acquired(email)
+    proxy = expand_sticky_proxy(proxy, email, sticky_variant)
     driver_mode = str(getattr(_roxy_cfg, "REGISTRATION_DRIVER", "protocol") or "protocol").strip().lower()
     if driver_mode in ("roxy", "roxybrowser", "fingerprint", "browser"):
         from core.roxy_registration import run_roxy_registration
@@ -287,6 +317,13 @@ def run_registration(
     try:
         # 网络预检必须在 signin/follow_authorize 之前完成；预检不带邮箱，不会触发 OTP。
         network_preflight(session)
+        # 前端遥测发射器(2026-09-18 对照实验:缺失遥测是协议号被清理的主要特征)。
+        from core.telemetry import TelemetryEmitter
+        telemetry = TelemetryEmitter(
+            session,
+            enabled=bool(getattr(_protocol_cfg, "TELEMETRY_ENABLED", True)),
+        )
+        telemetry.emit_homepage()
         human_delay("navigate")
 
         # 根据 2026-07-19 HAR 补齐匿名态 ChatGPT 首屏/模型预热链路。
@@ -312,8 +349,15 @@ def run_registration(
         csrf_token = get_csrf_token(session, referer=login_with_url)
         human_delay("api")
 
-        # 步骤3: 发起 OAuth signin（注册链路固定 screen_hint=signup，对齐抓包）
-        authorize_url = signin_openai(session, csrf_token, email, referer=login_with_url, screen_hint="signup")
+        # 步骤3: 发起 OAuth signin
+        # 2026-09-18 密码注册抓包：密码分支 screen_hint=login_or_signup，
+        # authorize 重定向链直接落到 create-account/password 页；
+        # 无密码分支保持 screen_hint=signup，落到 email-verification。
+        use_password = bool(getattr(_register_cfg, "REGISTER_WITH_PASSWORD", True))
+        authorize_url = signin_openai(
+            session, csrf_token, email, referer=login_with_url,
+            screen_hint="login_or_signup" if use_password else "signup",
+        )
         human_delay("api")
 
         # 记录"OTP 触发"前的时间戳，自动取信箱时只看此后的邮件，
@@ -322,11 +366,39 @@ def run_registration(
 
         # ==================== 阶段2: OpenAI Auth ====================
         # 步骤4: 跟随 authorize URL（建立 auth.openai.com 的 cookies）
-        # 由于步骤3已携带 login_hint + screen_hint=signup，
-        # 重定向链会直接走到 /email-verification 并自动触发 OTP 发送，
-        # 不需要 /create-account/password、register_user、单独 send_email_otp 调用。
-        follow_authorize(session, authorize_url)
+        landing_url = follow_authorize(session, authorize_url)
         human_delay("navigate")
+        if not use_password:
+            # 无密码分支:authorize 直落 email-verification(OTP 已自动发送)。
+            telemetry.emit_auth_view("email-verification")
+
+        # ==================== 步骤5-8: 密码注册分支（2026-09-18 抓包） ====================
+        # 真实浏览器链路：authorize → create-account/password 页 →
+        # sentinel(username_password_create) → POST user/register {"password","username"}
+        # （无 so-token）→ 响应 continue_url=/api/accounts/email-otp/send →
+        # GET email-otp/send → email-verification → 等 OTP。
+        register_password = None
+        if use_password:
+            landing_url = ensure_password_signup_page(session, landing_url)
+            telemetry.emit_auth_view("create-account/password")
+            human_delay("form")
+
+            # 步骤6: 密码分支 Sentinel（iframe 上下文 username_password_create）
+            sentinel_resp_6 = request_sentinel_token(session, "username_password_create")
+            sentinel_header_6, so_header_6 = build_sentinel_header(session, sentinel_resp_6, "username_password_create")
+            human_delay("challenge")
+            human_delay("form")
+
+            # 步骤7: 提交邮箱 + 密码（抓包确认此端点不带 so-token）
+            register_password = generate_registration_password()
+            register_result = register_user(session, email, register_password, sentinel_header_6)
+            human_delay("form")
+
+            # 步骤8: 跟随 continue_url 发送邮箱 OTP（此时 OTP 才真正触发）
+            otp_after_ts = time.time()
+            navigate_email_otp_send(session, register_result.get("continue_url"))
+            telemetry.emit_auth_view("email-verification")
+            human_delay("navigate")
 
         # ==================== 阶段3: 验证码验证 ====================
         # Sentinel Token 不提前生成；等 OTP 到手后紧贴 validate 请求生成，
@@ -439,6 +511,7 @@ def run_registration(
             # 先真实导航到 about-you，让 auth session/page state 与 create_account 一致。
             about_url = str(otp_continue_url) if otp_continue_url and "about-you" in str(otp_continue_url) else None
             navigate_about_you(session, about_url)
+            telemetry.emit_auth_view("about-you")
             human_delay("navigate")
 
             # 步骤11: 获取 Sentinel Token（oauth_create_account）
@@ -524,13 +597,18 @@ def run_registration(
             email_source=resolve_email_source(email),
             proxy_used=session.proxy or None,
             batch_dir=batch_dir,
+            registration_channel="protocol",
             extra={
                 "user": session_info.get("user"),
                 "account": session_info.get("account"),
                 "expires": session_info.get("expires"),
                 "device_id": session.device_id,
+                "oai_session_id": getattr(session, "oai_session_id", None),
                 "sentinel_sid": getattr(session, "sentinel_sid", None),
                 "browser_profile": getattr(session, "browser_profile", None),
+                # 密码注册分支产生的密码；passwordless 为 None。
+                # DB 读取端 _extract_registration_password 依赖此键。
+                "registration_password": register_password,
                 "codex": codex_result,
             },
         )

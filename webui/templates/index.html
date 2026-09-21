@@ -2264,6 +2264,7 @@
         <div class="acc-v2-btn-group">
           <span class="acc-v2-btn-group-title">套餐/提链</span>
           <button type="button" class="jobs-tb-btn jobs-tb-btn--primary" id="btnCheckSelectedLiveV2" onclick="checkSelectedLive()" title="重新登录选中账号；成功且未封号则标记正常，并刷新最新 AT/accessToken">查活</button>
+          <button type="button" class="jobs-tb-btn jobs-tb-btn--good" id="btnPushSelectedHubV2" disabled onclick="pushSelectedToHub()" title="把选中的账号推送到 gpt-account-hub（需在配置页开启 Hub 推送）">推送Hub</button>
           <button type="button" class="jobs-tb-btn jobs-tb-btn--primary" id="btnCheckSelectedPlansV2" disabled title="查询选中账号当前套餐；free 账号会检查 Plus 试用资格">查套餐</button>
           <button type="button" class="jobs-tb-btn jobs-tb-btn--good" id="btnExtractSelectedLinksV2" disabled title="给选中的 free(可Plus试用) 账号批量提链，类型按配置 PIX/UPI/KAKAO_PAY/IDEAL">提链</button>
         </div>
@@ -2488,6 +2489,115 @@
         <div class="config-nav-v2-title">配置分组</div>
         <div class="config-nav-v2-list" id="configNavV2"></div>
       </aside>
+    <!-- Clash 节点管理面板 -->
+    <section class="config-overview-v2" id="clashPanelV2" style="margin-top:18px;">
+      <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+        <h1 class="config-overview-v2-title" style="font-size:18px;">Clash 节点管理</h1>
+        <button type="button" class="jobs-tb-btn jobs-tb-btn--primary" id="btnClashRefresh" onclick="clashLoadNodes()">刷新列表</button>
+        <button type="button" class="jobs-tb-btn jobs-tb-btn--good" id="btnClashCheckAll" onclick="clashCheckAll()">检测全部质量</button>
+        <button type="button" class="jobs-tb-btn" id="btnClashResetAll" onclick="clashResetAll()">重置全部状态</button>
+        <span id="clashPanelHint" style="font-size:12px;color:var(--muted);"></span>
+      </div>
+      <div style="overflow-x:auto;margin-top:10px;">
+        <table class="jobs-table" style="min-width:900px;">
+          <thead>
+            <tr>
+              <th>节点</th><th>当前</th><th>出口IP</th><th>质量</th><th>chatgpt/auth</th>
+              <th>已注册</th><th>冷却剩余(h)</th><th>最近注册邮箱</th><th>操作</th>
+            </tr>
+          </thead>
+          <tbody id="clashNodesTbody">
+            <tr><td colspan="9" style="text-align:center;color:var(--muted);">点击"刷新列表"加载节点</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p style="font-size:12px;color:var(--muted);margin-top:8px;">
+        规则(配置分组「Clash节点管理」可调):注册自动挑选 质量良好+未冷却+未超限 的节点;检测失败/403 自动换下一个;
+        注册成功后节点进入冷却并计数,达到单节点上限后不再选用。重置模式:冷却/计数/质量/全部。
+      </p>
+    </section>
+    <script>
+    async function clashLoadNodes() {
+      const hint = document.getElementById('clashPanelHint');
+      hint.textContent = '加载中…';
+      try {
+        const r = await api('/api/clash/nodes');
+        const tb = document.getElementById('clashNodesTbody');
+        if (!r || !r.ok) { tb.innerHTML = `<tr><td colspan="9" style="color:#f56c66;">${esc((r && r.error) || '加载失败')}</td></tr>`; hint.textContent=''; return; }
+        if (!r.nodes.length) { tb.innerHTML = '<tr><td colspan="9" style="text-align:center;color:var(--muted);">未发现节点:检查配置页 Clash API 地址/密钥/分组名</td></tr>'; hint.textContent=''; return; }
+        tb.innerHTML = r.nodes.map(n => {
+          const q = n.quality === 'good' ? '<span class="pill status-ok">良好</span>'
+            : n.quality === 'bad' ? '<span class="pill status-failed">不佳</span>'
+            : '<span class="pill" style="background:var(--muted);">未检</span>';
+          const avail = n.available ? '<span style="color:#67c23a;">可用</span>'
+            : `<span style="color:#e6a23c;">${esc(n.unavailable_reason || '')}</span>`;
+          const det = n.quality_detail || {};
+          return `<tr>
+            <td title="${esc(n.node)}">${esc(n.node.length > 26 ? n.node.slice(0,26)+'…' : n.node)}</td>
+            <td>${n.current ? '←' : ''}</td>
+            <td>${esc(n.exit_ip || '-')}</td>
+            <td>${q}</td>
+            <td>${esc(String(det.chatgpt ?? '-') + ' / ' + String(det.auth ?? '-'))}</td>
+            <td>${n.reg_count}</td>
+            <td>${n.cooldown_remain_h > 0 ? n.cooldown_remain_h : '-'}</td>
+            <td title="${esc(n.last_reg_email)}">${esc(n.last_reg_email ? n.last_reg_email.slice(0,14) + '…' : '-')}</td>
+            <td style="white-space:nowrap;">
+              <button type="button" class="jobs-tb-btn" style="padding:2px 8px;" onclick="clashCheckOne('${esc(n.node)}', this)">检测</button>
+              <button type="button" class="jobs-tb-btn" style="padding:2px 8px;" onclick="clashSwitchTo('${esc(n.node)}', this)">切换</button>
+              <button type="button" class="jobs-tb-btn" style="padding:2px 8px;" onclick="clashResetNode('${esc(n.node)}')">重置</button>
+              <span style="font-size:11px;color:var(--muted);margin-left:4px;">${avail}</span>
+            </td>
+          </tr>`;
+        }).join('');
+        const good = r.nodes.filter(n => n.quality === 'good').length;
+        const availN = r.nodes.filter(n => n.available).length;
+        hint.textContent = `共 ${r.nodes.length} 节点 | 质量良好 ${good} | 当前可注册 ${availN}`;
+      } catch (e) {
+        document.getElementById('clashNodesTbody').innerHTML = `<tr><td colspan="9" style="color:#f56c6c;">${esc(String(e))}</td></tr>`;
+        hint.textContent = '';
+      }
+    }
+    async function clashCheckOne(node, btn) {
+      if (btn) { btn.disabled = true; btn.textContent = '检测中'; }
+      try {
+        const r = await api('/api/clash/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ node }) });
+        const res = (r && r.results && r.results[0]) || {};
+        showToast(`${node}: ${res.quality || ((r && r.error) || '失败')}${res.exit_ip ? ' ip=' + res.exit_ip : ''}`, res.quality === 'good' ? 'success' : 'error');
+      } finally { await clashLoadNodes(); }
+    }
+    async function clashCheckAll() {
+      const btn = document.getElementById('btnClashCheckAll');
+      btn.disabled = true; btn.textContent = '检测中(每节点~10s)…';
+      try {
+        await api('/api/clash/check', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+        showToast('全量质量检测完成', 'success');
+      } catch (e) { showToast('检测失败: ' + e, 'error'); }
+      finally { btn.disabled = false; btn.textContent = '检测全部质量'; await clashLoadNodes(); }
+    }
+    async function clashSwitchTo(node, btn) {
+      if (!confirm(`切换到节点 ${node}?`)) return;
+      if (btn) { btn.disabled = true; }
+      try {
+        const r = await api('/api/clash/switch', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ node }) });
+        if (r && r.ok) showToast(`已切换 ${node} (ip=${r.ip || '?'})`, 'success');
+        else showToast(`切换失败: ${(r && r.error) || '未知'}`, 'error');
+      } finally { await clashLoadNodes(); }
+    }
+    async function clashResetNode(node) {
+      if (!confirm(`重置节点 ${node} 的全部状态(冷却/计数/质量)?`)) return;
+      await api('/api/clash/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ node, mode: 'all' }) });
+      await clashLoadNodes();
+    }
+    async function clashResetAll() {
+      if (!confirm('重置全部节点的冷却/计数/质量状态?')) return;
+      await api('/api/clash/reset', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'all' }) });
+      showToast('已重置全部节点', 'success');
+      await clashLoadNodes();
+    }
+    document.addEventListener('DOMContentLoaded', () => setTimeout(clashLoadNodes, 800));
+    </script>
+    <!-- /Clash 节点管理面板 -->
+
       <div class="config-main-v2">
         <div class="config-cards-v2" id="configCardsV2" aria-label="配置概览卡片">
           <div class="config-card-v2" id="configCardRegistrationV2">
@@ -3589,6 +3699,7 @@ function _accountsV2MoreMenu(r) {
     `<button type="button" data-account-change-email="${esc(r.id)}" title="从指定邮箱来源领取新邮箱并换绑">换绑邮箱</button>`,
     `<button type="button" data-account-change-email-log="${esc(r.id)}" title="查看最近一次邮箱换绑日志">换绑日志</button>`,
     `<button type="button" onclick="checkSelectedLive([Number('${esc(r.id)}')], this); return false;" title="重新登录该账号，成功则刷新最新 AT/accessToken">查活刷新AT</button>`,
+    `<button type="button" onclick="pushSelectedToHub([Number('${esc(r.id)}')], this); return false;" title="把该账号推送到 gpt-account-hub">推送Hub</button>`,
     `<button type="button" data-account-live-log="${esc(r.email)}" title="查看该账号最近一次查活日志">查活日志</button>`,
     `<button type="button" data-account-totp-log="${esc(r.email)}" title="查看该账号最近一次 2FA 设置日志">2FA日志</button>`,
     _planAction(r),
@@ -3674,6 +3785,7 @@ function updateAccountSelectionUi(pageRows = null) {
     'btnRetrySelectedCodexV2', 'btnDownloadSelectedCpaV2', 'btnStopSelectedCodexV2',
     'btnSetupSelectedTotpV2', 'btnChangeSelectedEmailsV2', 'btnNoteSelectedAccountsV2', 'btnCopySelectedLinesV2', 'btnCopySelectedTokensV2', 'btnCopySelectedEmailsV2',
     'btnDownloadSelectedTxtV2', 'btnArchiveSelectedAccountsV2', 'btnDeleteSelectedAccountsV2',
+    'btnPushSelectedHubV2',
   ];
   v2Ids.forEach(id => {
     const el = document.getElementById(id);
@@ -4775,6 +4887,37 @@ async function checkSelectedPlans() {
     updateAccountSelectionUi();
   } finally {
     btn.textContent = old;
+  }
+}
+
+async function pushSelectedToHub(idsArg = null, btnArg = null) {
+  const ids = idsArg || Array.from(ACCOUNT_SELECTED);
+  if (ids.length === 0) { showToast('请先选择账号'); return; }
+  if (!confirm(idsArg ? '确定把该账号推送到 gpt-account-hub 吗？' : `确定把选中的 ${ids.length} 个账号推送到 gpt-account-hub 吗？
+未在配置页开启 Hub 推送时会直接提示。`)) return;
+  const btn = btnArg || $('#btnPushSelectedHubV2');
+  const old = btn ? btn.textContent : '';
+  if (btn) { btn.disabled = true; btn.textContent = '推送中…'; }
+  try {
+    const r = await api('/api/accounts/hub-push', {
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({account_ids: ids}),
+    });
+    if (r && r.ok) {
+      showToast(`推送完成: ${r.pushed}/${r.total} 成功`, 'success');
+    } else {
+      const first = r && r.results && r.results[0];
+      showToast(`推送失败: ${(first && first.message) || (r && r.error) || '未知错误'}`, 'error');
+    }
+    if (r && Array.isArray(r.results)) {
+      const failed = r.results.filter(x => !x.ok).slice(0, 3);
+      failed.forEach(x => console.warn('[HubPush]', x.email, x.message));
+    }
+  } catch (e) {
+    showToast('推送请求失败: ' + (e && e.message ? e.message : e), 'error');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = old || '推送Hub'; }
   }
 }
 

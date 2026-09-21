@@ -100,33 +100,54 @@ def _new_fingerprint_pinned_session(
     return session
 
 
-def _warm_login_fingerprint_context(session: BrowserSession) -> None:
-    """复现 plus 纯协议注册成功样本的登录页初始化顺序。"""
+def _warm_login_fingerprint_context(session: BrowserSession, email: str) -> str:
+    """按 2026-09-18 抓包顺序预热登录链，返回 login_with URL 供后续 XHR referer。
+
+    顺序：首页顶层导航（ Sec-Fetch-Site=none，质询可容忍）→ 采纳服务端
+    oai-did → anonymous bootstrap → /auth/login_with 文档导航。
+    providers/session/csrf/signin 由调用方使用返回的 login_with URL 作 referer。
+    """
     from core.chatgpt_bootstrap import anonymous_bootstrap
+    from core.chatgpt_auth import navigate_login_with
+    from core.openai_auth import _is_cf_challenge_response, _reset_after_challenge
 
     logger.info(
-        "[查活] 登录链预热：/auth/login 顶层导航 → anonymous bootstrap → "
-        "providers → session → CSRF → session"
+        "[查活] 登录链预热：首页顶层导航 → anonymous bootstrap → login_with 文档导航"
     )
-    nav = session.get(
-        "https://chatgpt.com/auth/login",
-        headers=session.get_chatgpt_navigate_headers(
-            # 地址栏级顶层导航：无 Referer，Sec-Fetch-Site=none。
-            referer="", user_initiated=True,
-        ),
-        allow_redirects=True,
-        # 代理端口可连接不代表其上游 TLS 可用，避免坏节点长期占住 worker。
-        timeout=12,
-    )
-    nav.raise_for_status()
-    observe = getattr(session, "observe_chatgpt_document", None)
-    if callable(observe):
-        observe(nav)
+    nav = None
+    for attempt in range(1, 4):
+        nav = session.get(
+            "https://chatgpt.com/",
+            headers=session.get_chatgpt_navigate_headers(
+                # 地址栏级顶层导航：无 Referer，Sec-Fetch-Site=none。
+                referer="", user_initiated=True,
+            ),
+            allow_redirects=True,
+            # 代理端口可连接不代表其上游 TLS 可用，避免坏节点长期占住 worker。
+            timeout=12,
+        )
+        if _is_cf_challenge_response(nav):
+            # 质询响应种下的 __cf_bm 绑定污染状态，必须重建传输层再重试。
+            _reset_after_challenge(session)
+            logger.warning("[查活] 首页导航被 CF 托管质询（%s/3）", attempt)
+            time.sleep(1.5)
+            continue
+        nav.raise_for_status()
+        break
+    else:
+        # 首页持续被质询不阻断认证链：后续 API 路由通常仍可用（注册链路同款策略）。
+        logger.warning("[查活] 首页导航持续被质询，跳过预热继续认证链")
+    if nav is not None:
+        observe = getattr(session, "observe_chatgpt_document", None)
+        if callable(observe):
+            observe(nav)
+    adopt = getattr(session, "adopt_server_device_id", None)
+    if callable(adopt):
+        adopt()
     anonymous_bootstrap(session, strict=False)
     # best-effort bootstrap 的非关键接口不能阻断正式认证链。
     _clear_optional_bootstrap_circuit(session)
-    get_providers(session)
-    probe_auth_session(session)
+    return navigate_login_with(session, email)
 
 
 def _network_preflight_with_retry(
@@ -148,9 +169,10 @@ def _network_preflight_with_retry(
     session: BrowserSession | None = None
     last_exc: BaseException | None = None
     state = fingerprint_state if fingerprint_state is not None else {}
-    # 一次网络预检只创建一个 BrowserSession。403 响应下发的新 __cf_bm、
-    # OAuth/设备上下文都保留在同一 Cookie Jar 中供下一轮使用。
+    # 一次网络预检只创建一个 BrowserSession；质询 403 时重建传输层（保留业务
+    # Cookie、丢弃被污染的 CF Cookie），其余临时错误仅清本地熔断。
     session = _new_fingerprint_pinned_session(email, proxy, state)
+    from core.openai_auth import _is_cf_challenge_exc, _reset_after_challenge
     for attempt in range(1, max_attempts + 1):
         logger.info(
             "[查活] 复用统一会话：proxy=%s device_id=%s oai_session_id=%s（网络预检第 %s/%s 次）",
@@ -160,11 +182,11 @@ def _network_preflight_with_retry(
         )
         logger.info("[查活] 指纹摘要：%s", session.fingerprint_summary_text())
         try:
-            _warm_login_fingerprint_context(session)
-            csrf = get_csrf_token(session)
+            login_with_url = _warm_login_fingerprint_context(session, email)
+            csrf = get_csrf_token(session, referer=login_with_url)
             # 成功 Web 样本在 signin 前会再次确认匿名 NextAuth session。
-            probe_auth_session(session)
-            authorize_url = signin_openai(session, csrf, email)
+            probe_auth_session(session, referer=login_with_url)
+            authorize_url = signin_openai(session, csrf, email, referer=login_with_url)
             return session, authorize_url
         except Exception as exc:
             last_exc = exc
@@ -174,9 +196,12 @@ def _network_preflight_with_retry(
                 except Exception:
                     pass
                 raise
-            _clear_optional_bootstrap_circuit(session)
+            if _is_cf_challenge_exc(exc):
+                _reset_after_challenge(session)
+            else:
+                _clear_optional_bootstrap_circuit(session)
             logger.warning(
-                "[查活] 网络预检失败（%s/%s），保留当前 session/deviceId/CF Cookie 重试：%s",
+                "[查活] 网络预检失败（%s/%s），重试：%s",
                 attempt, max_attempts, str(exc)[:200],
             )
             time.sleep(2)
@@ -249,8 +274,8 @@ def _password_verify(session: BrowserSession, password: str) -> dict:
     sentinel_header, so_header = build_sentinel_header(session, sentinel_resp, "password_verify")
     headers = session.get_auth_headers(referer="https://auth.openai.com/log-in/password")
     headers["openai-sentinel-token"] = sentinel_header
-    if so_header:
-        headers["openai-sentinel-so-token"] = so_header
+    # 2026-09-18 抓包：password/verify 只带主 sentinel token，不带 so-token
+    # （与 email-otp/validate、create_account 不同）。
     resp = session.post(
         "https://auth.openai.com/api/accounts/password/verify",
         headers=headers,
@@ -290,12 +315,16 @@ def _mfa_verify(session: BrowserSession, factor_id: str, code: str) -> dict:
 
 
 def _follow_continue_and_fetch(session: BrowserSession, continue_url: str, *, referer: str) -> dict:
-    """完成 callback/session，并对 403 保留同会话 Cookie 做阶段内重试。
+    """完成 callback/session，并对临时失败做阶段内重试。
 
     callback 与 session 分开重试：callback 一旦成功就不重复消费 OAuth code；
-    只有 callback 本身失败时才重放 continue_url。重试耗尽后抛给上层，由
-    live_check_service 按既有策略换成独立直连会话完整兜底。
+    只有 callback 本身失败时才重放 continue_url。CF 托管质询时重建传输层
+    （保留业务 Cookie、丢弃被污染的 CF Cookie）；其余临时错误仅清本地熔断、
+    保留完整 Cookie Jar。重试耗尽后抛给上层，由 live_check_service 按既有
+    策略换成独立直连会话完整兜底。
     """
+    from core.openai_auth import _is_cf_challenge_exc, _reset_after_challenge
+
     max_attempts = 3
     for attempt in range(1, max_attempts + 1):
         try:
@@ -304,11 +333,13 @@ def _follow_continue_and_fetch(session: BrowserSession, continue_url: str, *, re
         except Exception as exc:
             if attempt >= max_attempts or not _is_retryable_network_error(exc):
                 raise
-            _clear_optional_bootstrap_circuit(session)
+            if _is_cf_challenge_exc(exc):
+                _reset_after_challenge(session)
+            else:
+                _clear_optional_bootstrap_circuit(session)
             delay = float(2 ** (attempt - 1))
             logger.warning(
-                "[查活] OAuth callback 临时失败（%s/%s），保留当前 "
-                "session/deviceId/CF Cookie，%.1fs 后重试：%s",
+                "[查活] OAuth callback 临时失败（%s/%s），%.1fs 后重试：%s",
                 attempt, max_attempts, delay, str(exc)[:200],
             )
             time.sleep(delay)
@@ -319,11 +350,13 @@ def _follow_continue_and_fetch(session: BrowserSession, continue_url: str, *, re
         except Exception as exc:
             if attempt >= max_attempts or not _is_retryable_network_error(exc):
                 raise
-            _clear_optional_bootstrap_circuit(session)
+            if _is_cf_challenge_exc(exc):
+                _reset_after_challenge(session)
+            else:
+                _clear_optional_bootstrap_circuit(session)
             delay = float(2 ** (attempt - 1))
             logger.warning(
-                "[查活] Session/AT 拉取临时失败（%s/%s），保留当前 "
-                "session/deviceId/CF Cookie，%.1fs 后重试：%s",
+                "[查活] Session/AT 拉取临时失败（%s/%s），%.1fs 后重试：%s",
                 attempt, max_attempts, delay, str(exc)[:200],
             )
             time.sleep(delay)
@@ -619,7 +652,12 @@ def _validate_with_retry(
                     after_ts=otp_after_ts,
                     email_source=email_source,
                 )
-            result = validate_email_otp(session, current_otp, sentinel_header=None, so_header=None)
+            human_delay("otp_input")
+            # 2026-09-17 抓包：validate 携带 sentinel+so（flow=email_otp_validate）。
+            sentinel_header, so_header = _build_validate_sentinel_headers(session)
+            result = validate_email_otp(
+                session, current_otp, sentinel_header=sentinel_header, so_header=so_header,
+            )
             return result
         except EmailOtpInvalidError as exc:
             last_exc = exc
@@ -645,6 +683,27 @@ def _validate_with_retry(
             current_otp = None
             time.sleep(1)
     raise last_exc if last_exc else RuntimeError("OTP 验证失败")
+
+
+def _build_validate_sentinel_headers(session: BrowserSession) -> tuple[str | None, str | None]:
+    """登录链的 email-otp/validate 按抓包携带 sentinel+so（flow=email_otp_validate）。
+
+    与注册链路共用 SEND_SENTINEL_ON_EMAIL_OTP_VALIDATE 开关；生成失败不阻断，
+    退回无 sentinel 的 validate（服务端两者都接受）。
+    """
+    try:
+        from config import openai_protocol as _protocol_cfg
+        if not bool(getattr(_protocol_cfg, "SEND_SENTINEL_ON_EMAIL_OTP_VALIDATE", False)):
+            return None, None
+    except Exception:
+        return None, None
+    try:
+        from core.openai_auth import build_sentinel_header, request_sentinel_token
+        sentinel_resp = request_sentinel_token(session, "email_otp_validate")
+        return build_sentinel_header(session, sentinel_resp, "email_otp_validate")
+    except Exception as exc:
+        logger.warning("[查活] 生成 validate sentinel 失败，退回无 sentinel 提交：%s", str(exc)[:160])
+        return None, None
 
 
 def check_account_liveness(
@@ -693,7 +752,11 @@ def check_account_liveness(
             "%(asctime)s [%(levelname)s] %(message)s",
             datefmt="%H:%M:%S",
         ))
-        fh.addFilter(lambda record: record.threadName == thread_name)
+        # 接受本线程及其 "+xxx" 派生子线程(与 _JobLogContext 同规则)。
+        fh.addFilter(
+            lambda record: record.threadName == thread_name
+            or str(record.threadName or "").startswith(thread_name + "+")
+        )
         root_logger.addHandler(fh)
 
         logger.info("[查活] 日志文件：%s", path)

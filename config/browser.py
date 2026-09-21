@@ -241,6 +241,7 @@ JS_HEAP_SIZE_LIMIT = 4395630592
 DEVICE_MEMORY = 8
 
 # 这些列表必须与 sentinel/sentinel-runner.js 的 createBrowserContext 保持一致。
+# 20260917 版 SDK 的随机探测项实测会抽到 mediaSession/onwheel（2026-09-17 抓包）。
 NAVIGATOR_PROTO_SAMPLES = [
     "createAuctionNonce−function createAuctionNonce() { [native code] }",
     "clearOriginJoinedAdInterestGroups−function clearOriginJoinedAdInterestGroups() { [native code] }",
@@ -249,6 +250,7 @@ NAVIGATOR_PROTO_SAMPLES = [
     "gpu−[object GPU]",
     "getBattery−function getBattery() { [native code] }",
     "getGamepads−function getGamepads() { [native code] }",
+    "mediaSession−[object MediaSession]",
     "javaEnabled−function javaEnabled() { [native code] }",
     "sendBeacon−function sendBeacon() { [native code] }",
     "vibrate−function vibrate() { [native code] }",
@@ -266,7 +268,7 @@ WINDOW_KEY_SAMPLES = [
     "localStorage", "sessionStorage", "history", "innerWidth", "innerHeight",
     "outerWidth", "outerHeight", "devicePixelRatio", "chrome", "performance", "crypto",
     "TextEncoder", "URL", "URLSearchParams", "AbortController",
-    "locationbar", "scrollX", "scrollY", "ondevicemotion",
+    "locationbar", "scrollX", "scrollY", "ondevicemotion", "onwheel",
     "requestAnimationFrame", "queueMicrotask", "onfocus", "onblur", "onpageshow",
 ]
 
@@ -347,7 +349,8 @@ def build_browser_environment(geo: dict | None = None, base_profile: dict | None
         "navigator_proto_samples": list(NAVIGATOR_PROTO_SAMPLES),
         "document_key_samples": list(DOCUMENT_KEY_SAMPLES),
         "window_key_samples": list(WINDOW_KEY_SAMPLES),
-        "script_src_samples": list(SCRIPT_SRC_SAMPLES),
+        # 2026-09-17 抓包：p[5] 抽样的是 frame.html 加载的无版本 sdk.js。
+        "script_src_samples": ["https://sentinel.openai.com/backend-api/sentinel/sdk.js"],
         "window_feature_flags": dict(WINDOW_FEATURE_FLAGS),
         "build_id": __import__("config.openai_protocol", fromlist=["OPENAI_BUILD_ID"]).OPENAI_BUILD_ID,
     })

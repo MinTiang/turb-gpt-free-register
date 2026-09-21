@@ -26,6 +26,17 @@ from config import (
 logger = logging.getLogger(__name__)
 _GEO_CACHE: dict[str, dict] = {}
 _GEO_CACHE_LOCK = threading.Lock()
+
+
+def clear_geo_cache() -> None:
+    """清空出口地理缓存。
+
+    Clash 节点切换后出口 IP 变了,但所有节点共用本地代理口(127.0.0.1:7897),
+    缓存 key 相同会导致新会话拿到旧 IP 的语言/时区画像(指纹与 IP 矛盾)。
+    节点管理器每次切换节点后必须调用。
+    """
+    with _GEO_CACHE_LOCK:
+        _GEO_CACHE.clear()
 _CF_COOKIE_NAMES = ("cf_clearance", "__cf_bm", "__cfseq", "cf_chl_rc_i", "cf_chl_rc_ni", "cf_chl_rc_m")
 _COUNTRY_NAME_TO_CODE = {
     "JAPAN": "JP", "CHINA": "CN", "UNITED STATES": "US", "UNITED STATES OF AMERICA": "US",
@@ -853,18 +864,20 @@ class BrowserSession:
         logger.warning("[熔断] 当前会话收到 HTTP %s，进入冷却 %ss，停止后续请求：%s", status, min(cool_down, 3600), url)
         return resp
 
-    def get(self, url: str, headers: dict = None, **kwargs):
+    def get(self, url: str, headers: dict = None, skip_target_headers: bool = False, **kwargs):
         """发送 GET 请求"""
         self._raise_if_circuit_open()
-        headers = self._attach_openai_target_headers_for_url(url, headers)
+        if not skip_target_headers:
+            headers = self._attach_openai_target_headers_for_url(url, headers)
         headers = _chrome_wire_order(headers)
         resp = self.session.get(url, headers=headers, **kwargs)
         return self._observe_response_for_circuit_breaker(resp, url)
 
-    def post(self, url: str, headers: dict = None, **kwargs):
+    def post(self, url: str, headers: dict = None, skip_target_headers: bool = False, **kwargs):
         """发送 POST 请求"""
         self._raise_if_circuit_open()
-        headers = self._attach_openai_target_headers_for_url(url, headers)
+        if not skip_target_headers:
+            headers = self._attach_openai_target_headers_for_url(url, headers)
         headers = _chrome_wire_order(headers)
         resp = self.session.post(url, headers=headers, **kwargs)
         return self._observe_response_for_circuit_breaker(resp, url)

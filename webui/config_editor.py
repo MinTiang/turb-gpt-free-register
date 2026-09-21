@@ -55,6 +55,14 @@ EDITABLE_FIELDS = [
         "key": "AUTO_PLAN_CHECK_AFTER_REGISTER", "file": "register.py", "type": "bool", "group": "注册方式",
         "label": "注册后自动查套餐", "help": "注册成功后自动入队查询套餐/Plus 资格；关闭后仅保存账号，不自动查套餐",
     },
+    {
+        "key": "REGISTER_WITH_PASSWORD", "file": "register.py", "type": "bool", "group": "注册方式",
+        "label": "密码注册", "help": "True=带密码注册（user/register 提交密码，账号可密码重登）；False=纯 OTP 无密码注册；密码留空则自动生成，落库 extra_json.registration_password",
+    },
+    {
+        "key": "REGISTER_PASSWORD", "file": "register.py", "type": "str", "group": "注册方式",
+        "label": "注册密码", "help": "密码注册使用的固定密码；留空则每个账号随机生成强密码",
+    },
 
     # ---- CloakBrowser ----
     {
@@ -142,6 +150,76 @@ EDITABLE_FIELDS = [
     {
         "key": "PATCHRIGHT_KEEP_BROWSER_OPEN", "file": "localbrowser.py", "type": "bool", "group": "Patchright本地浏览器",
         "label": "保留Patchright浏览器", "help": "调试时开启，任务结束后不自动关闭",
+    },
+
+    # ---- Clash 节点管理 ----
+    {
+        "key": "CLASH_AUTO_SWITCH_ENABLED", "file": "clash_manager.py", "type": "bool", "group": "Clash节点管理",
+        "label": "启用节点自动管理", "help": "注册时自动挑选节点:质量不佳或不支持 OpenAI 自动换下一个;关闭则用当前手动选中的节点",
+    },
+    {
+        "key": "CLASH_API_URL", "file": "clash_manager.py", "type": "str", "group": "Clash节点管理",
+        "label": "Clash API地址", "help": "external-controller 地址,如 http://127.0.0.1:9097",
+    },
+    {
+        "key": "CLASH_API_SECRET", "file": "clash_manager.py", "type": "str", "group": "Clash节点管理",
+        "label": "Clash API密钥", "help": "external-controller 的 Bearer 密钥;保存在 .env",
+        "storage": "env", "secret": True,
+    },
+    {
+        "key": "CLASH_PROXY_PORT", "file": "clash_manager.py", "type": "int", "group": "Clash节点管理",
+        "label": "本地代理端口", "help": "质量检测与出口验证走本地代理,默认 7897",
+    },
+    {
+        "key": "CLASH_SWITCH_GROUP", "file": "clash_manager.py", "type": "str", "group": "Clash节点管理",
+        "label": "切换分组名", "help": "要切换的 Selector 分组,默认 🚀 手动切换",
+    },
+    {
+        "key": "CLASH_QUALITY_CHECK_ENABLED", "file": "clash_manager.py", "type": "bool", "group": "Clash节点管理",
+        "label": "注册前质量检测", "help": "候选节点先检测出口IP+chatgpt/auth 可达性,403/超时标为不佳并跳过",
+    },
+    {
+        "key": "CLASH_QUALITY_TTL_HOURS", "file": "clash_manager.py", "type": "float", "group": "Clash节点管理",
+        "label": "质量结果有效期(h)", "help": "质量检测结果信任时长,超过复检",
+    },
+    {
+        "key": "CLASH_NODE_COOLDOWN_HOURS", "file": "clash_manager.py", "type": "float", "group": "Clash节点管理",
+        "label": "节点冷却时长(h)", "help": "节点被用于注册后进入冷却,期内不再选用;默认12",
+    },
+    {
+        "key": "CLASH_BAD_NODE_SKIP_HOURS", "file": "clash_manager.py", "type": "float", "group": "Clash节点管理",
+        "label": "坏节点跳过窗口(h)", "help": "质量检测判bad后窗口内直接排除不复测,避免每个任务重复探测;0=关闭;默认3",
+    },
+    {
+        "key": "CLASH_MAX_ACCOUNTS_PER_NODE", "file": "clash_manager.py", "type": "int", "group": "Clash节点管理",
+        "label": "单节点注册上限", "help": "节点累计注册账号数达到上限后不再选用;默认2,可在节点页重置",
+    },
+
+    # ---- gpt-account-hub 推送 ----
+    {
+        "key": "HUB_PUSH_ENABLED", "file": "hub_push.py", "type": "bool", "group": "Hub推送",
+        "label": "启用Hub推送", "help": "开启后可将账号推送到 gpt-account-hub;需同时配置地址与密钥",
+    },
+    {
+        "key": "HUB_PUSH_BASE_URL", "file": "hub_push.py", "type": "str", "group": "Hub推送",
+        "label": "Hub地址", "help": "如 http://127.0.0.1:8600 或 https://hub.example.com",
+    },
+    {
+        "key": "HUB_PUSH_API_KEY", "file": "hub_push.py", "type": "str", "group": "Hub推送",
+        "label": "推送密钥", "help": "hub 管理端「推送接入」页生成的 hub_push_* 密钥;保存在 .env",
+        "storage": "env", "secret": True,
+    },
+    {
+        "key": "HUB_PUSH_ON_REGISTER", "file": "hub_push.py", "type": "bool", "group": "Hub推送",
+        "label": "注册后自动推送", "help": "注册任务成功后自动把账号推送到 hub;失败不影响注册结果",
+    },
+    {
+        "key": "HUB_PUSH_TIMEOUT", "file": "hub_push.py", "type": "int", "group": "Hub推送",
+        "label": "推送超时(秒)", "help": "推送请求超时时间",
+    },
+    {
+        "key": "HUB_PUSH_RETRY", "file": "hub_push.py", "type": "int", "group": "Hub推送",
+        "label": "推送重试", "help": "推送失败后的额外重试次数",
     },
 
     # ---- Browser Use Cloud ----

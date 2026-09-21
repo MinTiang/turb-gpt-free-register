@@ -103,7 +103,7 @@ def generate_fingerprint_data(device_id: str, attempt: int = 1, elapsed_ms: floa
     window_keys = list(profile.get("window_key_samples") or WINDOW_KEY_SAMPLES)
     window_flags = dict(WINDOW_FEATURE_FLAGS)
     window_flags.update(profile.get("window_feature_flags") or {})
-    script_src_samples = list(profile.get("script_src_samples") or [f"https://sentinel.openai.com/sentinel/{SENTINEL_SV}/sdk.js"])
+    script_src_samples = list(profile.get("script_src_samples") or ["https://sentinel.openai.com/backend-api/sentinel/sdk.js"])
 
     config = [
         screen_width + screen_height,       # [0] screen.width + screen.height

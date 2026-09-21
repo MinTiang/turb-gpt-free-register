@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import threading
 import time
 from pathlib import Path
 from typing import Callable
@@ -26,7 +27,7 @@ from core.roxy_registration import (  # noqa: F401
 logger = logging.getLogger(__name__)
 
 
-def run_patchright_registration(
+def _run_patchright_registration_impl(
     email: str | None,
     name: str,
     birthday: str,
@@ -83,6 +84,10 @@ def run_patchright_registration(
         # _fill_password_page_if_present 会在设置成功后返回本次 OpenAI 注册密码。
         openai_password = _fill_password_page_if_present(driver, email, timeout=25)
         _check_manual_stop()
+        if openai_password:
+            # 密码设置(user/register)会触发一次新的 email-otp/send;重置取码基准,
+            # 避免取到切换密码前验证码页发出的旧验证码。
+            otp_after_ts = time.time()
 
         current_otp = otp_code
         max_otp_attempts = 3
@@ -175,6 +180,7 @@ def run_patchright_registration(
             email_source=resolve_email_source(email),
             proxy_used=((opened.raw or {}).get("proxy") if opened else None) or proxy or None,
             batch_dir=batch_dir,
+            registration_channel="browse",
             extra={
                 "user": session_info.get("user"),
                 "account": session_info.get("account"),
@@ -231,3 +237,43 @@ def run_patchright_registration(
                 driver.quit()
             except Exception:
                 pass
+
+
+
+def run_patchright_registration(
+    email: str | None,
+    name: str,
+    birthday: str,
+    proxy: str = None,
+    otp_code: str = None,
+    batch_dir: Path | None = None,
+    on_email_acquired: Callable[[str], None] | None = None,
+) -> dict:
+    """线程隔离入口(原理同 cloak:Playwright Sync 循环绑定启动线程)。"""
+    result_box: dict = {}
+
+    def _target():
+        result_box["result"] = _run_patchright_registration_impl(
+            email=email,
+            name=name,
+            birthday=birthday,
+            proxy=proxy,
+            otp_code=otp_code,
+            batch_dir=batch_dir,
+            on_email_acquired=on_email_acquired,
+        )
+
+    worker = threading.Thread(
+        target=_target,
+        name=f"{threading.current_thread().name}+patchright",
+        daemon=True,
+    )
+    worker.start()
+    worker.join(900)
+    if worker.is_alive():
+        logger.error("[Patchright注册] 任务超时(900s),放弃本次")
+        return {"success": False, "email": email, "error": "Patchright 注册超时(900s)"}
+    result = result_box.get("result")
+    if result is None:
+        return {"success": False, "email": email, "error": "Patchright 注册线程异常退出"}
+    return result

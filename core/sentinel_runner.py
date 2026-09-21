@@ -301,10 +301,13 @@ def generate_sentinel_token(
                 f"runner 输出不是合法 JSON: {token_text[:200]}"
             ) from exc
 
-        for required_key in ("p", "c", "id", "flow"):
+        # id 在 conversation/chat-requirements 域的信封中不存在(2026-09-20 实测
+        # runner 原始输出 p/t/c/flow),仅 auth.openai.com 域端点携带。
+        for required_key in ("p", "c", "flow"):
             if required_key not in parsed:
                 raise RuntimeError(
-                    f"runner 输出缺少字段 {required_key}: {token_text[:200]}"
+                    f"runner 输出缺少字段 {required_key}; 实际字段={sorted(parsed.keys())};"
+                    f" 值摘要={{{', '.join(f'{k}: {str(v)[:60]!r}' for k, v in parsed.items())}}}"
                 )
 
         # 详细诊断：打印输出 JSON 的所有顶层字段名 + 值长度

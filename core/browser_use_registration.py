@@ -1189,12 +1189,18 @@ def _fill_password_if_present(page, email: str, timeout: int = 25, context=None)
     end = time.time() + timeout
     last_heartbeat = 0.0
     last_log = 0.0
+    from config import register as _register_cfg
     while time.time() < end:
         # 邮箱提交后若已经在验证码页，优先点击“使用密码继续”切到密码创建页。
+        # REGISTER_WITH_PASSWORD=False(2026-09-20 起默认)时验证码页是无密码流程
+        # 的预期页面:不点击切换、不兜底跳转密码页,直接交回 OTP 流程。
         try:
             if not _is_signup_password_page(page):
                 quick = _quick_auth_state(page)
                 if str(quick.get("state") or "") == "email_verification":
+                    if not bool(getattr(_register_cfg, "REGISTER_WITH_PASSWORD", False)):
+                        logger.info("[BrowserUse] 无密码模式：验证码页不切密码分支，直接交给 OTP 流程：email=%s", email)
+                        return None
                     if _click_continue_with_password_if_present(page):
                         logger.info("[BrowserUse] 邮箱验证码页已点击“使用密码继续”：url=%s", quick.get("url") or _page_url(page) or "-")
                         time.sleep(0.4 if _fast_mode() else 1.0)
@@ -1220,6 +1226,9 @@ def _fill_password_if_present(page, email: str, timeout: int = 25, context=None)
             logger.info("[BrowserUse] 检测密码/验证码页：state=%s url=%s", state, state_info.get("url") or "-")
             last_log = time.time()
         if state == "email_verification" and not _is_signup_password_page(page):
+            if not bool(getattr(_register_cfg, "REGISTER_WITH_PASSWORD", False)):
+                logger.info("[BrowserUse] 无密码模式：验证码页不切密码分支/不兜底跳转密码页，直接交给 OTP 流程：email=%s", email)
+                return None
             if _click_continue_with_password_if_present(page):
                 logger.info("[BrowserUse] 邮箱验证码页已点击“使用密码继续”：email=%s", email)
                 time.sleep(0.4 if _fast_mode() else 1.0)
@@ -2865,6 +2874,7 @@ def run_browser_use_registration(
                 email_source=resolve_email_source(email),
                 proxy_used=proxy or f"{provider_prefix}:{session_info_open.proxy_country_code or 'default'}",
                 batch_dir=batch_dir,
+                registration_channel="browse",
                 extra={
                     "user": session_info.get("user"),
                     "account": session_info.get("account"),

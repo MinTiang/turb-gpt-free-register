@@ -495,6 +495,8 @@ REGISTRATION_DRIVER = "protocol"
 
 协议注册会使用 `curl_cffi`、Sentinel/PoW、代理池等配置。
 
+**密码注册（2026-09-18 抓包对齐）**：`REGISTER_WITH_PASSWORD=True` 时（2026-09-20 起默认 `False`，协议通道实验证实密码分支是存活强负信号），authorize 后切到 `create-account/password` 页，先 `user/register` 提交邮箱+密码，再 `email-otp/send` 触发验证码，后续 OTP/资料页一致。注册密码存入账号 `extra_json.registration_password`，可直接密码重登；`REGISTER_PASSWORD` 留空则每个账号随机生成强密码。`False` 时退回无密码（纯 OTP）注册。
+
 #### 使用 Browser Use Cloud 注册
 
 ```python

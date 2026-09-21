@@ -211,8 +211,13 @@ def _generate_state() -> str:
     return secrets.token_urlsafe(32)
 
 
-def _build_authorize_url(state: str, code_challenge: str, prompt: str = "login") -> str:
-    """按 CLIProxyAPI openai_auth.go 的参数集拼 Codex 授权 URL。"""
+def _build_authorize_url(state: str, code_challenge: str, prompt: str | None = None) -> str:
+    """按 Codex CLI 实际参数集拼授权 URL（2026-09-18 抓包：CLI 不带 prompt）。
+
+    抓包实测参数：client_id / response_type / redirect_uri / scope / state /
+    code_challenge / code_challenge_method=S256 / id_token_add_organizations /
+    codex_cli_simplified_flow，无 prompt、无 screen_hint、无设备参数。
+    """
     params = {
         "client_id": _cfg.CODEX_CLIENT_ID,
         "response_type": "code",
@@ -221,15 +226,20 @@ def _build_authorize_url(state: str, code_challenge: str, prompt: str = "login")
         "state": state,
         "code_challenge": code_challenge,
         "code_challenge_method": "S256",
-        "prompt": prompt,
         "id_token_add_organizations": "true",
         "codex_cli_simplified_flow": "true",
     }
+    if prompt:
+        params["prompt"] = prompt
     return f"{_cfg.CODEX_AUTH_URL}?{urlencode(params)}"
 
 
 def _ensure_oai_context_url(auth_url: str, session: BrowserSession) -> str:
-    """在 Codex OAuth 授权 URL 上补齐前端同源上下文参数，保持 oai-did 连续。"""
+    """在 Codex OAuth 授权 URL 上补齐设备上下文参数，保持 oai-did 连续。
+
+    2026-09-18 抓包对齐：真实 CLI 的授权 URL 不带 screen_hint（登录分支改由
+    authorize/continue body 里的 screen_hint 表达），因此这里只补设备参数。
+    """
     try:
         parsed = urlparse(auth_url)
         params = parse_qs(parsed.query, keep_blank_values=True)
@@ -237,7 +247,6 @@ def _ensure_oai_context_url(auth_url: str, session: BrowserSession) -> str:
         additions = {
             "ext-oai-did": session.device_id,
             "auth_session_logging_id": session.auth_session_logging_id,
-            "screen_hint": "login_or_signup",
         }
         for key, value in additions.items():
             if not params.get(key):
@@ -871,10 +880,17 @@ def _bootstrap_authorize(
 # ============================================================
 
 def _submit_email(session: BrowserSession, email: str) -> None:
-    """POST authorize/continue 提交邮箱，触发 OpenAI 发送邮箱 OTP。带 sentinel。"""
+    """POST authorize/continue 提交邮箱。带 sentinel(authorize_continue)。
+
+    2026-09-18 抓包：body 带 screen_hint=login_or_signup；对无密码账号触发
+    邮箱 OTP 发送，对有密码账号进入密码登录页。
+    """
     sentinel_resp = request_sentinel_token(session, "authorize_continue")
     sentinel_header, so_header = build_sentinel_header(session, sentinel_resp, "authorize_continue")
-    payload = {"username": {"kind": "email", "value": email}}
+    payload = {
+        "username": {"kind": "email", "value": email},
+        "screen_hint": "login_or_signup",
+    }
     resp = _post_json(
         session,
         "https://auth.openai.com/api/accounts/authorize/continue",
@@ -887,7 +903,35 @@ def _submit_email(session: BrowserSession, email: str) -> None:
         raise RuntimeError(
             f"[Codex] 提交邮箱失败 status={resp.status_code}: {(resp.text or '')[:300]}"
         )
-    logger.info(f"[Codex] 已提交邮箱 {email}，等待邮箱 OTP")
+    logger.info(f"[Codex] 已提交邮箱 {email}")
+
+
+def _verify_password(session: BrowserSession, password: str) -> None:
+    """POST password/verify 密码登录（2026-09-18 抓包：不带 so-token）。
+
+    有注册密码的账号走这条登录，省一次邮箱 OTP 等待与邮件消耗。
+    """
+    sentinel_resp = request_sentinel_token(session, "password_verify")
+    sentinel_header, so_header = build_sentinel_header(session, sentinel_resp, "password_verify")
+    headers = session.get_auth_headers(referer="https://auth.openai.com/log-in/password")
+    headers["openai-sentinel-token"] = sentinel_header
+    resp = session.post(
+        "https://auth.openai.com/api/accounts/password/verify",
+        headers=headers,
+        data=json.dumps({"password": password}),
+        allow_redirects=False,
+    )
+    if resp.status_code != 200:
+        error_code = _extract_error_code(resp)
+        if error_code in ("account_deactivated", "account_deleted", "account_banned"):
+            raise AccountUnusableError(
+                f"[Codex] 账号已废（{error_code}）status={resp.status_code}: {(resp.text or '')[:200]}",
+                error_code=error_code,
+            )
+        raise RuntimeError(
+            f"[Codex] 密码登录失败 status={resp.status_code}: {(resp.text or '')[:300]}"
+        )
+    logger.info("[Codex] 密码登录通过")
 
 
 # ============================================================
@@ -1518,36 +1562,44 @@ def run_codex_oauth(
         _bootstrap_authorize(session, state, code_challenge, auth_url=auth_url)
         human_delay("navigate")
 
-        # 3. 提交邮箱（触发邮箱 OTP）
+        # 3. 提交邮箱。2026-09-18 抓包：有注册密码的账号提交邮箱后进入密码页，
+        #    用 password/verify 登录（省一次邮箱 OTP 等待与邮件消耗）；
+        #    无密码账号才触发邮箱 OTP 并等待验证码。
+        registration_password = _account_registration_password(email)
         otp_after_ts = time.time()
         _submit_email(session, email)
         human_delay("form")
 
-        # 4. 收邮箱 OTP + 提交；若一直未收到，协议模式下重新提交邮箱触发重发。
-        email_otp = None
-        max_email_otp_attempts = 3
-        for email_otp_attempt in range(1, max_email_otp_attempts + 1):
-            logger.info(f"[Codex] 等待邮箱 OTP：{email}（第 {email_otp_attempt}/{max_email_otp_attempts} 次）")
-            try:
-                email_otp = otp_provider(email, after_ts=otp_after_ts)
-                break
-            except Exception as exc:
-                if email_otp_attempt >= max_email_otp_attempts:
-                    raise
-                logger.warning(
-                    "[Codex] 一直未收到邮箱 OTP，重新提交邮箱触发重发后继续等待（下一轮 %s/%s）：%s: %s",
-                    email_otp_attempt + 1,
-                    max_email_otp_attempts,
-                    type(exc).__name__,
-                    str(exc)[:180],
-                )
-                otp_after_ts = time.time()
-                _submit_email(session, email)
-                human_delay("api")
-        logger.info(f"[Codex] 邮箱 OTP 收到：{email_otp}")
-        human_delay("otp_input")
-        _submit_email_otp(session, email_otp)
-        human_delay("api")
+        if registration_password:
+            logger.info("[Codex] 账号存在注册密码，走密码登录（对齐抓包）")
+            _verify_password(session, registration_password)
+            human_delay("api")
+        else:
+            # 4. 收邮箱 OTP + 提交；若一直未收到，协议模式下重新提交邮箱触发重发。
+            email_otp = None
+            max_email_otp_attempts = 3
+            for email_otp_attempt in range(1, max_email_otp_attempts + 1):
+                logger.info(f"[Codex] 等待邮箱 OTP：{email}（第 {email_otp_attempt}/{max_email_otp_attempts} 次）")
+                try:
+                    email_otp = otp_provider(email, after_ts=otp_after_ts)
+                    break
+                except Exception as exc:
+                    if email_otp_attempt >= max_email_otp_attempts:
+                        raise
+                    logger.warning(
+                        "[Codex] 一直未收到邮箱 OTP，重新提交邮箱触发重发后继续等待（下一轮 %s/%s）：%s: %s",
+                        email_otp_attempt + 1,
+                        max_email_otp_attempts,
+                        type(exc).__name__,
+                        str(exc)[:180],
+                    )
+                    otp_after_ts = time.time()
+                    _submit_email(session, email)
+                    human_delay("api")
+            logger.info(f"[Codex] 邮箱 OTP 收到：{email_otp}")
+            human_delay("otp_input")
+            _submit_email_otp(session, email_otp)
+            human_delay("api")
 
         # 5. 手机号验证（接码，自动重试换号）
         _do_phone_verification(session)

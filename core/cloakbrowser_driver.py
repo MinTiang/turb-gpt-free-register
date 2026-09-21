@@ -78,14 +78,44 @@ class CloakElement:
     def is_displayed(self) -> bool:
         try:
             if self.locator is not None:
+                # 2026-09-18:cloak 的 stealth 环境下 locator.is_visible() 对可见
+                # 元素返回 False(用户实测可见可输入但接口判不可见),导致按可见性
+                # 过滤的代码全部失效。改用 JS 几何+样式判定。
+                handle = None
+                try:
+                    handle = self._handle()
+                except Exception:
+                    handle = None
+                if handle is not None:
+                    try:
+                        result = handle.evaluate(
+                            "el => !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length) "
+                            "&& getComputedStyle(el).visibility !== 'hidden' && getComputedStyle(el).display !== 'none')"
+                        )
+                        return bool(result)
+                    except Exception:
+                        pass
                 return bool(self.locator.is_visible(timeout=800))
-            return bool(self.handle.evaluate("el => !!el && !!(el.offsetWidth || el.offsetHeight || el.getClientRects().length) && getComputedStyle(el).visibility !== 'hidden' && getComputedStyle(el).display !== 'none'"))
+            return bool(self.handle.evaluate("el => !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length) && getComputedStyle(el).visibility !== 'hidden' && getComputedStyle(el).display !== 'none')"))
         except Exception:
             return False
 
     def is_enabled(self) -> bool:
         try:
             if self.locator is not None:
+                handle = None
+                try:
+                    handle = self._handle()
+                except Exception:
+                    handle = None
+                if handle is not None:
+                    try:
+                        result = handle.evaluate(
+                            "el => !!el && !el.disabled && el.getAttribute('aria-disabled') !== 'true'"
+                        )
+                        return bool(result)
+                    except Exception:
+                        pass
                 return bool(self.locator.is_enabled(timeout=800))
             return bool(self.handle.evaluate("el => !el.disabled && el.getAttribute('aria-disabled') !== 'true'"))
         except Exception:
@@ -204,6 +234,86 @@ class CloakElement:
             return str(self._eval("el => el.tagName.toLowerCase()") or "")
         except Exception:
             return ""
+
+    def input_value(self) -> str:
+        """读取 input 元素当前值(cloak 下 get_attribute 偶发失真,优先原生接口)。"""
+        if self.locator is not None:
+            try:
+                try:
+                    return str(self.locator.input_value(timeout=3000) or "")
+                except TypeError:
+                    return str(self.locator.input_value() or "")
+            except Exception:
+                pass
+        if self.handle is not None:
+            try:
+                return str(self.handle.input_value() or "")
+            except Exception:
+                pass
+        return self.get_attribute("value") or ""
+
+    def fill(self, text: str) -> None:
+        """整体填值并触发 input 事件(比逐字输入可靠,无丢字风险)。"""
+        if self.locator is not None:
+            try:
+                try:
+                    self.locator.fill(text, timeout=5000)
+                    return
+                except TypeError:
+                    self.locator.fill(text)
+                    return
+            except Exception:
+                pass
+        if self.handle is not None:
+            try:
+                self.handle.fill(text)
+                return
+            except Exception:
+                pass
+        try:
+            self._eval(
+                "(el, v) => { el.value = v;"
+                " el.dispatchEvent(new Event('input', {bubbles: true}));"
+                " el.dispatchEvent(new Event('change', {bubbles: true})); }",
+                str(text),
+            )
+        except Exception:
+            pass
+
+    def scroll_into_view(self, block: str = "center") -> None:
+        """滚动到元素可见(cloak 下 CloakElement 不能作为 execute_script 参数传递)。"""
+        if self.locator is not None:
+            try:
+                try:
+                    self.locator.scroll_into_view_if_needed(timeout=5000)
+                    return
+                except TypeError:
+                    self.locator.scroll_into_view_if_needed()
+                    return
+            except Exception:
+                pass
+        if self.handle is not None:
+            try:
+                self.handle.scroll_into_view_if_needed()
+            except Exception:
+                pass
+
+    def focus(self) -> None:
+        if self.locator is not None:
+            try:
+                try:
+                    self.locator.focus(timeout=3000)
+                    return
+                except TypeError:
+                    self.locator.focus()
+                    return
+            except Exception:
+                pass
+        if self.handle is not None:
+            try:
+                self.handle.focus()
+            except Exception:
+                pass
 
     def get_attribute(self, name: str) -> str | None:
         try:
@@ -432,7 +542,16 @@ def _normalize_proxy(proxy: str | None) -> str | None:
     proxy = str(proxy or "").strip()
     if not proxy:
         return None
-    return proxy.replace("socks5h://", "socks5://")
+    normalized = proxy.replace("socks5h://", "socks5://")
+    # Chromium 不支持 SOCKS5 认证(--proxy-server 的 socks5 user:pass 会被
+    # 静默忽略,表现为代理连通但 407/无出口):带凭据的粘性住宅代理必须用
+    # http(s) 形式。这里只告警不改写,让问题在日志里显形。
+    if normalized.startswith("socks5://") and "@" in normalized.split("://", 1)[-1]:
+        logger.warning(
+            "[Cloak] SOCKS5 代理带认证参数,Chromium 内核不支持 SOCKS 认证,浏览器侧将无法通过代理验证(建议改用 http 形式): %s",
+            proxy.split("@")[-1],
+        )
+    return normalized
 
 
 def _detect_cloak_exit_geo(proxy_url: str | None = None) -> dict:

@@ -204,6 +204,8 @@ _RELOADABLE_SUBMODULES = (
     "config.extract_link",
     "config.sub2api",
     "config.humanize",
+    "config.hub_push",
+    "config.clash_manager",
 )
 
 

@@ -50,6 +50,12 @@ CHATGPT_AUTH_BOOTSTRAP_ENABLED = True
 # True 时预热失败会中断主流程；默认 False，仅记录日志并继续。
 CHATGPT_BOOTSTRAP_STRICT = False
 
+# 复刻真浏览器注册会话的前端遥测(mweb events / CES / statsig / Datadog RUM)。
+# ⚠️ 默认关闭:2026-09-18 实测,注册窗口内冷发遥测 POST 会显著增加 CF 质询并
+# 污染会话 Cookie,导致注册链全面被拦(3 个新节点 100% 复现)。
+# 保留代码供后续"注册成功后补充遥测/互动"方案使用,勿在注册窗口内开启。
+TELEMETRY_ENABLED = False
+
 # 纯协议注册遇到代理连接、TLS、超时、连接重置等临时网络故障时的重试配置。
 # 总尝试次数包含首次请求；退避间隔依次为 delay、delay*2、delay*4……
 OPENAI_PROXY_RETRY_MAX_ATTEMPTS = 3
@@ -63,4 +69,5 @@ apply_env_overrides(globals(), {
     "OPENAI_PROXY_RETRY_MAX_ATTEMPTS": "int",
     "OPENAI_PROXY_RETRY_DELAY": "float",
     "OPENAI_PREFLIGHT_TIMEOUT": "float",
+    "TELEMETRY_ENABLED": "bool",
 })
