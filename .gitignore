@@ -88,3 +88,5 @@ webui.log
 webui.pid
 logs/
 run/
+joblog.txt
+jobs.json
