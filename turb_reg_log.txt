@@ -1,0 +1,275 @@
+01:02:21 [INFO] [批量] 账号数据将直接写入 SQLite
+01:02:21 [INFO] [批量] 开始第 1/2 个注册
+01:02:21 [DEBUG] 自动生成显示名称: Donna Jordan
+01:02:22 [DEBUG] Starting new HTTPS connection (1): ipinfo.io:443
+01:02:24 [DEBUG] https://ipinfo.io:443 "GET /json HTTP/1.1" 200 None
+01:02:24 [INFO] [Cloak] 出口IP地理信息：ip=159.54.189.135 country=US city=San Jose timezone=America/Los_Angeles
+01:02:24 [INFO] [Cloak] 启动 CloakBrowser：headless=False humanize=True geoip=True proxy=http://127.0.0.1:7897 locale=en-US timezone=America/Los_Angeles accept_language=en-US,en;q=0.9 persistent=False
+01:02:25 [DEBUG] Binary found in cache: C:\Users\xjx\.cloakbrowser\chromium-146.0.7680.177.5\chrome.exe (version 146.0.7680.177.5)
+01:02:25 [DEBUG] connect_tcp.started host='api.github.com' port=443 local_address=None timeout=10.0 socket_options=None
+01:02:25 [DEBUG] connect_tcp.started host='pypi.org' port=443 local_address=None timeout=5.0 socket_options=None
+01:02:25 [DEBUG] connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x00000212731A6270>
+01:02:25 [DEBUG] start_tls.started ssl_context=<ssl.SSLContext object at 0x0000021272D307D0> server_hostname='api.github.com' timeout=10.0
+01:02:25 [DEBUG] connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000021273530550>
+01:02:25 [DEBUG] start_tls.started ssl_context=<ssl.SSLContext object at 0x0000021272D31450> server_hostname='pypi.org' timeout=5.0
+01:02:25 [DEBUG] connect_tcp.started host='127.0.0.1' port=7897 local_address=None timeout=10.0 socket_options=None
+01:02:25 [DEBUG] start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000021273531090>
+01:02:25 [DEBUG] send_request_headers.started request=<Request [b'GET']>
+01:02:25 [DEBUG] send_request_headers.complete
+01:02:25 [DEBUG] send_request_body.started request=<Request [b'GET']>
+01:02:25 [DEBUG] send_request_body.complete
+01:02:25 [DEBUG] receive_response_headers.started request=<Request [b'GET']>
+01:02:25 [DEBUG] connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000021273538510>
+01:02:25 [DEBUG] send_request_headers.started request=<Request [b'CONNECT']>
+01:02:25 [DEBUG] send_request_headers.complete
+01:02:25 [DEBUG] send_request_body.started request=<Request [b'CONNECT']>
+01:02:25 [DEBUG] send_request_body.complete
+01:02:25 [DEBUG] receive_response_headers.started request=<Request [b'CONNECT']>
+01:02:25 [DEBUG] receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'Connection established', [])
+01:02:25 [DEBUG] start_tls.started ssl_context=<ssl.SSLContext object at 0x00000212731CFC50> server_hostname='api.ipify.org' timeout=10.0
+01:02:25 [DEBUG] start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x00000212735382B0>
+01:02:25 [DEBUG] send_request_headers.started request=<Request [b'GET']>
+01:02:25 [DEBUG] send_request_headers.complete
+01:02:25 [DEBUG] send_request_body.started request=<Request [b'GET']>
+01:02:25 [DEBUG] send_request_body.complete
+01:02:25 [DEBUG] receive_response_headers.started request=<Request [b'GET']>
+01:02:25 [DEBUG] receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Connection', b'keep-alive'), (b'Content-Length', b'50064'), (b'access-control-max-age', b'86400'), (b'content-security-policy', b"base-uri 'self'; connect-src 'self' https://api.github.com/repos/ https://api.github.com/search/issues https://gitlab.com/api/ https://analytics.python.org *.ethicalads.io https://api.pwnedpasswords.com https://cdn.jsdelivr.net/npm/mathjax@3.2.2/es5/sre/mathmaps/ https://2p66nmmycsj3.statuspage.io; default-src 'none'; font-src 'self'; form-action 'self' https://checkout.stripe.com https://billing.stripe.com; frame-ancestors 'none'; frame-src 'none'; img-src 'self' https://pypi-camo.freetls.fastly.net/ *.ethicalads.io ethicalads.blob.core.windows.net; script-src 'self' https://analytics.python.org *.ethicalads.io 'sha256-U3hKDidudIaxBDEzwGJApJgPEf2mWk6cfMWghrAa6i0=' https://cdn.jsdelivr.net/npm/mathjax@3.2.2/ 'sha256-1CldwzdEg2k1wTmf7s5RWVd7NMXI/7nxxjJM2C4DqII='; style-src 'self' *.ethicalads.io 'sha256-2YHqZokjiizkHi1Zt+6ar0XJ0OeEy/egBnlm+MDMtrM=' 'sha256-47DEQpj8HBSa+/TImW+5JCeuQeRkm5NMpJWZG3hSuFU=' 'sha256-JLEjeN9e5dGsz5475WyRaoA4eQOdNPxDIeUhclnJDCE=' 'sha256-mQyxHEuwZJqpxCw3SLmc4YOySNKXunyu2Oiz1r3/wAE=' 'sha256-OCf+kv5Asiwp++8PIevKBYSgnNLNUZvxAp4a7wMLuKA=' 'sha256-h5LOiLhk6wiJrGsG5ItM0KimwzWQH/yAcmoJDJL//bY='"), (b'access-control-expose-headers', b'X-PyPI-Last-Serial'), (b'access-control-allow-methods', b'GET'), (b'x-pypi-last-serial', b'40526429'), (b'cache-control', b'max-age=900, public'), (b'access-control-allow-headers', b'Content-Type, If-Match, If-Modified-Since, If-None-Match, If-Unmodified-Since'), (b'content-type', b'application/json'), (b'referrer-policy', b'origin-when-cross-origin'), (b'etag', b'"GmKE4/RtbLjt3dY0OzW/sg"'), (b'server', b'gunicorn'), (b'content-encoding', b'gzip'), (b'access-control-allow-origin', b'*'), (b'Accept-Ranges', b'bytes'), (b'Date', b'Tue, 22 Sep 2026 17:02:26 GMT'), (b'X-Served-By', b'cache-iad-kiad7000150-IAD, cache-iad-kiad7000150-IAD, cache-iad-kiad7000150-IAD, cache-sin-wsat1880058-SIN'), (b'X-Cache', b'MISS, HIT, HIT'), (b'X-Cache-Hits', b'0, 1, 19'), (b'X-Timer', b'S1790096546.229994,VS0,VE0'), (b'Vary', b'Accept-Encoding'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubDomains; preload'), (b'X-Frame-Options', b'deny'), (b'X-XSS-Protection', b'1; mode=block'), (b'X-Content-Type-Options', b'nosniff'), (b'X-Permitted-Cross-Domain-Policies', b'none'), (b'Permissions-Policy', b'publickey-credentials-create=(self),publickey-credentials-get=(self),accelerometer=(),ambient-light-sensor=(),autoplay=(),battery=(),camera=(),display-capture=(),document-domain=(),encrypted-media=(),execution-while-not-rendered=(),execution-while-out-of-viewport=(),fullscreen=(),gamepad=(),geolocation=(),gyroscope=(),hid=(),identity-credentials-get=(),idle-detection=(),local-fonts=(),magnetometer=(),microphone=(),midi=(),otp-credentials=(),payment=(),picture-in-picture=(),screen-wake-lock=(),serial=(),speaker-selection=(),storage-access=(),usb=(),web-share=(),xr-spatial-tracking=()')])
+01:02:25 [INFO] HTTP Request: GET https://pypi.org/pypi/cloakbrowser/json "HTTP/1.1 200 OK"
+01:02:25 [DEBUG] receive_response_body.started request=<Request [b'GET']>
+01:02:25 [DEBUG] receive_response_body.complete
+01:02:25 [DEBUG] response_closed.started
+01:02:25 [DEBUG] response_closed.complete
+01:02:25 [DEBUG] close.started
+01:02:25 [DEBUG] close.complete
+01:02:26 [DEBUG] receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 22 Sep 2026 17:02:26 GMT'), (b'Cache-Control', b'public, max-age=60, s-maxage=60'), (b'Vary', b'Accept,Accept-Encoding, Accept, X-Requested-With'), (b'ETag', b'"a974ad73c9d65ea59df6e29bf5eb33359d0cc1c96add9a02efb969531cc8cc70"'), (b'x-github-api-version-selected', b'2022-11-28'), (b'Access-Control-Expose-Headers', b'ETag, Link, Location, Retry-After, X-GitHub-OTP, X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Used, X-RateLimit-Resource, X-RateLimit-Reset, X-OAuth-Scopes, X-Accepted-OAuth-Scopes, X-Poll-Interval, X-GitHub-Media-Type, X-GitHub-SSO, X-GitHub-Request-Id, Deprecation, Sunset, Warning'), (b'Access-Control-Allow-Origin', b'*'), (b'Strict-Transport-Security', b'max-age=31536000; includeSubdomains; preload'), (b'X-Frame-Options', b'deny'), (b'X-Content-Type-Options', b'nosniff'), (b'X-XSS-Protection', b'0'), (b'Referrer-Policy', b'origin-when-cross-origin, strict-origin-when-cross-origin'), (b'Content-Security-Policy', b"default-src 'none'"), (b'Server', b'github.com'), (b'Content-Type', b'application/json; charset=utf-8'), (b'X-GitHub-Media-Type', b'github.v3; format=json'), (b'Link', b'<https://api.github.com/repositories/1163834030/releases?per_page=10&page=2>; rel="next", <https://api.github.com/repositories/1163834030/releases?per_page=10&page=3>; rel="last"'), (b'Content-Encoding', b'gzip'), (b'Accept-Ranges', b'bytes'), (b'X-RateLimit-Limit', b'60'), (b'X-RateLimit-Remaining', b'59'), (b'X-RateLimit-Used', b'1'), (b'X-RateLimit-Resource', b'core'), (b'X-RateLimit-Reset', b'1790100146'), (b'Content-Length', b'14738'), (b'X-GitHub-Request-Id', b'3FD1:128194:6BD4:742A:6AB2B4A2'), (b'x-github-edge-region', b'southeastasia')])
+01:02:26 [INFO] HTTP Request: GET https://api.github.com/repos/CloakHQ/cloakbrowser/releases?per_page=10 "HTTP/1.1 200 OK"
+01:02:26 [DEBUG] receive_response_body.started request=<Request [b'GET']>
+01:02:26 [DEBUG] receive_response_body.complete
+01:02:26 [DEBUG] response_closed.started
+01:02:26 [DEBUG] response_closed.complete
+01:02:26 [DEBUG] close.started
+01:02:26 [DEBUG] close.complete
+01:02:26 [DEBUG] start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x0000021272B76B10>
+01:02:26 [DEBUG] send_request_headers.started request=<Request [b'GET']>
+01:02:26 [DEBUG] send_request_headers.complete
+01:02:26 [DEBUG] send_request_body.started request=<Request [b'GET']>
+01:02:26 [DEBUG] send_request_body.complete
+01:02:26 [DEBUG] receive_response_headers.started request=<Request [b'GET']>
+01:02:26 [DEBUG] receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 22 Sep 2026 17:02:27 GMT'), (b'Content-Type', b'text/plain'), (b'Content-Length', b'14'), (b'Connection', b'keep-alive'), (b'Server', b'cloudflare'), (b'Vary', b'Origin'), (b'cf-cache-status', b'DYNAMIC'), (b'CF-RAY', b'a3f2e09a7a4638ce-SJC')])
+01:02:26 [INFO] HTTP Request: GET https://api.ipify.org "HTTP/1.1 200 OK"
+01:02:26 [DEBUG] receive_response_body.started request=<Request [b'GET']>
+01:02:26 [DEBUG] receive_response_body.complete
+01:02:26 [DEBUG] response_closed.started
+01:02:26 [DEBUG] response_closed.complete
+01:02:26 [DEBUG] Exit IP via https://api.ipify.org: 159.54.189.135
+01:02:26 [DEBUG] Launching stealth Chromium (headless=False, args=8)
+01:02:26 [DEBUG] Using proactor: IocpProactor
+01:02:43 [INFO] [Cloak注册] 开始：，profile=cloakbrowser
+01:02:43 [INFO] [Cloak注册] 打开登录页：https://chatgpt.com/auth/login
+01:02:45 [DEBUG] [Humanize] delay kind=navigate, seconds=1.55
+01:02:50 [INFO] [Outlook] 选中账号: wrrdvzf973975@outlook.com（DB id=2）
+01:02:50 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=wrrdvzf973975@outlook.com
+01:02:50 [INFO] [EmailProvider] 已找到邮箱输入框，开始分配邮箱: wrrdvzf973975@outlook.com
+01:02:51 [DEBUG] [Humanize] delay kind=click, seconds=0.40
+01:02:51 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.18
+01:02:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.11
+01:02:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.04
+01:02:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.15
+01:02:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.04
+01:02:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.12
+01:02:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.08
+01:02:53 [DEBUG] [Humanize] delay kind=typing_pause, seconds=0.39
+01:02:53 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.16
+01:02:53 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.15
+01:02:53 [DEBUG] [Humanize] delay kind=typing_pause, seconds=0.49
+01:02:54 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.09
+01:02:54 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.15
+01:02:54 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.17
+01:02:55 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.05
+01:02:55 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.05
+01:02:55 [DEBUG] [Humanize] delay kind=typing_pause, seconds=0.36
+01:02:55 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.15
+01:02:55 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.04
+01:02:56 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.11
+01:02:56 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.18
+01:02:56 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.14
+01:02:56 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.16
+01:02:56 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.06
+01:02:56 [INFO] [Cloak注册] 已填写邮箱并校验通过：wrrdvzf973975@outlook.com
+01:02:56 [DEBUG] [Humanize] delay kind=form, seconds=2.98
+01:02:59 [INFO] [Cloak注册] 邮箱提交前状态稳定：{'ok': True, 'value': 'wrrdvzf973975@outlook.com', 'active': True, 'hasForm': True, 'hasSubmit': True, 'submitDisabled': False, 'url': 'https://chatgpt.com/auth/login'}
+01:03:01 [INFO] [Cloak注册] 邮箱稳定表单提交：{'ok': True, 'reason': 'stable_async_enter_click', 'value': 'wrrdvzf973975@outlook.com', 'submitDisabled': False, 'submitAttrs': 'submit btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-vis', 'url': 'https://chatgpt.com/auth/login'}
+01:03:02 [INFO] [Cloak注册] 已提交邮箱，等待进入密码页或验证码页（1/3）
+01:03:06 [INFO] [Cloak注册] 邮箱提交后已进入下一步：otp
+01:03:06 [INFO] [Cloak注册][页面机] 观察 url=https://auth.openai.com/email-verification
+01:03:07 [INFO] [Cloak注册][页面机][OTP] 等待验证码(第 1/3 次)
+01:03:07 [INFO] [Outlook] 开始轮询 wrrdvzf973975@outlook.com 的收件箱（mode=auto, Graph + IMAP 本地直连，REST 兜底），最长 90s, settle=5s...
+01:03:08 [DEBUG] [Outlook] 安全会话已刷新 sessionId=66d1bb29…
+01:03:09 [DEBUG] [Outlook] graph 拿到 2 封邮件 source=remote_graph
+01:03:10 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:03:10 [INFO] [Outlook] 邮件诊断 top=[{'p': 'remote_graph', 'date': '2026-09-21T23:19:27Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'Your temporary ChatGPT verification code'}, {'p': 'remote_graph', 'date': '2026-08-29T18:39:53Z', 'openai': False, 'after': False, 'otp': False, 'subject': '连接到 Microsoft 帐户的新应用'}]
+01:03:10 [INFO] [Outlook] 暂未收到符合条件的 OpenAI 邮件，3s 后重试（剩余 86s）...
+01:03:14 [DEBUG] [Outlook] graph 拿到 3 封邮件 source=remote_graph
+01:03:14 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:03:14 [INFO] [Outlook] 首次锁定 OTP=498386, source=remote_graph, ts=2026-09-22T17:03:10Z, subject='Your temporary ChatGPT login code', 等 5s 看是否有更晚邮件...
+01:03:14 [INFO] [Outlook] 已锁定候选 OTP=498386，等 settle 中（剩余 settle ~4s, 总剩余 82s）...
+01:03:17 [DEBUG] [Outlook] graph 拿到 3 封邮件 source=remote_graph
+01:03:17 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:03:17 [INFO] [Outlook] 已锁定候选 OTP=498386，等 settle 中（剩余 settle ~1s, 总剩余 79s）...
+01:03:21 [DEBUG] [Outlook] graph 拿到 3 封邮件 source=remote_graph
+01:03:21 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:03:21 [INFO] [Outlook] settle 完成，返回 OTP=498386, source=remote_graph, protocol=graph, subject='Your temporary ChatGPT login code'
+01:03:21 [INFO] [Cloak注册][页面机][OTP] 收到验证码:498386
+01:03:21 [INFO] [Cloak注册] OTP 输入框(JS 定位): selector=#_r_5_-code
+01:03:22 [DEBUG] [Humanize] delay kind=click, seconds=0.71
+01:03:23 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.10
+01:03:23 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.06
+01:03:23 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.06
+01:03:24 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.07
+01:03:24 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.17
+01:03:24 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.10
+01:03:24 [INFO] [Cloak注册] OTP 回读校验一致:498386
+01:03:24 [DEBUG] [Humanize] delay kind=otp_input, seconds=6.05
+01:03:30 [DEBUG] [Humanize] delay kind=click, seconds=0.30
+01:03:34 [INFO] [Cloak注册][页面机][OTP] 提交后状态:invalid
+01:03:59 [INFO] [Cloak] 注册浏览器网络流量：上传 2519.95 KiB，下载 6725.89 KiB，合计 9245.84 KiB，HTTP请求 219（失败 6，未完成 0）
+01:03:59 [ERROR] [Cloak注册] 失败：RuntimeError: 找不到可点击的重新发送验证码按钮: last='CloakElement' object has no attribute 'text', state={'url': 'https://auth.openai.com/email-verification', 'title': 'Authentication Error - OpenAI', 'inputs': [], 'buttons': [{'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': 'OpenAI main page', 'disabled': False, 'text': ''}, {'tag': 'A', 'type': '', 'value': '', 'action': 'Try again', 'aria': '', 'disabled': False, 'text': 'Try again'}, {'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': '', 'disabled': False, 'text': 'Terms of Use'}, {'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': '', 'disabled': False, 'text': 'Privacy Policy'}], 'errors': ['error_code: account_deactivated request_id: 957f3d76-350c-4051-a41b-5506799c6fbd'], 'text': 'Authentication Error\nYou do not have an account because it has been deleted or deactivated. If you believe this was an error, please contact us through our help center at help.openai.com.\nerror_code: account_deactivated\nrequest_id: 957f3d76-350c-4051-a41b-5506799c6fbd\nTry again\nTerms of UsePrivacy Policy'}
+01:03:59 [DEBUG] [Cloak注册] 失败详情
+Traceback (most recent call last):
+  File "D:\workSpace\turb-gpt-free-register\core\cloakbrowser_registration.py", line 338, in _run_cloak_registration_impl
+    resend = _click_resend_email_otp(driver, timeout=25)
+  File "D:\workSpace\turb-gpt-free-register\core\page_ops.py", line 1472, in _click_resend_email_otp
+    raise RuntimeError(f"找不到可点击的重新发送验证码按钮: last={last}, state={_email_otp_page_state(driver)}")
+RuntimeError: 找不到可点击的重新发送验证码按钮: last='CloakElement' object has no attribute 'text', state={'url': 'https://auth.openai.com/email-verification', 'title': 'Authentication Error - OpenAI', 'inputs': [], 'buttons': [{'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': 'OpenAI main page', 'disabled': False, 'text': ''}, {'tag': 'A', 'type': '', 'value': '', 'action': 'Try again', 'aria': '', 'disabled': False, 'text': 'Try again'}, {'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': '', 'disabled': False, 'text': 'Terms of Use'}, {'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': '', 'disabled': False, 'text': 'Privacy Policy'}], 'errors': ['error_code: account_deactivated request_id: 957f3d76-350c-4051-a41b-5506799c6fbd'], 'text': 'Authentication Error\nYou do not have an account because it has been deleted or deactivated. If you believe this was an error, please contact us through our help center at help.openai.com.\nerror_code: account_deactivated\nrequest_id: 957f3d76-350c-4051-a41b-5506799c6fbd\nTry again\nTerms of UsePrivacy Policy'}
+01:03:59 [INFO] [批量] 开始第 2/2 个注册
+01:03:59 [DEBUG] 自动生成显示名称: Billy Jane Hamilton
+01:03:59 [DEBUG] Starting new HTTPS connection (1): ipinfo.io:443
+01:04:00 [DEBUG] https://ipinfo.io:443 "GET /json HTTP/1.1" 200 None
+01:04:00 [INFO] [Cloak] 出口IP地理信息：ip=159.54.189.135 country=US city=San Jose timezone=America/Los_Angeles
+01:04:00 [INFO] [Cloak] 启动 CloakBrowser：headless=False humanize=True geoip=True proxy=http://127.0.0.1:7897 locale=en-US timezone=America/Los_Angeles accept_language=en-US,en;q=0.9 persistent=False
+01:04:00 [DEBUG] Binary found in cache: C:\Users\xjx\.cloakbrowser\chromium-146.0.7680.177.5\chrome.exe (version 146.0.7680.177.5)
+01:04:01 [DEBUG] connect_tcp.started host='127.0.0.1' port=7897 local_address=None timeout=10.0 socket_options=None
+01:04:01 [DEBUG] connect_tcp.complete return_value=<httpcore._backends.sync.SyncStream object at 0x00000212741E6470>
+01:04:01 [DEBUG] send_request_headers.started request=<Request [b'CONNECT']>
+01:04:01 [DEBUG] send_request_headers.complete
+01:04:01 [DEBUG] send_request_body.started request=<Request [b'CONNECT']>
+01:04:01 [DEBUG] send_request_body.complete
+01:04:01 [DEBUG] receive_response_headers.started request=<Request [b'CONNECT']>
+01:04:01 [DEBUG] receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'Connection established', [])
+01:04:01 [DEBUG] start_tls.started ssl_context=<ssl.SSLContext object at 0x0000021274475090> server_hostname='api.ipify.org' timeout=10.0
+01:04:02 [DEBUG] start_tls.complete return_value=<httpcore._backends.sync.SyncStream object at 0x00000212741E57B0>
+01:04:02 [DEBUG] send_request_headers.started request=<Request [b'GET']>
+01:04:02 [DEBUG] send_request_headers.complete
+01:04:02 [DEBUG] send_request_body.started request=<Request [b'GET']>
+01:04:02 [DEBUG] send_request_body.complete
+01:04:02 [DEBUG] receive_response_headers.started request=<Request [b'GET']>
+01:04:02 [DEBUG] receive_response_headers.complete return_value=(b'HTTP/1.1', 200, b'OK', [(b'Date', b'Tue, 22 Sep 2026 17:04:02 GMT'), (b'Content-Type', b'text/plain'), (b'Content-Length', b'14'), (b'Connection', b'keep-alive'), (b'Server', b'cloudflare'), (b'Vary', b'Origin'), (b'cf-cache-status', b'DYNAMIC'), (b'CF-RAY', b'a3f2e2f0efa0e8c2-SJC')])
+01:04:02 [INFO] HTTP Request: GET https://api.ipify.org "HTTP/1.1 200 OK"
+01:04:02 [DEBUG] receive_response_body.started request=<Request [b'GET']>
+01:04:02 [DEBUG] receive_response_body.complete
+01:04:02 [DEBUG] response_closed.started
+01:04:02 [DEBUG] response_closed.complete
+01:04:02 [DEBUG] Exit IP via https://api.ipify.org: 159.54.189.135
+01:04:02 [DEBUG] Launching stealth Chromium (headless=False, args=8)
+01:04:02 [DEBUG] Using proactor: IocpProactor
+01:04:03 [INFO] [Cloak注册] 开始：，profile=cloakbrowser
+01:04:03 [INFO] [Cloak注册] 打开登录页：https://chatgpt.com/auth/login
+01:04:06 [DEBUG] [Humanize] delay kind=navigate, seconds=2.16
+01:04:11 [INFO] [Outlook] 选中账号: wrrdvzf973975@outlook.com（DB id=2）
+01:04:11 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=wrrdvzf973975@outlook.com
+01:04:11 [INFO] [EmailProvider] 已找到邮箱输入框，开始分配邮箱: wrrdvzf973975@outlook.com
+01:04:12 [DEBUG] [Humanize] delay kind=click, seconds=0.59
+01:04:13 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.04
+01:04:13 [DEBUG] [Humanize] delay kind=typing_pause, seconds=0.38
+01:04:13 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.06
+01:04:13 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.13
+01:04:14 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.06
+01:04:14 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.07
+01:04:14 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.06
+01:04:14 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.09
+01:04:14 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.18
+01:04:14 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.08
+01:04:14 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.11
+01:04:14 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.10
+01:04:15 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.06
+01:04:15 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.13
+01:04:15 [DEBUG] [Humanize] delay kind=typing_pause, seconds=0.22
+01:04:15 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.06
+01:04:16 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.13
+01:04:16 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.16
+01:04:16 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.16
+01:04:16 [DEBUG] [Humanize] delay kind=typing_pause, seconds=0.53
+01:04:17 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.16
+01:04:17 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.09
+01:04:17 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.07
+01:04:17 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.13
+01:04:17 [INFO] [Cloak注册] 已填写邮箱并校验通过：wrrdvzf973975@outlook.com
+01:04:17 [DEBUG] [Humanize] delay kind=form, seconds=2.83
+01:04:20 [INFO] [Cloak注册] 邮箱提交前状态稳定：{'ok': True, 'value': 'wrrdvzf973975@outlook.com', 'active': True, 'hasForm': True, 'hasSubmit': True, 'submitDisabled': False, 'url': 'https://chatgpt.com/auth/login'}
+01:04:22 [INFO] [Cloak注册] 邮箱稳定表单提交：{'ok': True, 'reason': 'stable_async_enter_click', 'value': 'wrrdvzf973975@outlook.com', 'submitDisabled': False, 'submitAttrs': 'submit btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-vis', 'url': 'https://chatgpt.com/auth/login'}
+01:04:23 [INFO] [Cloak注册] 已提交邮箱，等待进入密码页或验证码页（1/3）
+01:04:27 [INFO] [Cloak注册] 邮箱提交后已进入下一步：otp
+01:04:27 [INFO] [Cloak注册][页面机] 观察 url=https://auth.openai.com/email-verification
+01:04:27 [INFO] [Cloak注册][页面机][OTP] 等待验证码(第 1/3 次)
+01:04:27 [INFO] [Outlook] 开始轮询 wrrdvzf973975@outlook.com 的收件箱（mode=auto, Graph + IMAP 本地直连，REST 兜底），最长 90s, settle=5s...
+01:04:36 [DEBUG] [Outlook] graph 拿到 4 封邮件 source=remote_graph
+01:04:38 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:04:38 [INFO] [Outlook] 邮件诊断 top=[{'p': 'remote_graph', 'date': '2026-09-22T17:04:31Z', 'openai': True, 'after': True, 'otp': True, 'subject': 'Your temporary ChatGPT login code'}, {'p': 'remote_graph', 'date': '2026-09-22T17:03:10Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'Your temporary ChatGPT login code'}, {'p': 'remote_graph', 'date': '2026-09-21T23:19:27Z', 'openai': True, 'after': False, 'otp': True, 'subject': 'Your temporary ChatGPT verification code'}, {'p': 'remote_graph', 'date': '2026-08-29T18:39:53Z', 'openai': False, 'after': False, 'otp': False, 'subject': '连接到 Microsoft 帐户的新应用'}]
+01:04:38 [INFO] [Outlook] 首次锁定 OTP=048615, source=remote_graph, ts=2026-09-22T17:04:31Z, subject='Your temporary ChatGPT login code', 等 5s 看是否有更晚邮件...
+01:04:38 [INFO] [Outlook] 已锁定候选 OTP=048615，等 settle 中（剩余 settle ~4s, 总剩余 78s）...
+01:04:42 [DEBUG] [Outlook] graph 拿到 4 封邮件 source=remote_graph
+01:04:43 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:04:43 [INFO] [Outlook] 已锁定候选 OTP=048615，等 settle 中（剩余 settle ~0s, 总剩余 74s）...
+01:04:50 [DEBUG] [Outlook] graph 拿到 4 封邮件 source=remote_graph
+01:04:51 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:04:51 [INFO] [Outlook] settle 完成，返回 OTP=048615, source=remote_graph, protocol=graph, subject='Your temporary ChatGPT login code'
+01:04:51 [INFO] [Cloak注册][页面机][OTP] 收到验证码:048615
+01:04:51 [INFO] [Cloak注册] OTP 输入框(JS 定位): selector=#_r_5_-code
+01:04:51 [DEBUG] [Humanize] delay kind=click, seconds=0.18
+01:04:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.04
+01:04:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.17
+01:04:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.09
+01:04:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.09
+01:04:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.05
+01:04:52 [DEBUG] [Humanize] delay kind=keystroke, seconds=0.17
+01:04:53 [INFO] [Cloak注册] OTP 回读校验一致:048615
+01:04:53 [DEBUG] [Humanize] delay kind=otp_input, seconds=5.08
+01:04:58 [DEBUG] [Humanize] delay kind=click, seconds=0.44
+01:05:02 [INFO] [Cloak注册][页面机][OTP] 提交后状态:invalid
+01:05:27 [INFO] [Cloak] 注册浏览器网络流量：上传 2516.02 KiB，下载 6713.22 KiB，合计 9229.24 KiB，HTTP请求 216（失败 6，未完成 1）
+01:05:27 [ERROR] [Cloak注册] 失败：RuntimeError: 找不到可点击的重新发送验证码按钮: last='CloakElement' object has no attribute 'text', state={'url': 'https://auth.openai.com/email-verification', 'title': 'Authentication Error - OpenAI', 'inputs': [], 'buttons': [{'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': 'OpenAI main page', 'disabled': False, 'text': ''}, {'tag': 'A', 'type': '', 'value': '', 'action': 'Try again', 'aria': '', 'disabled': False, 'text': 'Try again'}, {'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': '', 'disabled': False, 'text': 'Terms of Use'}, {'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': '', 'disabled': False, 'text': 'Privacy Policy'}], 'errors': ['error_code: account_deactivated request_id: 850ef9ad-d9b8-4bcd-b052-173ac96542f1'], 'text': 'Authentication Error\nYou do not have an account because it has been deleted or deactivated. If you believe this was an error, please contact us through our help center at help.openai.com.\nerror_code: account_deactivated\nrequest_id: 850ef9ad-d9b8-4bcd-b052-173ac96542f1\nTry again\nTerms of UsePrivacy Policy'}
+01:05:27 [DEBUG] [Cloak注册] 失败详情
+Traceback (most recent call last):
+  File "D:\workSpace\turb-gpt-free-register\core\cloakbrowser_registration.py", line 338, in _run_cloak_registration_impl
+    resend = _click_resend_email_otp(driver, timeout=25)
+  File "D:\workSpace\turb-gpt-free-register\core\page_ops.py", line 1472, in _click_resend_email_otp
+    raise RuntimeError(f"找不到可点击的重新发送验证码按钮: last={last}, state={_email_otp_page_state(driver)}")
+RuntimeError: 找不到可点击的重新发送验证码按钮: last='CloakElement' object has no attribute 'text', state={'url': 'https://auth.openai.com/email-verification', 'title': 'Authentication Error - OpenAI', 'inputs': [], 'buttons': [{'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': 'OpenAI main page', 'disabled': False, 'text': ''}, {'tag': 'A', 'type': '', 'value': '', 'action': 'Try again', 'aria': '', 'disabled': False, 'text': 'Try again'}, {'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': '', 'disabled': False, 'text': 'Terms of Use'}, {'tag': 'A', 'type': '', 'value': '', 'action': '', 'aria': '', 'disabled': False, 'text': 'Privacy Policy'}], 'errors': ['error_code: account_deactivated request_id: 850ef9ad-d9b8-4bcd-b052-173ac96542f1'], 'text': 'Authentication Error\nYou do not have an account because it has been deleted or deactivated. If you believe this was an error, please contact us through our help center at help.openai.com.\nerror_code: account_deactivated\nrequest_id: 850ef9ad-d9b8-4bcd-b052-173ac96542f1\nTry again\nTerms of UsePrivacy Policy'}
+01:05:27 [INFO] [批量] 完成：成功 0 / 尝试 2 / 目标 2
+node:events:496
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: EPIPE: broken pipe, write
+    at Socket._write (node:internal/net:63:18)
+    at writeOrBuffer (node:internal/streams/writable:572:12)
+    at _write (node:internal/streams/writable:501:10)
+    at Writable.write (node:internal/streams/writable:510:10)
+    at PipeTransport.send (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\utils\pipeTransport.js:52:21)
+    at dispatcherConnection.onmessage (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\cli\driver.js:60:59)
+    at DispatcherConnection.sendEvent (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\dispatchers\dispatcher.js:163:10)
+    at BrowserContextDispatcher._dispatchEvent (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\dispatchers\dispatcher.js:103:21)
+    at CRBrowserContext.<anonymous> (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\dispatchers\browserContextDispatcher.js:154:12)
+    at CRBrowserContext.emit (node:events:518:28)
+Emitted 'error' event on Socket instance at:
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at processTicksAndRejections (node:internal/process/task_queues:90:21)
+    at runNextTicks (node:internal/process/task_queues:69:3)
+    at process.processImmediate (node:internal/timers:453:9) {
+  errno: -4047,
+  syscall: 'write',
+  code: 'EPIPE'
+}
+
+Node.js v22.16.0

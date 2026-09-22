@@ -1,0 +1,55 @@
+01:44:38 [INFO] [批量] 账号数据将直接写入 SQLite
+01:44:38 [INFO] [批量] 开始第 1/2 个注册
+01:44:39 [WARNING] [Cloak] SOCKS5 代理带认证参数,Chromium 内核不支持 SOCKS 认证,浏览器侧将无法通过代理验证(建议改用 http 形式): resin.131518.xyz:5178
+01:44:52 [INFO] HTTP Request: GET https://pypi.org/pypi/cloakbrowser/json "HTTP/1.1 200 OK"
+01:45:00 [INFO] HTTP Request: GET https://checkip.amazonaws.com "HTTP/1.1 200 "
+01:45:00 [INFO] Auto URL-encoded SOCKS5 proxy credentials (special characters detected). Pre-encode the URL to suppress this notice.
+01:45:14 [WARNING] [Cloak注册] 检测到 Cloudflare 人机验证,尝试自动通过(最长 180s)...
+01:46:57 [WARNING] [Cloak注册] 邮箱提交后仍未进入下一步：unknown，准备重填重试 state={'url': 'https://chatgpt.com/auth/login', 'inputs': []}
+01:47:26 [WARNING] [Cloak注册] 第 1 次邮箱提交失败,回登录页恢复后重试: 找不到邮箱输入框/邮箱入口（未使用文字识别），state={'url': 'chrome-error://chromewebdata/', 'title': 'chatgpt.com', 'inputs': [], 'actions': [{'tag': 'A', 'type': '', 'attr
+01:48:04 [WARNING] [Cloak注册] 第 2 次邮箱提交失败,回登录页恢复后重试: 找不到邮箱输入框/邮箱入口（未使用文字识别），state={'url': 'chrome-error://chromewebdata/', 'title': 'chatgpt.com', 'inputs': [], 'actions': [{'tag': 'A', 'type': '', 'attr
+01:48:36 [ERROR] [Cloak注册] 失败：RuntimeError: 找不到邮箱输入框/邮箱入口（未使用文字识别），state={'url': 'chrome-error://chromewebdata/', 'title': 'chatgpt.com', 'inputs': [], 'actions': [{'tag': 'A', 'type': '', 'attrs': '#buttons'}, {'tag': 'A', 'type': '', 'attrs': 'diagnose-link javascript:diagnoseerrors()'}, {'tag': 'BUTTON', 'type': '', 'attrs': 'details-button'}]}
+01:48:36 [INFO] [批量] 开始第 2/2 个注册
+01:48:36 [WARNING] [Cloak] SOCKS5 代理带认证参数,Chromium 内核不支持 SOCKS 认证,浏览器侧将无法通过代理验证(建议改用 http 形式): resin.131518.xyz:5178
+01:48:51 [INFO] HTTP Request: GET https://api.ipify.org "HTTP/1.1 200 OK"
+01:48:51 [INFO] Auto URL-encoded SOCKS5 proxy credentials (special characters detected). Pre-encode the URL to suppress this notice.
+01:49:01 [WARNING] [Cloak注册] 检测到 Cloudflare 人机验证,尝试自动通过(最长 180s)...
+01:51:34 [WARNING] [Cloak注册] 第 1 次邮箱提交失败,回登录页恢复后重试: 找不到邮箱输入框/邮箱入口（未使用文字识别），state={'url': 'https://chatgpt.com/auth/login', 'title': 'Get started | ChatGPT', 'inputs': [], 'actions': []}
+01:52:06 [WARNING] [Cloak注册] 第 2 次邮箱提交失败,回登录页恢复后重试: 找不到邮箱输入框/邮箱入口（未使用文字识别），state={'url': 'chrome-error://chromewebdata/', 'title': 'chatgpt.com', 'inputs': [], 'actions': [{'tag': 'A', 'type': '', 'attr
+01:52:18 [WARNING] [Cloak注册] 页面跳转竞态,重试(1/2)：Page.evaluate_handle: Execution context was destroyed, most likely because of a navigation
+01:52:48 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:52:52 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:52:56 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:53:48 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:53:52 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:53:56 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:54:43 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:54:47 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+01:54:51 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+02:03:36 [ERROR] [Cloak注册] 任务超时(900s),放弃本次(浏览器线程留守,稍后自动退出)
+02:03:36 [INFO] [批量] 完成：成功 0 / 尝试 2 / 目标 2
+node:events:496
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: EPIPE: broken pipe, write
+    at Socket._write (node:internal/net:63:18)
+    at writeOrBuffer (node:internal/streams/writable:572:12)
+    at _write (node:internal/streams/writable:501:10)
+    at Writable.write (node:internal/streams/writable:510:10)
+    at PipeTransport.send (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\utils\pipeTransport.js:53:21)
+    at dispatcherConnection.onmessage (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\cli\driver.js:60:59)
+    at DispatcherConnection.sendCreate (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\dispatchers\dispatcher.js:168:10)
+    at new Dispatcher (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\dispatchers\dispatcher.js:69:23)
+    at new ResponseDispatcher (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\dispatchers\networkDispatchers.js:70:5)
+    at ResponseDispatcher.from (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\dispatchers\networkDispatchers.js:85:22)
+Emitted 'error' event on Socket instance at:
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errno: -4047,
+  syscall: 'write',
+  code: 'EPIPE'
+}
+
+Node.js v22.16.0

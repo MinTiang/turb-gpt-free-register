@@ -65,6 +65,20 @@ class CloakElement:
             return self.handle
         return self.locator.element_handle(timeout=5000)
 
+    @property
+    def text(self) -> str:
+        """元素可见文本(page_ops 多处按 selenium 习惯访问 el.text)。"""
+        try:
+            return str(self._eval("el => el.innerText || el.textContent || ''") or "")
+        except Exception:
+            return ""
+
+    def get_attribute(self, name: str):
+        try:
+            return self._eval("(el,a)=>el.getAttribute(a)", name)
+        except Exception:
+            return None
+
     def _eval(self, expression: str, arg: Any = None) -> Any:
         if self.locator is not None:
             try:
