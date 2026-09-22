@@ -212,6 +212,7 @@ def _run_cloak_registration_impl(
         otp_attempts = 0
         reset_code_ts = None
         reset_code_filled = False
+        reset_email_sent = False
         reset_password = None
         last_url = ""
         while time.time() < deadline:
@@ -292,6 +293,14 @@ def _run_cloak_registration_impl(
                         "请从邮箱池移除后换新邮箱重试"
                     )
 
+            # ChatGPT 首页已到达:注册/恢复完成,直接收尾
+            # (实测 2026-09-22:部分存量号恢复登录后 _has_access_token 的页内
+            #  session fetch 返回 False,机器在首页空转到全局超时——首页即完成)
+            if low.rstrip("/") in ("https://chatgpt.com", "http://chatgpt.com"):
+                logger.info("[Cloak注册][页面机] 已到达 ChatGPT 首页,注册/恢复完成")
+                create_acknowledged = True
+                break
+
             # 登录态已建立 → 注册/恢复完成
             try:
                 if _has_access_token(driver):
@@ -310,7 +319,32 @@ def _run_cloak_registration_impl(
                     reset_code_ts = time.time()
                     otp_after_ts = reset_code_ts
                     reset_code_filled = False
+                    reset_email_sent = False
                     logger.info("[Cloak注册][页面机] 重置密码页:老账号恢复流程,取码基准已重置")
+                # 重置页第一步是提交邮箱(OpenAI 提交后才发码), 否则永远等不到码
+                if not reset_email_sent:
+                    has_email = False
+                    try:
+                        has_email = bool(driver.execute_script(
+                            "const v=el=>!!(el&&(el.offsetWidth||el.offsetHeight||el.getClientRects().length));"
+                            "return [...document.querySelectorAll('input')].some(el=>v(el)&&"
+                            "(el.type==='email'||el.name==='email'||el.id==='email'||el.autocomplete==='email'))"))
+                    except Exception:
+                        pass
+                    if has_email:
+                        try:
+                            _human_type_text(driver, driver.find_element(
+                                "xpath", "//input[@type='email' or @name='email' or @id='email' or @autocomplete='email']"),
+                                email)
+                            _click_submit_button()
+                            reset_email_sent = True
+                            logger.info("[Cloak注册][页面机] 重置页已提交邮箱,等待重置码")
+                            human_delay("form")
+                            continue
+                        except Exception as exc:
+                            logger.warning("[Cloak注册][页面机] 重置页邮箱提交失败: %s", str(exc)[:120])
+                    else:
+                        reset_email_sent = True  # 无邮箱框(已预填) → 直接等码
                 if not reset_code_filled:
                     try:
                         reset_otp = otp_code if (otp_code and not otp_used) else wait_for_otp(email, after_ts=reset_code_ts)
