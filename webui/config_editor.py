@@ -405,6 +405,24 @@ EDITABLE_FIELDS = [
         "key": "CPA_SAVE_CALLBACK_RECEIPT", "file": "codex.py", "type": "bool", "group": "Codex",
         "label": "保存CPA回执", "help": "CPA 未返回完整授权文件时，本地仍保存一份回调提交记录",
     },
+    {
+        "key": "ENABLE_CODEX2API_PUSH", "file": "codex.py", "type": "bool", "group": "Codex",
+        "label": "推送 codex2api",
+        "help": "授权成功后把账号同步到 codex2api。推送会带签发 client_id（平台授权=官网 client，接码授权=Codex CLI client），否则对方续期会 401 invalid_client",
+    },
+    {
+        "key": "CODEX2API_URL", "file": "codex.py", "type": "str", "group": "Codex",
+        "label": "codex2api 地址", "help": "例如 http://127.0.0.1:8080；实际调用 POST {origin}/api/admin/accounts/import",
+    },
+    {
+        "key": "CODEX2API_ADMIN_KEY", "file": "codex.py", "type": "str", "group": "Codex",
+        "label": "codex2api 管理密钥", "help": "保存在 .env（CODEX2API_ADMIN_KEY）；对应 codex2api 的 ADMIN_SECRET",
+        "storage": "env", "secret": True,
+    },
+    {
+        "key": "CODEX2API_PUSH_TIMEOUT", "file": "codex.py", "type": "int", "group": "Codex",
+        "label": "推送超时(秒)", "help": "请求 codex2api 导入接口的超时时间",
+    },
 
     {
         "key": "SMS_PROVIDER", "file": "codex.py", "type": "str", "group": "接码平台",
