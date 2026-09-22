@@ -565,6 +565,7 @@
             <span class="btn-group-title">批量</span>
             <button class="btn primary" id="btnSetupSelectedTotp" disabled title="给选中的账号批量开启 2FA，并在完成后写回 TOTP 密钥">批量开2FA</button>
             <button class="btn primary" id="btnChangeSelectedEmails" disabled title="为选中的账号从指定来源领取新邮箱并换绑">批量换邮箱</button>
+            <button class="btn good" id="btnPushSelectedHub" disabled title="把选中的账号批量推送到 gpt-account-hub（自动分批，每批最多 50 个；仅 outlook 池素材齐全的账号可推送）">推送Hub</button>
             <button class="btn good" id="btnNoteSelectedAccounts" disabled title="给选中的账号统一设置备注，留空可清空备注">备注</button>
             <button class="btn good" id="btnCopySelectedLines" disabled title="复制选中账号的完整整行，每个账号一行">复制行</button>
             <button class="btn good" id="btnCopySelectedTokens" disabled title="复制选中账号的 Token，每个账号一行">复制Token</button>
@@ -1583,6 +1584,7 @@ function updateAccountSelectionUi(pageRows = null) {
   const archiveSelectedBtn = $('#btnArchiveSelectedAccounts');
   const setupTotpBtn = $('#btnSetupSelectedTotp');
   const changeEmailsBtn = $('#btnChangeSelectedEmails');
+  const pushHubBtn = $('#btnPushSelectedHub');
   if (hint) hint.textContent = `已选 ${ACCOUNT_SELECTED.size}`;
   if (bulkBtn) bulkBtn.disabled = ACCOUNT_SELECTED.size === 0;
   if (retryBulkBtn) retryBulkBtn.disabled = ACCOUNT_SELECTED.size === 0;
@@ -1596,6 +1598,7 @@ function updateAccountSelectionUi(pageRows = null) {
   if (noteSelectedBtn) noteSelectedBtn.disabled = ACCOUNT_SELECTED.size === 0;
   if (setupTotpBtn) setupTotpBtn.disabled = ACCOUNT_SELECTED.size === 0;
   if (changeEmailsBtn) changeEmailsBtn.disabled = ACCOUNT_SELECTED.size === 0;
+  if (pushHubBtn) pushHubBtn.disabled = ACCOUNT_SELECTED.size === 0;
   if (archiveSelectedBtn) {
     archiveSelectedBtn.disabled = ACCOUNT_SELECTED.size === 0;
     archiveSelectedBtn.textContent = SHOW_ARCHIVED_ACCOUNTS ? '恢复选中' : '归档选中';
@@ -1975,6 +1978,7 @@ $('#btnCopySelectedTokens').addEventListener('click', copySelectedAccountTokens)
 $('#btnDownloadSelectedTxt').addEventListener('click', downloadSelectedAccountTxt);
 $('#btnNoteSelectedAccounts').addEventListener('click', noteSelectedAccounts);
 $('#btnSetupSelectedTotp').addEventListener('click', setupSelectedTotp);
+$('#btnPushSelectedHub').addEventListener('click', pushSelectedHub);
 $('#btnChangeSelectedEmails').addEventListener('click', () => changeAccountEmails(Array.from(ACCOUNT_SELECTED)));
 $('#btnExtractSelectedLinks').addEventListener('click', extractSelectedLinks);
 $('#btnRetrySelectedCodex').addEventListener('click', retrySelectedCodex);
@@ -2578,6 +2582,49 @@ async function archiveOneAccount(id, archived, btn) {
   } catch(err) {
     showToast(`${action}失败: ` + err.message);
     btn.disabled = false;
+    btn.textContent = old;
+  }
+}
+
+async function pushSelectedHub() {
+  const ids = Array.from(ACCOUNT_SELECTED);
+  if (ids.length === 0) { showToast('请先选择账号'); return; }
+  if (!confirm(`确定把选中的 ${ids.length} 个账号推送到 gpt-account-hub 吗？
+
+仅 outlook 池来源且邮箱四件套齐全的账号可推送；推送失败会逐条列出原因。`)) return;
+  const btn = $('#btnPushSelectedHub');
+  const old = btn.textContent;
+  btn.disabled = true;
+  // 端点单次限 50,选中更多时自动分批顺序推
+  const batches = [];
+  for (let i = 0; i < ids.length; i += 50) batches.push(ids.slice(i, i + 50));
+  btn.textContent = `推送中 0/${ids.length}…`;
+  const results = [];
+  let pushed = 0;
+  try {
+    for (let bi = 0; bi < batches.length; bi++) {
+      const r = await api('/api/accounts/hub-push', {
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({account_ids: batches[bi]}),
+      });
+      pushed += Number(r.pushed || 0);
+      results.push(...(r.results || []));
+      btn.textContent = `推送中 ${results.length}/${ids.length}…`;
+    }
+    const fails = results.filter(x => !x.ok);
+    showToast(`推送完成：成功 ${pushed}/${results.length}${fails.length ? `，失败 ${fails.length}` : ''}`);
+    if (fails.length) {
+      const lines = fails.map(x => `❌ ${x.email}: ${(x.message || '').slice(0, 120)}`);
+      alert(`以下 ${fails.length} 个账号推送失败：
+
+${lines.join('
+')}`);
+    }
+  } catch(err) {
+    showToast('批量推送失败: ' + err.message);
+  } finally {
+    btn.disabled = ACCOUNT_SELECTED.size === 0;
     btn.textContent = old;
   }
 }

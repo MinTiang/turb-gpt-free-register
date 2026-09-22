@@ -1,0 +1,116 @@
+>>> 邮箱: 
+19:26:15 [INFO] [Cloak] 出口IP地理信息：ip=158.180.85.221 country=KR city=Chuncheon timezone=Asia/Seoul
+19:26:15 [INFO] [Cloak] 启动 CloakBrowser：headless=False humanize=True geoip=True proxy=http://127.0.0.1:7897 locale=ko-KR timezone=Asia/Seoul accept_language=ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7 persistent=False
+19:26:16 [INFO] HTTP Request: GET https://pypi.org/pypi/cloakbrowser/json "HTTP/1.1 200 OK"
+19:26:17 [INFO] HTTP Request: GET https://api.ipify.org "HTTP/1.1 200 OK"
+19:26:18 [INFO] [Cloak注册] 开始：，profile=cloakbrowser
+19:26:18 [INFO] [Cloak注册] 打开登录页：https://chatgpt.com/auth/login
+19:26:24 [WARNING] [Cloak注册] 检测到 Cloudflare 人机验证,尝试自动通过(最长 180s)...
+19:26:26 [INFO] [Cloak注册] 已按组件容器坐标点击 Turnstile(第 1 次, x=344 y=491)
+19:26:29 [INFO] [Cloak注册] Cloudflare 人机验证已通过
+19:26:44 [INFO] [Cloak注册] 邮箱提交后等待下一步超时，最后邮箱页状态={'url': 'https://chatgpt.com/auth/login', 'inputs': [{'type': 'email', 'name': 'email', 'id': 'email', 'autocomplete': 'email', 'value': ''}]}
+19:26:44 [INFO] [Outlook] 选中账号: wnxyjbx18884@outlook.com（DB id=23）
+19:26:44 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=wnxyjbx18884@outlook.com
+19:26:44 [INFO] [EmailProvider] 已找到邮箱输入框，开始分配邮箱: wnxyjbx18884@outlook.com
+19:26:51 [INFO] [Cloak注册] 已填写邮箱并校验通过：wnxyjbx18884@outlook.com
+19:26:55 [INFO] [Cloak注册] 邮箱提交前状态稳定：{'ok': True, 'value': 'wnxyjbx18884@outlook.com', 'active': True, 'hasForm': True, 'hasSubmit': True, 'submitDisabled': False, 'url': 'https://chatgpt.com/auth/login'}
+19:26:57 [INFO] [Cloak注册] 邮箱稳定表单提交：{'ok': True, 'reason': 'stable_async_enter_click', 'value': 'wnxyjbx18884@outlook.com', 'submitDisabled': False, 'submitAttrs': 'submit btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-vis', 'url': 'https://chatgpt.com/auth/login'}
+19:26:58 [INFO] [Cloak注册] 已提交邮箱，等待进入密码页或验证码页（1/3）
+19:27:00 [INFO] [Cloak注册] 邮箱提交后已进入下一步：otp
+19:27:00 [INFO] [Cloak注册] 无密码模式：验证码页不切密码分支，直接交给 OTP 流程：email=wnxyjbx18884@outlook.com
+19:27:00 [INFO] [Cloak注册][OTP] 等待验证码：wnxyjbx18884@outlook.com（第 1/3 次）
+19:27:00 [INFO] [Outlook] 开始轮询 wnxyjbx18884@outlook.com 的收件箱（mode=auto, Graph + IMAP 本地直连，REST 兜底），最长 90s, settle=5s...
+19:27:02 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+19:27:02 [INFO] [Outlook] 邮件诊断 top=[{'p': 'remote_graph', 'date': '2026-08-31T22:45:56Z', 'openai': False, 'after': False, 'otp': False, 'subject': '连接到 Microsoft 帐户的新应用'}]
+19:27:02 [INFO] [Outlook] 暂未收到符合条件的 OpenAI 邮件，3s 后重试（剩余 87s）...
+19:27:06 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+19:27:06 [INFO] [Outlook] 首次锁定 OTP=027450, source=remote_graph, ts=2026-09-22T11:27:05Z, subject='ChatGPT 임시 인증 코드', 等 5s 看是否有更晚邮件...
+19:27:06 [INFO] [Outlook] 已锁定候选 OTP=027450，等 settle 中（剩余 settle ~4s, 总剩余 83s）...
+19:27:10 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+19:27:10 [INFO] [Outlook] 已锁定候选 OTP=027450，等 settle 中（剩余 settle ~1s, 总剩余 80s）...
+19:27:13 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+19:27:13 [INFO] [Outlook] settle 完成，返回 OTP=027450, source=remote_graph, protocol=graph, subject='ChatGPT 임시 인증 코드'
+19:27:13 [INFO] [Cloak注册][OTP] 收到验证码：027450
+19:27:14 [INFO] [Cloak注册] OTP 输入框(JS 定位): selector=#_r_5_-code
+19:27:17 [INFO] [Cloak注册] OTP 回读校验一致:027450
+19:27:29 [INFO] [Cloak注册] 检测到资料页，开始填写姓名生日：url=https://auth.openai.com/about-you inputs=[{'tag': 'INPUT', 'type': 'text', 'name': 'name', 'id': '_r_n_-name', 'placeholder': '성명', 'autocomplete': 'name', 'aria': '', 'value': '', 'visible': True}, {'tag': 'INPUT', 'type': 'number', 'name': 'age', 'id': '_r_n_-age', 'placeholder': '연령', 'autocomplete': 'off', 'aria': '', 'value': '', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'allCheckboxes', 'id': '_r_n_-allCheckboxes', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'personalInfoConsent', 'id': '_r_n_-personalInfoConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'thirdPartyConsent', 'id': '_r_n_-thirdPartyConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'overseasTransferConsent', 'id': '_r_n_-overseasTransferConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}]
+19:27:34 [INFO] [Cloak注册] 已填写姓名字段：Donald Jordan
+19:27:34 [INFO] [Cloak注册] 已填写年龄字段：59
+19:27:34 [INFO] [Cloak注册] 已勾选 about-you/profile 同意协议复选框：['allCheckboxes']
+19:27:38 [INFO] [Cloak注册] 已点击资料页提交按钮，等待 OAuth 跳转
+19:27:47 [INFO] [Cloak注册] /api/auth/session 已返回 accessToken
+19:27:47 [INFO] [Cloak注册] 已拿到 accessToken：wnxyjbx18884@outlook.com
+19:27:47 [INFO] [Cloak注册][Codex] 浏览器内走 platform 免接码授权（client=app_2SKx(platform)，保留注册登录态）
+19:27:47 [INFO] [Codex][Platform][Browser] 打开 platform 授权页：wnxyjbx18884@outlook.com（device_id=44a90ed9…）
+19:27:50 [INFO] [Codex][Platform][Browser] 重定向 → https://auth.openai.com/email-verification
+19:27:50 [INFO] [Codex][Platform][Browser] 页面快照 url=https://auth.openai.com/email-verification state={"inputs": [], "buttons": [], "title": ""}
+19:27:50 [INFO] [Codex][Platform][Browser] 验证码页尚未渲染输入框（可能 Turnstile 质询中），等待
+19:27:50 [INFO] [Codex][Platform][Browser] 验证码页尚未渲染输入框（可能 Turnstile 质询中），等待
+19:27:50 [INFO] [Codex][Platform][Browser] 检测到邮箱验证码页，自动收码填入：wnxyjbx18884@outlook.com
+19:27:50 [INFO] [Outlook] 开始轮询 wnxyjbx18884@outlook.com 的收件箱（mode=auto, Graph + IMAP 本地直连，REST 兜底），最长 90s, settle=5s...
+19:27:53 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+19:27:53 [INFO] [Outlook] 邮件诊断 top=[{'p': 'remote_graph', 'date': '2026-09-22T11:27:05Z', 'openai': True, 'after': True, 'otp': True, 'subject': 'ChatGPT 임시 인증 코드'}, {'p': 'remote_graph', 'date': '2026-08-31T22:45:56Z', 'openai': False, 'after': False, 'otp': False, 'subject': '连接到 Microsoft 帐户的新应用'}]
+19:27:53 [INFO] [Outlook] 首次锁定 OTP=027450, source=remote_graph, ts=2026-09-22T11:27:05Z, subject='ChatGPT 임시 인증 코드', 等 5s 看是否有更晚邮件...
+19:27:53 [INFO] [Outlook] 已锁定候选 OTP=027450，等 settle 中（剩余 settle ~4s, 总剩余 87s）...
+19:27:57 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+19:27:57 [INFO] [Outlook] 发现更晚的 OTP=245482 (ts=2026-09-22T11:27:54Z, source=remote_graph), 替换之前的 027450, 重置 settle 计时
+19:27:57 [INFO] [Outlook] 已锁定候选 OTP=245482，等 settle 中（剩余 settle ~4s, 总剩余 83s）...
+19:28:01 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+19:28:01 [INFO] [Outlook] 已锁定候选 OTP=245482，等 settle 中（剩余 settle ~1s, 总剩余 79s）...
+19:28:05 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+19:28:05 [INFO] [Outlook] settle 完成，返回 OTP=245482, source=remote_graph, protocol=graph, subject='임시 OpenAI 로그인 코드'
+19:28:05 [INFO] [Codex][Platform][Browser] 邮箱 OTP 收到：245482
+19:28:05 [INFO] [Cloak注册] OTP 输入框(JS 定位): selector=#_r_5_-code
+19:28:08 [WARNING] [Cloak注册] OTP 回读不一致(1/3): value='25482' expected='245482', 清空重输
+19:28:10 [INFO] [Cloak注册] OTP 回读校验一致:245482
+19:28:10 [INFO] [Codex][Platform][Browser] 已填写邮箱 OTP
+19:28:16 [INFO] [Codex][Platform][Browser] OTP 提交完成，等待跳转
+19:28:16 [INFO] [Codex][Cloak] 邮箱 OTP 后等待跳转：url=https://auth.openai.com/email-verification
+19:28:16 [INFO] [Codex][Cloak] 邮箱 OTP 后仍在 email-verification，继续等待页面自动跳转
+19:28:20 [INFO] [Codex][Cloak] 邮箱 OTP 后等待跳转：url=https://platform.openai.com/auth/callback?code=ac_cefq3KptLZuWb_HCEbO3EChFFeZzE2Lg3UMrZdpjU5E.2r51Xk-v19Yf3BfhGFnuxUUE5pX4_T7DdEcP1I-Z5JM&scope=openid+profile+email+offline_access&state=qc1wL9bUI0yLWeQuWz7X5VT0ga1zX-NzQ00gLzyZRek
+19:28:20 [INFO] [Codex][Platform][Browser] OTP 提交后状态：accepted
+19:28:20 [INFO] [Codex][Platform][Browser] 页面快照 url=https://platform.openai.com/auth/callback?code=ac_cefq3KptLZuWb_HCEbO3EChFFeZzE2Lg3UMrZdpjU5E.2r51Xk-v19Yf3Bfh state={"inputs": [], "buttons": [], "title": "잠시만 기다리십시오…"}
+19:28:20 [INFO] [Codex][Platform][Browser] 已捕获 callback code：ac_cefq3KptLZuWb_HCEbO3E…
+19:28:20 [INFO] [Clearance] 开始刷新 auth.openai.com 的 CF clearance（入口 https://auth.openai.com/log-in，FlareSolverr）...
+19:28:30 [INFO] [Clearance] auth.openai.com clearance 刷新完成 (10.4s, 7 cookies: __cf_bm, __cflb, _cfuvid, _dd_s, cf_clearance, oai-did, oaicom-stable-id) cf_clearance=有
+19:28:31 [INFO] [CF] Cookie 状态更新 url=https://auth.openai.com/api/accounts/oauth/token keys=['.auth.openai.com:__cf_bm', '.auth.openai.com:cf_clearance', 'auth.openai.com:__cf_bm', 'auth.openai.com:cf_clearance']
+19:28:31 [INFO] [Codex][Platform] 新版 token 端点换取成功
+19:28:31 [INFO] [Codex][Platform] 正在上传 CPA auth-file（第 1/5 次）: codex-wnxyjbx18884@outlook.com.json
+19:28:51 [INFO] [Codex][Platform] CPA auth-file 上传成功: codex-wnxyjbx18884@outlook.com.json
+19:28:51 [INFO] [Codex][Platform][Browser] 成功：wnxyjbx18884@outlook.com，account_id=user-Z691iNv1eLtAYbCgReyY3nxN，已保存到 sqlite://codex_accounts/codex-wnxyjbx18884@outlook.com.json
+19:28:51 [INFO] [Codex][Push] 推送账号到 codex2api: wnxyjbx18884@outlook.com (client_id=app_2SKx67EdpoN0G6j64rFvigXD, 来源=platform)
+19:28:58 [INFO] [Codex][Push] 推送成功: wnxyjbx18884@outlook.com
+19:28:58 [INFO] [Cloak注册] 注册成功后随机停留 43.4s：wnxyjbx18884@outlook.com
+19:29:42 [INFO] [Cloak注册] 停留结束,开始收尾(流量统计→入库)
+19:29:42 [INFO] [Cloak] 注册浏览器网络流量：上传 7086.93 KiB，下载 14039.77 KiB，合计 21126.70 KiB，HTTP请求 675（失败 5，未完成 6）
+19:29:42 [INFO] [Cloak注册] 收尾完成,入库账号
+19:29:42 [INFO] [Save] 账号及凭证已保存到 SQLite, id=26, email=wnxyjbx18884@outlook.com
+19:29:42 [INFO] [Plan] 注册后自动套餐查询已跳过: id=26, email=wnxyjbx18884@outlook.com
+
+=== RESULT ===
+{"status": "success", "ok": true, "http_status": null, "email": "wnxyjbx18884@outlook.com", "file_path": "sqlite://codex_accounts/codex-wnxyjbx18884@outlook.com.json", "callback_url": "https://platform.openai.com/auth/callback?code=ac_cefq3KptL...", "message": "platform 免接码授权成功(浏览器)，已上传 CPA auth-file: codex-wnxyjbx18884@outlook.com.json"}
+node:events:496
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: EPIPE: broken pipe, write
+    at Socket._write (node:internal/net:63:18)
+    at writeOrBuffer (node:internal/streams/writable:572:12)
+    at _write (node:internal/streams/writable:501:10)
+    at Writable.write (node:internal/streams/writable:510:10)
+    at PipeTransport.send (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\utils\pipeTransport.js:52:21)
+    at dispatcherConnection.onmessage (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\cli\driver.js:60:59)
+    at DispatcherConnection.sendEvent (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\dispatchers\dispatcher.js:163:10)
+    at PageDispatcher._dispatchEvent (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\dispatchers\dispatcher.js:103:21)
+    at Page.<anonymous> (C:\Users\xjx\AppData\Local\Programs\Python\Python313\Lib\site-packages\playwright\driver\package\lib\server\dispatchers\pageDispatcher.js:86:77)
+    at Page.emit (node:events:518:28)
+Emitted 'error' event on Socket instance at:
+    at emitErrorNT (node:internal/streams/destroy:170:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:129:3)
+    at process.processTicksAndRejections (node:internal/process/task_queues:90:21) {
+  errno: -4047,
+  syscall: 'write',
+  code: 'EPIPE'
+}
+
+Node.js v22.16.0
