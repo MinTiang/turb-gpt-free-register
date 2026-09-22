@@ -1,0 +1,49 @@
+>>> 邮箱: 
+18:29:49 [INFO] [Cloak] 出口IP地理信息：ip=158.180.85.221 country=KR city=Chuncheon timezone=Asia/Seoul
+18:29:49 [INFO] [Cloak] 启动 CloakBrowser：headless=False humanize=True geoip=True proxy=http://127.0.0.1:7897 locale=ko-KR timezone=Asia/Seoul accept_language=ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7 persistent=False
+18:29:50 [INFO] HTTP Request: GET https://pypi.org/pypi/cloakbrowser/json "HTTP/1.1 200 OK"
+18:29:50 [INFO] HTTP Request: GET https://api.github.com/repos/CloakHQ/cloakbrowser/releases?per_page=10 "HTTP/1.1 200 OK"
+18:29:51 [INFO] HTTP Request: GET https://api.ipify.org "HTTP/1.1 200 OK"
+18:29:51 [INFO] [Cloak注册] 开始：，profile=cloakbrowser
+18:29:51 [INFO] [Cloak注册] 打开登录页：https://chatgpt.com/auth/login
+18:29:58 [WARNING] [Cloak注册] 检测到 Cloudflare 人机验证,尝试自动通过(最长 180s)...
+18:30:00 [INFO] [Cloak注册] 已按组件容器坐标点击 Turnstile(第 1 次, x=344 y=491)
+18:30:04 [INFO] [Cloak注册] 已按组件容器坐标点击 Turnstile(第 2 次, x=344 y=491)
+18:30:08 [INFO] [Cloak注册] Cloudflare 人机验证已通过
+18:30:24 [INFO] [Cloak注册] 邮箱提交后等待下一步超时，最后邮箱页状态={'url': 'https://chatgpt.com/auth/login', 'inputs': [{'type': 'email', 'name': 'email', 'id': 'email', 'autocomplete': 'email', 'value': ''}]}
+18:30:24 [INFO] [Outlook] 选中账号: worlrfbx510204@outlook.com（DB id=18）
+18:30:24 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=worlrfbx510204@outlook.com
+18:30:24 [INFO] [EmailProvider] 已找到邮箱输入框，开始分配邮箱: worlrfbx510204@outlook.com
+18:30:30 [INFO] [Cloak注册] 已填写邮箱并校验通过：worlrfbx510204@outlook.com
+18:30:34 [INFO] [Cloak注册] 邮箱提交前状态稳定：{'ok': True, 'value': 'worlrfbx510204@outlook.com', 'active': True, 'hasForm': True, 'hasSubmit': True, 'submitDisabled': False, 'url': 'https://chatgpt.com/auth/login'}
+18:30:35 [INFO] [Cloak注册] 邮箱稳定表单提交：{'ok': True, 'reason': 'stable_async_enter_click', 'value': 'worlrfbx510204@outlook.com', 'submitDisabled': False, 'submitAttrs': 'submit btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-vis', 'url': 'https://chatgpt.com/auth/login'}
+18:30:36 [INFO] [Cloak注册] 已提交邮箱，等待进入密码页或验证码页（1/3）
+18:30:56 [INFO] [Cloak注册] 邮箱提交后等待下一步超时，最后邮箱页状态={'url': 'https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=14871219-8c7c-49d7-a7a5-08ea69e82b56&prompt=login&ext-oai-did=14871219-8c7c-49d7-a7a5-08ea69e82b56&auth_session_logging_id=7d0bb627-8b74-4048-8c8d-5d3b9f6d30e1&screen_hint=login_or_signup&login_hint=worlrfbx510204%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=OHuoTPqvhrGhjrSmUHHigB08yKmb0OmW2axKrgyTYV0', 'inputs': []}
+18:30:56 [WARNING] [Cloak注册] 邮箱提交后仍未进入下一步：unknown，准备重填重试 state={'url': 'https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=14871219-8c7c-49d7-a7a5-08ea69e82b56&prompt=login&ext-oai-did=14871219-8c7c-49d7-a7a5-08ea69e82b56&auth_session_logging_id=7d0bb627-8b74-4048-8c8d-5d3b9f6d30e1&screen_hint=login_or_signup&login_hint=worlrfbx510204%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=OHuoTPqvhrGhjrSmUHHigB08yKmb0OmW2axKrgyTYV0', 'inputs': []}
+18:30:56 [WARNING] [Cloak注册] 检测到 Cloudflare 人机验证,尝试自动通过(最长 180s)...
+18:30:57 [INFO] [Cloak注册] 已按组件容器坐标点击 Turnstile(第 1 次, x=53 y=338)
+18:31:01 [INFO] [Cloak注册] Cloudflare 人机验证已通过
+18:31:02 [INFO] [Cloak注册] 人机验证通过后已进入下一步：otp
+18:31:02 [INFO] [Cloak注册] 无密码模式：验证码页不切密码分支，直接交给 OTP 流程：email=worlrfbx510204@outlook.com
+18:31:02 [INFO] [Cloak注册][OTP] 等待验证码：worlrfbx510204@outlook.com（第 1/3 次）
+18:31:02 [INFO] [Outlook] 开始轮询 worlrfbx510204@outlook.com 的收件箱（mode=auto, Graph + IMAP 本地直连，REST 兜底），最长 90s, settle=5s...
+18:31:05 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+18:31:05 [INFO] [Outlook] 邮件诊断 top=[{'p': 'remote_graph', 'date': '2026-09-22T10:31:03Z', 'openai': True, 'after': True, 'otp': True, 'subject': 'ChatGPT 임시 인증 코드'}, {'p': 'remote_graph', 'date': '2026-08-30T20:40:29Z', 'openai': False, 'after': False, 'otp': False, 'subject': '连接到 Microsoft 帐户的新应用'}]
+18:31:05 [INFO] [Outlook] 首次锁定 OTP=951090, source=remote_graph, ts=2026-09-22T10:31:03Z, subject='ChatGPT 임시 인증 코드', 等 5s 看是否有更晚邮件...
+18:31:05 [INFO] [Outlook] 已锁定候选 OTP=951090，等 settle 中（剩余 settle ~4s, 总剩余 86s）...
+18:31:09 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+18:31:09 [INFO] [Outlook] 已锁定候选 OTP=951090，等 settle 中（剩余 settle ~1s, 总剩余 82s）...
+18:31:13 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+18:31:13 [INFO] [Outlook] settle 完成，返回 OTP=951090, source=remote_graph, protocol=graph, subject='ChatGPT 임시 인증 코드'
+18:31:13 [INFO] [Cloak注册][OTP] 收到验证码：951090
+18:31:13 [INFO] [Cloak注册] OTP 输入框(JS 定位): selector=#_r_5_-code
+18:31:15 [INFO] [Cloak注册] OTP 回读校验一致:951090
+18:31:22 [INFO] [Cloak注册] 检测到资料页，开始填写姓名生日：url=https://auth.openai.com/about-you inputs=[{'tag': 'INPUT', 'type': 'text', 'name': 'name', 'id': '_r_i_-name', 'placeholder': '성명', 'autocomplete': 'name', 'aria': '', 'value': '', 'visible': True}, {'tag': 'INPUT', 'type': 'number', 'name': 'age', 'id': '_r_i_-age', 'placeholder': '연령', 'autocomplete': 'off', 'aria': '', 'value': '', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'allCheckboxes', 'id': '_r_i_-allCheckboxes', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'personalInfoConsent', 'id': '_r_i_-personalInfoConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'thirdPartyConsent', 'id': '_r_i_-thirdPartyConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'overseasTransferConsent', 'id': '_r_i_-overseasTransferConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}]
+18:31:27 [INFO] [Cloak注册] 已填写姓名字段：Caleb Jackson
+18:31:27 [INFO] [Cloak注册] 已填写年龄字段：61
+18:31:27 [INFO] [Cloak注册] 已勾选 about-you/profile 同意协议复选框：['allCheckboxes']
+18:31:30 [INFO] [Cloak注册] 已点击资料页提交按钮，等待 OAuth 跳转
+18:31:44 [INFO] [Cloak注册] /api/auth/session 已返回 accessToken
+18:31:44 [INFO] [Cloak注册] 已拿到 accessToken：worlrfbx510204@outlook.com
+18:31:44 [INFO] [Cloak注册][Codex] 浏览器内走 platform 免接码授权（client=app_2SKx(platform)，保留注册登录态）
+18:31:44 [INFO] [Codex][Platform][Browser] 打开 platform 授权页：worlrfbx510204@outlook.com（device_id=b05f0e6d…）

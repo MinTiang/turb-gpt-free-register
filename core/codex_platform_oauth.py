@@ -27,6 +27,7 @@ import logging
 import random
 import secrets
 import time
+import uuid
 from datetime import datetime, timezone
 from urllib.parse import urlencode, urlparse, parse_qs
 
@@ -846,6 +847,256 @@ def _upload_cpa_auth_file(file_name: str, payload: dict) -> dict:
             )
             time.sleep(delay)
     raise RuntimeError(f"[Codex][Platform] CPA auth-file 上传失败：{last_exc}")
+
+
+# ============================================================
+# 浏览器版 platform 免接码授权（cloak 窗口复用）
+# ============================================================
+
+def _browser_click_first(driver, xpaths: list[str]) -> bool:
+    """依次尝试点击匹配的按钮；命中任意一个返回 True。"""
+    for xp in xpaths:
+        try:
+            els = driver.find_elements("xpath", xp)
+        except Exception:
+            continue
+        for el in els:
+            try:
+                if el.is_displayed() and el.is_enabled():
+                    el.click()
+                    return True
+            except Exception:
+                continue
+    return False
+
+
+def _browser_handle_email_otp(driver, email: str, otp_provider, used_codes: set) -> bool:
+    """当前页是邮箱验证码页时自动收码填入并提交。返回是否处理了 OTP 页。
+
+    实测（2026-09-22）：注册后的登录态会让 platform authorize 跳过邮箱输入
+    直接进 email-verification 页要求 OTP——_fill_email_and_otp 检测不到邮箱框
+    会提前返回，所以 OTP 页只能在这里接手。
+    """
+    from core.page_ops import _is_email_verification_page
+    try:
+        if not _is_email_verification_page(driver):
+            return False
+        from core.page_ops import _email_otp_page_state
+        page_state = _email_otp_page_state(driver)
+        # 没有可输入的验证码框时不抢流程（可能还在 Turnstile 质询中）
+        if isinstance(page_state, dict) and not page_state.get("inputs"):
+            logger.info("[Codex][Platform][Browser] 验证码页尚未渲染输入框（可能 Turnstile 质询中），等待")
+            return True
+    except Exception:
+        return False
+
+    from core.browser_codex_oauth import (
+        _wait_for_otp_input,
+        _wait_for_fresh_email_otp,
+        _wait_after_email_otp_submit,
+        _install_email_otp_validate_hook,
+    )
+    from core.humanize import delay as human_delay
+
+    logger.info(f"[Codex][Platform][Browser] 检测到邮箱验证码页，自动收码填入：{email}")
+    code = _wait_for_fresh_email_otp(otp_provider, email, after_ts=time.time() - 300, used_codes=used_codes, timeout=90)
+    used_codes.add(str(code))
+    logger.info(f"[Codex][Platform][Browser] 邮箱 OTP 收到：{code}")
+    _wait_for_otp_input(driver, timeout=30)
+    _clear_otp_inputs_local(driver)
+    _type_otp_local(driver, code)
+    logger.info("[Codex][Platform][Browser] 已填写邮箱 OTP")
+    human_delay("otp_input")
+    try:
+        _install_email_otp_validate_hook(driver)
+    except Exception:
+        pass
+    clicked = _browser_click_first(driver, [
+        "//button[@type='submit']",
+        "//button[contains(., 'Continue')]",
+        "//button[contains(., '계속')]",
+        "//button[contains(., '继续')]",
+        "//button[contains(., 'Verify')]",
+        "//button[contains(., '验证')]",
+    ])
+    logger.info("[Codex][Platform][Browser] OTP 提交%s", "完成，等待跳转" if clicked else "（无显式按钮，等页面跳转）")
+    try:
+        outcome = _wait_after_email_otp_submit(driver, timeout=45)
+        logger.info(f"[Codex][Platform][Browser] OTP 提交后状态：{outcome}")
+    except Exception as exc:
+        logger.warning(f"[Codex][Platform][Browser] OTP 提交后等待异常（继续轮询页面）：{str(exc)[:140]}")
+    return True
+
+
+def _clear_otp_inputs_local(driver) -> None:
+    from core.page_ops import _clear_otp_inputs
+    _clear_otp_inputs(driver)
+
+
+def _type_otp_local(driver, code: str) -> None:
+    from core.page_ops import _type_otp
+    _type_otp(driver, code)
+
+
+def _browser_wait_platform_callback(driver, email: str, timeout: float, otp_provider=None) -> str:
+    """在浏览器里点穿 邮箱OTP/账号选择/consent/workspace 页，直到拿到 platform callback URL。
+
+    页面形态（2026-09-22 实测，注册后登录态下 authorize 的实际顺序）：
+      1. email-verification 页：要求邮箱 OTP（登录态跳过了邮箱输入步骤）→ 自动收码填入
+      2. 账号选择页（"다시 오신 걸 환영합니다"）：点含邮箱的账号条目
+      3. consent/authorize 页：点 Allow/Authorize/Continue/允许/授权/继续
+      4. 最终跳 platform.openai.com/auth/callback?code=...
+    手机号添加页不该出现（platform client 免接码）；出现则报错指出 client 用错。
+    """
+    end = time.time() + max(30.0, float(timeout))
+    account_xpaths = [
+        f"//button[contains(., '{email}')]",
+        f"//div[@role='button' and contains(., '{email}')]",
+        f"//li[contains(., '{email}')]",
+    ]
+    consent_xpaths = [
+        "//button[contains(., 'Allow')]", "//button[contains(., 'Authorize')]",
+        "//button[contains(., 'Continue')]", "//button[@type='submit']",
+        "//button[contains(., '允许')]", "//button[contains(., '授权')]",
+        "//button[contains(., '继续')]", "//button[contains(., '确认')]",
+    ]
+    used_codes: set = set()
+    last_url = ""
+    while time.time() < end:
+        try:
+            last_url = str(driver.current_url or "")
+        except Exception:
+            last_url = ""
+        if _is_platform_callback(last_url):
+            params = _extract_callback_params(last_url)
+            if params:
+                return last_url
+        lower = last_url.lower()
+        # 手机号页出现说明授权地址用成了 CLI client —— 直接报错，别傻等
+        if any(k in lower for k in ("phone", "onboarding/phone", "verify-phone")):
+            raise RuntimeError(
+                "[Codex][Platform][Browser] 授权流程要求手机验证：授权地址很可能用成了 "
+                "Codex CLI client（app_EMoam…）。platform 免接码必须用 app_2SKx… 的 authorize URL"
+            )
+        # 邮箱验证码页：自动收码填入（优先级最高，别去点 submit 提交空码）
+        if otp_provider is not None and _browser_handle_email_otp(driver, email, otp_provider, used_codes):
+            continue
+        clicked = _browser_click_first(driver, account_xpaths)
+        if not clicked:
+            clicked = _browser_click_first(driver, consent_xpaths)
+        if clicked:
+            human_delay("form")
+            continue
+        time.sleep(0.8)
+    raise RuntimeError(
+        f"[Codex][Platform][Browser] 等待 platform callback 超时，最后 URL={last_url[:160]}"
+    )
+
+
+def run_platform_codex_oauth_browser(driver, email: str, *, proxy: str | None = None,
+                                     otp_provider=None, timeout: float = 240.0) -> dict:
+    """在 cloak 浏览器里走 platform 免接码授权（复用注册窗口的登录态）。
+
+    与协议版 run_platform_codex_oauth 的差别：
+      - authorize 打开在浏览器里：CF 盾、登录态、Turnstile 全在浏览器侧，
+        不需要 clearance 注入，也没有 authorize/continue 的 429 问题；
+      - 授权地址用 platform client（app_2SKx…，免手机号），而不是 CPA 生成的
+        Codex CLI client（app_EMoam…，强手机验证——实测 2026-09-22）；
+      - 登录细节（邮箱填写/邮箱 OTP/密码/MFA）复用 browser_codex_oauth 的
+        _fill_email_and_otp——邮箱验证码页实测仍会出现（login 后选账号再验证）；
+      - callback 落在 platform.openai.com/auth/callback（真页面），从浏览器地址栏取 code；
+      - code 换 token 仍走协议层（token 端点无盾），复用 _exchange_platform_token。
+    """
+    from core.humanize import delay as human_delay
+    from core.session import BrowserSession
+    from core import codex_oauth as proto
+    from core.browser_codex_oauth import _fill_email_and_otp
+
+    if not email:
+        return proto._codex_result(status="skipped", message="email 为空")
+    if otp_provider is None:
+        from core.email_provider import wait_for_otp as otp_provider
+
+    try:
+        # 1. 生成 PKCE + 授权地址（platform client，带 login_hint）
+        code_verifier, code_challenge = proto._generate_pkce()
+        state = secrets.token_urlsafe(32)
+        device_id = str(uuid.uuid4())
+        try:
+            cookie = driver.get_cookie("oai-did")
+            if cookie and cookie.get("value"):
+                device_id = str(cookie["value"])
+        except Exception:
+            pass
+        params = {
+            "issuer": _AUTH_BASE,
+            "client_id": _platform_cfg("PLATFORM_OAUTH_CLIENT_ID", "app_2SKx67EdpoN0G6j64rFvigXD"),
+            "audience": _platform_cfg("PLATFORM_OAUTH_AUDIENCE", "https://api.openai.com/v1"),
+            "redirect_uri": _platform_callback_url(),
+            "device_id": device_id,
+            "max_age": "0",
+            "login_hint": email,
+            "scope": _platform_cfg("PLATFORM_OAUTH_SCOPE", "openid profile email offline_access"),
+            "response_type": "code",
+            "response_mode": "query",
+            "state": state,
+            "nonce": secrets.token_urlsafe(32),
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+            "auth0Client": _platform_cfg("PLATFORM_OAUTH_AUTH0_CLIENT"),
+        }
+        auth_url = f"{_AUTH_BASE}/api/accounts/authorize?{urlencode(params)}"
+
+        logger.info(f"[Codex][Platform][Browser] 打开 platform 授权页：{email}（device_id={device_id[:8]}…）")
+        try:
+            driver.set_page_load_timeout(60)
+        except Exception:
+            pass
+
+        # 2. 浏览器里完成登录（邮箱/OTP/密码/MFA——已登录则直接跳过）
+        _fill_email_and_otp(driver, email, otp_provider, auth_url)
+
+        # 3. 点穿 账号选择/consent 直到 callback
+        callback_url = _browser_wait_platform_callback(driver, email, timeout, otp_provider=otp_provider)
+        params_cb = _extract_callback_params(callback_url)
+        code = (params_cb or {}).get("code", "")
+        logger.info(f"[Codex][Platform][Browser] 已捕获 callback code：{code[:24]}…")
+
+        # 4. 协议层换 token（token 端点没有盾）
+        exchange_session = BrowserSession(proxy=proxy, detect_exit_geo=False)
+        token_resp = _exchange_platform_token(exchange_session, code, code_verifier)
+
+        # 4. 落库 + CPA 上传 + codex2api 推送（与协议版一致）
+        storage = _build_platform_storage(token_resp, email)
+        effective_email = storage.get("email") or email
+        fname = _platform_credential_file_name(effective_email)
+        db.upsert_codex_credential(storage, fname)
+        path = f"sqlite://codex_accounts/{fname}"
+        msg = f"platform 免接码授权成功(浏览器)：已保存 {fname}"
+        if bool(getattr(_cfg, "PLATFORM_OAUTH_UPLOAD_TO_CPA", True)):
+            _upload_cpa_auth_file(fname, storage)
+            msg = f"platform 免接码授权成功(浏览器)，已上传 CPA auth-file: {fname}"
+        logger.info(
+            f"[Codex][Platform][Browser] 成功：{effective_email}，account_id={storage.get('account_id') or 'unknown'}，已保存到 {path}"
+        )
+        result = proto._codex_result(
+            status="success",
+            ok=True,
+            email=effective_email,
+            file_path=path,
+            callback_url=f"{_platform_callback_url()}?code={code[:12]}...",
+            message=msg,
+            credential_payload=storage,
+        )
+        proto._maybe_push_to_codex2api(result, "platform")
+        return result
+    except Exception as exc:
+        logger.warning(f"[Codex][Platform][Browser] 失败：{email}，{type(exc).__name__}: {str(exc)[:220]}")
+        return proto._codex_result(
+            status="failed",
+            email=email,
+            message=f"{type(exc).__name__}: {str(exc)[:220]}",
+        )
 
 
 # ============================================================

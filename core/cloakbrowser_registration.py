@@ -217,34 +217,19 @@ def _run_cloak_registration_impl(
             from config import codex as _codex_cfg
             if bool(getattr(_codex_cfg, "ENABLE_CODEX_AUTO", False)):
                 oauth_driver = str(getattr(_codex_cfg, "CODEX_OAUTH_DRIVER", "") or "").strip().lower()
-                if oauth_driver in ("platform", "platform_free", "grok2api"):
-                    # platform 免接码为纯协议流程，不复用浏览器窗口，走统一分发。
-                    # 两项都必须传，缺一就会被 CF 拦（实测 2026-09-22：cloak 注册成功
-                    # 但授权 403）：
-                    #   proxy   —— 不传则从 PROXY_POOL 重抽，出口与注册不一致；
-                    #   cookies —— 不传则平台授权按全新登录走，不认 cloak 已建立的登录态。
-                    from core.codex_oauth import run_codex_oauth
-                    exported = _export_browser_cookies(driver)
-                    logger.info(
-                        "[Cloak注册][Codex] CODEX_OAUTH_DRIVER=platform，走免接码协议授权"
-                        "（沿用注册代理 %s，导出 cookie %d 条）",
-                        (proxy.split("@")[-1] if proxy and "@" in proxy else proxy) or "直连",
-                        len(exported),
-                    )
-                    _check_manual_stop()
-                    codex_result = run_codex_oauth(email, proxy=proxy, force=True, cookies=exported)
-                else:
-                    from core.browser_codex_oauth import run_browser_codex_oauth
-                    logger.info("[Cloak注册][Codex] ENABLE_CODEX_AUTO=True，复用当前 CloakBrowser 窗口执行 Codex 授权")
-                    _check_manual_stop()
-                    codex_result = run_browser_codex_oauth(
-                        email,
-                        reuse_existing_profile=True,
-                        existing_driver=driver,
-                        existing_opened=opened,
-                        force=True,
-                        clear_existing_state=True,
-                    )
+                # 浏览器通道一律走浏览器版 platform 免接码授权：CF 盾、登录态、
+                # Turnstile 都在这个窗口里；授权地址用 platform client（app_2SKx…，
+                # 免手机号）。之前走协议接口（platform 协议版 / CPA 的 CLI client
+                # 浏览器版）都被 CF 或手机验证页挡住——实测 2026-09-22。
+                # clear_existing_state 概念已不适用：新流程不清理任何状态。
+                from core.codex_platform_oauth import run_platform_codex_oauth_browser
+                logger.info(
+                    "[Cloak注册][Codex] 浏览器内走 platform 免接码授权"
+                    "（client=%s，保留注册登录态）",
+                    "app_2SKx(platform)",
+                )
+                _check_manual_stop()
+                codex_result = run_platform_codex_oauth_browser(driver, email, proxy=proxy)
             else:
                 logger.info("[Cloak注册][Codex] ENABLE_CODEX_AUTO=False，注册后跳过 Codex OAuth")
         except Exception as exc:
