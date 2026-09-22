@@ -139,11 +139,14 @@ class BuildStorageTests(unittest.TestCase):
             "id_token": _make_jwt({"email": "idt@example.com"}),
         }
         storage = pmod._build_platform_storage(token_resp, "fallback@example.com")
-        # 键集与 grok2api build_export_item 完全一致
+        # 键集与 grok2api build_export_item 一致，另加 client_id：
+        # platform 签发的 RT 必须用同一个 client 刷新，下游据此选 client。
         self.assertEqual(
             set(storage.keys()),
-            {"type", "email", "account_id", "access_token", "refresh_token", "id_token", "expired", "last_refresh"},
+            {"type", "email", "account_id", "access_token", "refresh_token", "id_token",
+             "expired", "last_refresh", "client_id"},
         )
+        self.assertEqual(storage["client_id"], "app_2SKx67EdpoN0G6j64rFvigXD")
         self.assertEqual(storage["type"], "codex")
         self.assertEqual(storage["email"], "jwt@example.com")
         self.assertEqual(storage["account_id"], "acc-123")

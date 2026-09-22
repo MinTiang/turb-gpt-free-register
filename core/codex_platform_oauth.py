@@ -777,6 +777,10 @@ def _build_platform_storage(token_resp: dict, email: str) -> dict:
         "id_token": id_token,
         "expired": expired,
         "last_refresh": last_refresh,
+        # 签发 client。平台免接码授权用的是官网 client，下游刷新 RT 必须
+        # 用同一个 client，否则 401 invalid_client；同时用它区分
+        # 平台授权与接码授权两种来源。
+        "client_id": _platform_cfg("PLATFORM_OAUTH_CLIENT_ID", "app_2SKx67EdpoN0G6j64rFvigXD"),
     }
 
 
@@ -955,14 +959,19 @@ def run_platform_codex_oauth(
             f"[Codex][Platform] 成功：{effective_email}，account_id={storage.get('account_id') or 'unknown'}，"
             f"已保存到 {path}"
         )
-        return proto._codex_result(
+        result = proto._codex_result(
             status="success",
             ok=True,
             email=effective_email,
             file_path=path,
             callback_url=f"{_platform_callback_url()}?code={code[:12]}...",
             message=msg,
+            credential_payload=storage,
         )
+        # 平台授权推送：client_id 用官网 client（app_2SKx...），
+        # 与接码授权的 Codex CLI client 不同，刷新时不能混用。
+        proto._maybe_push_to_codex2api(result, "platform")
+        return result
     except AccountUnusableError as exc:
         logger.warning(f"[Codex][Platform] 账号已废（{exc.error_code}）：{email}")
         return proto._codex_result(

@@ -98,6 +98,20 @@ CPA_MANAGEMENT_KEY: str = env_str("CPA_MANAGEMENT_KEY", "")
 # CPA 管理接口请求超时（秒）
 CPA_REQUEST_TIMEOUT: int = 30
 
+# ---- codex2api 推送（授权成功后把账号同步过去）----
+# 是否把 Codex 授权结果推送到 codex2api。关闭时不影响 CPA 上传。
+ENABLE_CODEX2API_PUSH: bool = False
+
+# codex2api 服务地址，例如 http://127.0.0.1:3000
+# 实际请求：POST {origin}/api/admin/accounts/import
+CODEX2API_URL: str = ""
+
+# codex2api 管理密钥（Authorization: Bearer 与 X-Admin-Key）
+CODEX2API_ADMIN_KEY: str = env_str("CODEX2API_ADMIN_KEY", "")
+
+# 推送请求超时（秒）
+CODEX2API_PUSH_TIMEOUT: int = 30
+
 # 提交 OAuth callback 给 CPA 的重试次数/基础间隔。
 # 遇到 409 Timeout waiting for OAuth callback、网络超时或 5xx 时，会按同一个 callback URL 重试。
 CPA_CALLBACK_SUBMIT_RETRIES: int = 5
@@ -179,4 +193,4 @@ L_ADMIN_AUTH_CODE: str = env_str("L_ADMIN_AUTH_CODE", "")
 L_PHONE_PREFIX: str = ""
 
 # ---- .env overrides for WebUI editable fields ----
-apply_env_overrides(globals(), {'ENABLE_CODEX_AUTO': 'bool', 'CODEX_OAUTH_DRIVER': 'str', 'CODEX_AUTH_URL_SOURCE': 'str', 'CPA_MANAGEMENT_URL': 'str', 'CPA_MANAGEMENT_KEY': 'str', 'CPA_REQUEST_TIMEOUT': 'int', 'CPA_CALLBACK_SUBMIT_RETRIES': 'int', 'CPA_CALLBACK_SUBMIT_RETRY_DELAY': 'int', 'CPA_SAVE_CALLBACK_RECEIPT': 'bool', 'PLATFORM_OAUTH_UPLOAD_TO_CPA': 'bool', 'SMS_PROVIDER': 'str', 'SMS_COUNTRY': 'str', 'SMS_SERVICE': 'str', 'SMS_MAX_RETRIES': 'int', 'SMS_CODE_WAIT': 'int', 'SMS_API_KEY': 'str', 'H_API_BASE': 'str', 'H_ADMIN_AUTH_CODE': 'str', 'H_PHONE_PREFIX': 'str', 'H_PHONE_ACQUIRE_MODE': 'str', 'L_API_BASE': 'str', 'L_ADMIN_AUTH_CODE': 'str', 'L_PHONE_PREFIX': 'str'})
+apply_env_overrides(globals(), {'ENABLE_CODEX_AUTO': 'bool', 'CODEX_OAUTH_DRIVER': 'str', 'CODEX_AUTH_URL_SOURCE': 'str', 'CPA_MANAGEMENT_URL': 'str', 'CPA_MANAGEMENT_KEY': 'str', 'CPA_REQUEST_TIMEOUT': 'int', 'ENABLE_CODEX2API_PUSH': 'bool', 'CODEX2API_URL': 'str', 'CODEX2API_ADMIN_KEY': 'str', 'CODEX2API_PUSH_TIMEOUT': 'int', 'CPA_CALLBACK_SUBMIT_RETRIES': 'int', 'CPA_CALLBACK_SUBMIT_RETRY_DELAY': 'int', 'CPA_SAVE_CALLBACK_RECEIPT': 'bool', 'PLATFORM_OAUTH_UPLOAD_TO_CPA': 'bool', 'SMS_PROVIDER': 'str', 'SMS_COUNTRY': 'str', 'SMS_SERVICE': 'str', 'SMS_MAX_RETRIES': 'int', 'SMS_CODE_WAIT': 'int', 'SMS_API_KEY': 'str', 'H_API_BASE': 'str', 'H_ADMIN_AUTH_CODE': 'str', 'H_PHONE_PREFIX': 'str', 'H_PHONE_ACQUIRE_MODE': 'str', 'L_API_BASE': 'str', 'L_ADMIN_AUTH_CODE': 'str', 'L_PHONE_PREFIX': 'str'})

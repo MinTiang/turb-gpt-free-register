@@ -144,9 +144,14 @@ def _codex_result(
     file_path: str | None = None,
     callback_url: str | None = None,
     message: str = "",
+    credential_payload: dict | None = None,
 ) -> dict:
-    """构造与 flow_trigger._flow_result 同形态的结构化结果。"""
-    return {
+    """构造与 flow_trigger._flow_result 同形态的结构化结果。
+
+    credential_payload 承载本次授权拿到的凭证（access/refresh/id_token 等），
+    供 codex2api 推送使用；不参与落库，也不写日志。
+    """
+    result = {
         "status": status,
         "ok": ok,
         "http_status": http_status,
@@ -155,6 +160,9 @@ def _codex_result(
         "callback_url": callback_url,
         "message": message,
     }
+    if credential_payload:
+        result["credential_payload"] = credential_payload
+    return result
 
 
 def _account_registration_password(email: str) -> str:
@@ -1420,6 +1428,28 @@ def _save_sub2_local_record(
 # 入口
 # ============================================================
 
+def _maybe_push_to_codex2api(result: dict, driver: str) -> None:
+    """授权成功后把账号推送到 codex2api（ENABLE_CODEX2API_PUSH 打开时）。
+
+    两种授权带的参数不同：platform 用官网 client，接码用 Codex CLI client，
+    见 core/codex2api_push.py。推送失败只告警，不影响授权结果与 CPA 上传。
+    """
+    try:
+        from config import codex as _cfg2
+        if not bool(getattr(_cfg2, "ENABLE_CODEX2API_PUSH", False)):
+            return
+        if not isinstance(result, dict) or not result.get("ok"):
+            return
+        from core import codex2api_push
+        payload = result.get("credential_payload") or {}
+        if not payload:
+            logger.warning("[Codex][Push] 结果缺少凭证内容，跳过推送")
+            return
+        codex2api_push.push_to_codex2api(payload, driver)
+    except Exception as exc:
+        logger.warning("[Codex][Push] 推送 codex2api 失败(不影响授权)：%s: %s", type(exc).__name__, str(exc)[:200])
+
+
 def run_codex_oauth(
     email: str,
     otp_provider=None,
@@ -1649,14 +1679,17 @@ def run_codex_oauth(
             f"[Codex] 成功：{effective_email}，plan={id_claims.get('plan_type') or 'unknown'}, "
             f"account_id={id_claims.get('account_id') or 'unknown'}, 已保存到 {path}"
         )
-        return _codex_result(
+        result = _codex_result(
             status="success",
             ok=True,
             email=effective_email,
             file_path=str(path),
             callback_url=callback_url,
             message=f"plan={id_claims.get('plan_type') or 'unknown'}",
+            credential_payload=storage,
         )
+        _maybe_push_to_codex2api(result, "protocol")
+        return result
     except AccountUnusableError as exc:
         logger.warning(f"[Codex] 账号已废（{exc.error_code}）：{email}")
         return _codex_result(
