@@ -2616,10 +2616,7 @@ async function pushSelectedHub() {
     showToast(`推送完成：成功 ${pushed}/${results.length}${fails.length ? `，失败 ${fails.length}` : ''}`);
     if (fails.length) {
       const lines = fails.map(x => `❌ ${x.email}: ${(x.message || '').slice(0, 120)}`);
-      alert(`以下 ${fails.length} 个账号推送失败：
-
-${lines.join('
-')}`);
+      alert([`以下 ${fails.length} 个账号推送失败：`, ''].concat(lines).join('\n'));
     }
   } catch(err) {
     showToast('批量推送失败: ' + err.message);
