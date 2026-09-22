@@ -368,7 +368,9 @@ def _run_cloak_registration_impl(
                         code = wait_for_otp(email, after_ts=otp_after_ts)
                     except Exception as exc:
                         if otp_attempts >= 3:
-                            raise
+                            raise RuntimeError(
+                                "多轮未收到验证码,邮箱疑似死号,该邮箱作废"
+                            )
                         logger.warning("[Cloak注册][页面机][OTP] 未收到验证码,点重发后继续: %s", str(exc)[:150])
                         otp_after_ts = time.time()
                         _click_resend_email_otp(driver, timeout=25)
@@ -513,8 +515,11 @@ def _run_cloak_registration_impl(
         try:
             if email:
                 from core.email_provider import release_email
-                _perm = any(k in str(exc) for k in ("停用/封禁", "重置密码页", "废号", "该邮箱作废"))
-                _rel = "failed" if (create_acknowledged or _perm) else "available"
+                _perm = any(k in str(exc) for k in ("停用/封禁", "重置密码页", "废号", "该邮箱作废", "邮箱疑似死号"))
+                if "邮箱疑似死号" in str(exc):
+                    _rel = "disabled"
+                else:
+                    _rel = "failed" if (create_acknowledged or _perm) else "available"
                 if _perm:
                     logger.warning("[Cloak注册] 永久性失败,邮箱标记 failed 不再回池: %s", email)
                 release_email(email, status=_rel, note=f"Cloak注册失败: {str(exc)[:180]}")
