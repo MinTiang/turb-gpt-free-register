@@ -1,0 +1,45 @@
+{
+ "when": "2026-09-22 10:41:31",
+ "results": [
+  {
+   "idx": 1,
+   "email": "",
+   "ok": false,
+   "codex_ok": false,
+   "err": "Codex 未完成: _SigninSessionInvalidError: [Codex][Platform] passwordless 发码时登录会话失效 status=409: {\n  \"error\": {\n   ",
+   "sec": 191.24595308303833
+  },
+  {
+   "idx": 2,
+   "email": "",
+   "ok": false,
+   "codex_ok": false,
+   "err": "Codex 未完成: _SigninSessionInvalidError: [Codex][Platform] passwordless 发码时登录会话失效 status=409: {\n  \"error\": {\n   ",
+   "sec": 169.25537872314453
+  },
+  {
+   "idx": 3,
+   "email": "",
+   "ok": false,
+   "codex_ok": false,
+   "err": "Failed to perform, curl: (28) Operation timed out after 12002 milliseconds with 0 bytes received. See https://",
+   "sec": 59.340495586395264
+  },
+  {
+   "idx": 4,
+   "email": "",
+   "ok": false,
+   "codex_ok": false,
+   "err": "HTTP Error 403: ",
+   "sec": 36.62760138511658
+  },
+  {
+   "idx": 5,
+   "email": "",
+   "ok": false,
+   "codex_ok": false,
+   "err": "等待 wpyryhl433254@outlook.com 的 OTP 超时（>90s）。可能：refresh_token 失效 / 邮箱被 OpenAI 黑名单 / IP 风控未通过。",
+   "sec": 120.53296947479248
+  }
+ ]
+}

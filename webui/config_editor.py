@@ -48,6 +48,32 @@ EDITABLE_FIELDS = [
         "label": "启用 Codex OAuth", "help": "注册成功后自动跑 Codex 授权（全新session+接码），落盘 codex-邮箱.json",
     },
     {
+        "key": "CLEARANCE_MODE", "file": "clearance.py", "type": "str", "group": "功能开关",
+        "label": "CF clearance 模式",
+        "help": "none=关闭；flaresolverr=用 FlareSolverr 解 Cloudflare 质询（实测通过率 40%→100%）。需先部署 flaresolverr 容器",
+    },
+    {
+        "key": "CLEARANCE_FLARESOLVERR_URL", "file": "clearance.py", "type": "str", "group": "功能开关",
+        "label": "FlareSolverr 地址", "help": "默认 http://127.0.0.1:8191；turb 在容器内时用 http://host.docker.internal:8191",
+    },
+    {
+        "key": "CLEARANCE_PROXY_URL", "file": "clearance.py", "type": "str", "group": "功能开关",
+        "label": "FlareSolverr 代理",
+        "help": "FlareSolverr 解质询时走的代理；本机部署填 http://127.0.0.1:7897，容器内填 http://host.docker.internal:7897（留空=直连）",
+    },
+    {
+        "key": "CLEARANCE_TIMEOUT_SEC", "file": "clearance.py", "type": "int", "group": "功能开关",
+        "label": "解质询超时(s)", "help": "单次解 Cloudflare 质询超时；FlareSolverr 内部会重试，实际可能更久",
+    },
+    {
+        "key": "CF_CIRCUIT_COOLDOWN_SEC_403", "file": "openai_protocol.py", "type": "int", "group": "功能开关",
+        "label": "403熔断冷却(s)", "help": "CF 拦截后的会话熔断时长；0=不冷却（配合 clearance 重试）。默认 0",
+    },
+    {
+        "key": "CF_CIRCUIT_COOLDOWN_SEC_429", "file": "openai_protocol.py", "type": "int", "group": "功能开关",
+        "label": "429熔断冷却(s)", "help": "限流后的会话熔断时长；默认 300",
+    },
+    {
         "key": "REGISTRATION_DRIVER", "file": "register.py", "type": "str", "group": "注册方式",
         "label": "注册驱动", "help": "protocol=纯协议（curl_cffi）；cloak=CloakBrowser 本地指纹浏览器。原 roxy/patchright/browser_use/skyvern 驱动已移除",
     },

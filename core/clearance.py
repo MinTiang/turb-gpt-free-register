@@ -204,38 +204,65 @@ def refresh_clearance(
     return bundle
 
 
+def _resolve_cookie_jar(session):
+    """拿到底层 cookie jar。
+
+    兼容两种入参：curl_cffi 的 Session（有 .cookies），以及项目的
+    BrowserSession 包装（cookie 在 .session.cookies）。
+    """
+    for candidate in (getattr(session, "session", None), session):
+        jar = getattr(candidate, "cookies", None)
+        if jar is not None and hasattr(jar, "set"):
+            return jar, candidate
+    return None, None
+
+
 def apply_clearance_to_session(session, bundle: ClearanceBundle | None) -> bool:
-    """把 clearance 的全部 cookie 注入 curl_cffi 会话。
+    """把 clearance 的全部 cookie 注入会话。
 
     实测（2026-09-22）关键结论：提升通过率的是 FlareSolverr 返回的**整套**
-    cookie（`__cf_bm` / `__cfseq` / `oai-did` 等），而不仅是 `cf_clearance`。
+    cookie（`__cf_bm` / `cf_clearance` / `oai-did` 等），而不仅是 `cf_clearance`。
     对照实验：带 FS cookie 5/5 通过 vs 无 cookie 2/5（同一节点同一 IP）。
-    因此这里注入全部域名匹配的 cookie，并同步 UA（cookie 与 UA 需配套）。
 
     返回是否至少注入了一个 Cloudflare 系 cookie（表示可用于重试）。
     """
     if not bundle or not bundle.cookies:
         return False
+    jar, raw = _resolve_cookie_jar(session)
+    if jar is None:
+        logger.warning("[Clearance] 找不到可用的 cookie jar，注入失败")
+        return False
     injected_cf = False
+    ok_count = 0
     for name, value in bundle.cookies.items():
         if value is None:
             continue
         for domain in (f".{bundle.host}", bundle.host):
             try:
-                session.cookies.set(name, value, domain=domain, path="/")
-            except Exception:
-                pass
+                jar.set(name, value, domain=domain, path="/")
+                ok_count += 1
+            except Exception as exc:
+                logger.debug("[Clearance] 注入 %s@%s 失败: %s", name, domain, exc)
         if name in _CF_COOKIE_NAMES or name == "cf_clearance":
             injected_cf = True
-    if bundle.user_agent:
+    if ok_count == 0:
+        logger.warning("[Clearance] 所有 cookie 注入均失败（%d 个尝试）", len(bundle.cookies))
+        return False
+    if bundle.user_agent and raw is not None:
+        for target in (raw, getattr(raw, "session", None)):
+            if target is None:
+                continue
+            try:
+                target.headers["User-Agent"] = bundle.user_agent
+            except Exception:
+                pass
         try:
-            session.headers["User-Agent"] = bundle.user_agent
+            profile = getattr(raw, "browser_profile", None)
+            if isinstance(profile, dict):
+                profile["user_agent"] = bundle.user_agent
         except Exception:
             pass
-        try:
-            session.browser_profile["user_agent"] = bundle.user_agent
-        except Exception:
-            pass
+    logger.debug("[Clearance] 已注入 %d 条 cookie（%d 个名称）", ok_count, len(bundle.cookies))
     return injected_cf
 
 
