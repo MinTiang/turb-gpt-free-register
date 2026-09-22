@@ -754,9 +754,13 @@ def _build_platform_storage(token_resp: dict, email: str) -> dict:
         or id_claims.get("email", "")
         or (email or "").strip()
     )
+    # 新账号首次签发的 platform token 没有 chatgpt_account_id（workspace 未开通），
+    # 与 grok2api build_export_item 一致：兜底用 auth claim 的 user_id（user-…），
+    # 否则下游 codex2api 生成 auth.json 时会因缺 account_id 报 400（实测 2026-09-22）。
     account_id = (
         str(auth_claim.get("chatgpt_account_id") or "").strip()
         or id_claims.get("account_id", "")
+        or str(auth_claim.get("user_id") or "").strip()
     )
 
     expired = _ts_to_iso(access_payload.get("exp"))
