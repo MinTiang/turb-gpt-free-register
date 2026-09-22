@@ -2054,9 +2054,13 @@ def _click_continue_with_password_if_present(driver) -> dict:
           if (structural.includes('/create-account/password')) return 100;
           if (structural.includes('continue_with_password') || structural.includes('continue-with-password')) return 90;
           if (structural.includes('continuewithpassword')) return 80;
+          // 忘记/重置密码链接的 href/埋点名也含 'password'(实测 2026-09-22 服务器:
+          // 误点 "Forgot password?" 跳到 /reset-password, 流程卡死 5 分钟), 先排除
+          if (/forgot|reset|recover/.test(structural)) return 0;
           if (structural.includes('password')) return 50;
           // 文字匹配仅作最后兜底(多语言不可穷举)
           const text = norm(el.textContent || '');
+          if (/forgot|reset|recover/.test(text)) return 0;
           if (text.includes('continuewithpassword') || text.includes('continuewithapassword')) return 30;
           if (text.includes('passwortfortfahren') || text.includes('motdepasse')) return 30;
           return 0;
@@ -2110,6 +2114,16 @@ def _fill_password_page_if_present(driver, email: str, timeout: int = 25) -> str
     switch_missing_since = None
     last = {}
     while time.time() < end:
+        try:
+            if "/reset-password" in str(driver.current_url or "").lower():
+                raise RuntimeError(
+                    "误入重置密码页(/reset-password)：密码切换点击误中了忘记密码链接或账号无已知密码，"
+                    "本任务无法继续（该邮箱若是老账号请从邮箱池移除）"
+                )
+        except RuntimeError:
+            raise
+        except Exception:
+            pass
         if _is_email_verification_page(driver):
             # REGISTER_WITH_PASSWORD=False(2026-09-20 起默认)时验证码页就是无密码
             # 流程的预期页面:禁止主动点击“使用密码继续”,否则会切进
