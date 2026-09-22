@@ -206,9 +206,14 @@ def _interruptible_sleep(seconds: float, interval: float = 0.25) -> None:
 
 
 def _request_with_proxy_retry(session: BrowserSession, label: str, fn):
-    """对代理/TLS/超时及可恢复 HTTP 错误进行有限指数退避重试。"""
+    """对代理/TLS/超时及可恢复 HTTP 错误进行有限指数退避重试。
+
+    CF 拦截（403 质询）时除重建传输层外，还会注入 FlareSolverr clearance
+    再重试（CLEARANCE_MODE=flaresolverr 时；默认 none 时空操作）。
+    """
     max_attempts, retry_delay = _proxy_retry_config()
     last_exc: Exception | None = None
+    clearance_tried = False
     for attempt in range(1, max_attempts + 1):
         _check_stop_requested()
         try:
@@ -222,7 +227,13 @@ def _request_with_proxy_retry(session: BrowserSession, label: str, fn):
             if not _is_retryable_authorize_error(exc) or attempt >= max_attempts:
                 raise
             if _is_cf_challenge_exc(exc):
+                # 顺序：先清被质询污染的 CF cookie，再注入 clearance
                 _reset_after_challenge(session)
+                if not clearance_tried:
+                    clearance_tried = True
+                    if _try_apply_clearance(session, "https://chatgpt.com/"):
+                        logger.warning("[%s] CF 质询：已注入 clearance，立即重试", label)
+                        continue
             else:
                 _reset_retryable_circuit(session)
             backoff = retry_delay * (2 ** (attempt - 1))

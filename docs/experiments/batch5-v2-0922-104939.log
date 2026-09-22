@@ -1,0 +1,255 @@
+
+======================================================================
+### 第 1/5 个号 ###
+======================================================================
+10:49:39 [INFO] [Outlook] 选中账号: wpyryhl433254@outlook.com（DB id=12）
+10:49:39 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=wpyryhl433254@outlook.com
+10:49:41 [INFO] [指纹] 出口IP地理信息: ip=138.199.35.196 country=US city=Los Angeles timezone=America/Los_Angeles
+10:49:41 [INFO] [注册] 开始：wpyryhl433254@outlook.com，代理=socks5h://...sid-***...@socks5h://127.0.0.1:7897
+10:49:41 [INFO] [注册] 本次随机生日: 1992-08-08
+10:49:41 [INFO] [Clearance] 开始刷新 chatgpt.com 的 CF clearance（入口 https://chatgpt.com/log-in，FlareSolverr）...
+10:49:54 [INFO] [Clearance] chatgpt.com clearance 刷新完成 (13.1s, 12 cookies: __Host-next-auth.csrf-token, __Secure-next-auth.callback-url, __cf_bm, __cflb, __obi, _cfuvid, _dd_s, cf_clearance, g_state, oai-did, oai-sc, precise_location_permission) cf_clearance=有
+10:49:54 [INFO] [Clearance] 已为 chatgpt.com 预热并注入 12 个 cookie
+10:49:54 [INFO] [Clearance] 开始刷新 auth.openai.com 的 CF clearance（入口 https://auth.openai.com/log-in，FlareSolverr）...
+10:50:03 [INFO] [Clearance] auth.openai.com clearance 刷新完成 (9.3s, 7 cookies: __cf_bm, __cflb, _cfuvid, _dd_s, cf_clearance, oai-did, oaicom-stable-id) cf_clearance=有
+10:50:03 [INFO] [Clearance] 已为 auth.openai.com 预热并注入 7 个 cookie
+10:50:04 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.auth.openai.com:__cf_bm', '.auth.openai.com:cf_clearance', '.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'auth.openai.com:__cf_bm', 'auth.openai.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:50:04 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/
+10:50:04 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:50:04 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (1/5)，已注入 clearance 立即重试
+10:50:05 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:50:05 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/
+10:50:05 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:50:05 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (2/5)，已注入 clearance 立即重试
+10:50:17 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (3/5): Timeout: Failed to perform, curl: (28) Operation timed out after 12002 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-erro，4.0s 后重试
+10:50:33 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (4/5): Timeout: Failed to perform, curl: (28) Operation timed out after 12006 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-erro，8.0s 后重试
+10:50:53 [ERROR] [失败] wpyryhl433254@outlook.com: Timeout: Failed to perform, curl: (28) Operation timed out after 12002 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+10:50:53 [INFO] [邮箱:outlook] wpyryhl433254@outlook.com 已恢复 available
+
+>>> [1] ❌失败 (74s) codex=✗ Failed to perform, curl: (28) Operation timed out after 12002 milliseconds with 0 bytes received. See https://
+  间隔 20s 后继续...
+
+======================================================================
+### 第 2/5 个号 ###
+======================================================================
+10:51:13 [INFO] [Outlook] 选中账号: wpyryhl433254@outlook.com（DB id=12）
+10:51:13 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=wpyryhl433254@outlook.com
+10:51:13 [INFO] [注册] 开始：wpyryhl433254@outlook.com，代理=socks5h://...sid-***...@socks5h://127.0.0.1:7897
+10:51:13 [INFO] [注册] 本次随机生日: 1963-02-11
+10:51:13 [INFO] [Clearance] 已为 chatgpt.com 预热并注入 12 个 cookie
+10:51:13 [INFO] [Clearance] 已为 auth.openai.com 预热并注入 7 个 cookie
+10:51:25 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (1/5): Timeout: Failed to perform, curl: (28) Operation timed out after 12004 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-erro，1.0s 后重试
+10:51:27 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.auth.openai.com:__cf_bm', '.auth.openai.com:cf_clearance', '.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'auth.openai.com:__cf_bm', 'auth.openai.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:51:27 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/
+10:51:27 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:51:27 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (2/5)，已注入 clearance 立即重试
+10:51:39 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (3/5): Timeout: Failed to perform, curl: (28) Operation timed out after 12005 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-erro，4.0s 后重试
+10:51:43 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:51:43 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/
+10:51:43 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:51:43 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (4/5)，已注入 clearance 立即重试
+10:51:44 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:51:44 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/
+10:51:44 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:51:44 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (5/5)，已注入 clearance 立即重试
+10:51:46 [INFO] [Bootstrap] 匿名态 ChatGPT 预热开始
+10:51:47 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/backend-anon/accounts/check/v4-2023-04-27?timezone_offset_min=420 keys=['.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:51:48 [INFO] [Bootstrap] 匿名态 ChatGPT 预热完成
+10:51:50 [INFO] [步骤2.5] 导航 /auth/login_with（对齐真实页面链路）...
+10:51:50 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/auth/login_with?callback_path=%2F&screen_hint=signup&login_hint=wpyryhl433254%40outlook.com&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7
+10:51:50 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:51:50 [WARNING] [login_with] 代理链路临时失败 (1/5): HTTPError: HTTP Error 403: ，保留当前会话，1.0s 后重试
+10:51:52 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/auth/login_with?callback_path=%2F&screen_hint=signup&login_hint=wpyryhl433254%40outlook.com&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7 keys=['.chatgpt.com:__cf_bm']
+10:51:52 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/auth/login_with?callback_path=%2F&screen_hint=signup&login_hint=wpyryhl433254%40outlook.com&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7
+10:51:52 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:51:52 [WARNING] [login_with] 代理链路临时失败 (2/5): HTTPError: HTTP Error 403: ，保留当前会话，2.0s 后重试
+10:51:56 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/auth/login_with?callback_path=%2F&screen_hint=signup&login_hint=wpyryhl433254%40outlook.com&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7 keys=['.chatgpt.com:__cf_bm']
+10:51:56 [INFO] [login_with] 代理链路重试成功 (3/5)
+10:51:56 [INFO] [步骤2.5] login_with 导航完成: https://chatgpt.com/auth/login_with?callback_path=%2F&screen_hint=signup&login_hint=wpyryhl433254%40outlook.com&auth_session_logging_id=207c79d1-27bb-4623-b0c6-
+10:51:59 [INFO] [步骤1] 获取 OAuth Providers...
+10:51:59 [INFO] [步骤1] 成功获取 4 个 providers: ['openai', 'openai-dev', 'openai-sidetron', 'openai-sidetron-dev']
+10:52:00 [INFO] [步骤2] 获取 CSRF Token...
+10:52:00 [INFO] [步骤2] 获取 CSRF Token 成功: 4ab8d105b959215a637e...
+10:52:01 [INFO] [步骤3] 发起 OAuth Signin 请求, 邮箱: wpyryhl433254@outlook.com
+10:52:02 [INFO] [步骤3] 获取 authorize URL 成功，已确认 signup/oai-did 上下文
+10:52:03 [INFO] [步骤4] 跟随 authorize URL 重定向 (尝试 1/5)...
+10:52:04 [INFO] [CF] Cookie 状态更新 url=https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=1615a1d3-47dc-4cb6-a3b4-98d7ab3467bb&prompt=login&screen_hint=signup&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&login_hint=wpyryhl433254%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=gvB3wRcP3dXXhZjkPZ0cuH2tuP8T1vsvFyhuZ4hE2pM keys=['.auth.openai.com:__cf_bm', '.chatgpt.com:__cf_bm']
+10:52:04 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=1615a1d3-47dc-4cb6-a3b4-98d7ab3467bb&prompt=login&screen_hint=signup&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&login_hint=wpyryhl433254%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=gvB3wRcP3dXXhZjkPZ0cuH2tuP8T1vsvFyhuZ4hE2pM
+10:52:04 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 33 条）
+10:52:04 [WARNING] [步骤4] authorize 临时失败 (HTTPError: HTTP Error 403: )，1.0s 后重试...
+10:52:05 [INFO] [步骤4] 跟随 authorize URL 重定向 (尝试 2/5)...
+10:52:06 [INFO] [CF] Cookie 状态更新 url=https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=1615a1d3-47dc-4cb6-a3b4-98d7ab3467bb&prompt=login&screen_hint=signup&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&login_hint=wpyryhl433254%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=gvB3wRcP3dXXhZjkPZ0cuH2tuP8T1vsvFyhuZ4hE2pM keys=['.auth.openai.com:__cf_bm']
+10:52:06 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=1615a1d3-47dc-4cb6-a3b4-98d7ab3467bb&prompt=login&screen_hint=signup&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&login_hint=wpyryhl433254%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=gvB3wRcP3dXXhZjkPZ0cuH2tuP8T1vsvFyhuZ4hE2pM
+10:52:06 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 34 条）
+10:52:06 [WARNING] [步骤4] authorize 临时失败 (HTTPError: HTTP Error 403: )，2.0s 后重试...
+10:52:08 [INFO] [步骤4] 跟随 authorize URL 重定向 (尝试 3/5)...
+10:52:09 [INFO] [CF] Cookie 状态更新 url=https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=1615a1d3-47dc-4cb6-a3b4-98d7ab3467bb&prompt=login&screen_hint=signup&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&login_hint=wpyryhl433254%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=gvB3wRcP3dXXhZjkPZ0cuH2tuP8T1vsvFyhuZ4hE2pM keys=['.auth.openai.com:__cf_bm']
+10:52:09 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=1615a1d3-47dc-4cb6-a3b4-98d7ab3467bb&prompt=login&screen_hint=signup&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&login_hint=wpyryhl433254%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=gvB3wRcP3dXXhZjkPZ0cuH2tuP8T1vsvFyhuZ4hE2pM
+10:52:09 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 34 条）
+10:52:09 [WARNING] [步骤4] authorize 临时失败 (HTTPError: HTTP Error 403: )，4.0s 后重试...
+10:52:13 [INFO] [步骤4] 跟随 authorize URL 重定向 (尝试 4/5)...
+10:52:14 [INFO] [CF] Cookie 状态更新 url=https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=1615a1d3-47dc-4cb6-a3b4-98d7ab3467bb&prompt=login&screen_hint=signup&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&login_hint=wpyryhl433254%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=gvB3wRcP3dXXhZjkPZ0cuH2tuP8T1vsvFyhuZ4hE2pM keys=['.auth.openai.com:__cf_bm']
+10:52:14 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=1615a1d3-47dc-4cb6-a3b4-98d7ab3467bb&prompt=login&screen_hint=signup&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&login_hint=wpyryhl433254%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=gvB3wRcP3dXXhZjkPZ0cuH2tuP8T1vsvFyhuZ4hE2pM
+10:52:14 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 34 条）
+10:52:14 [WARNING] [步骤4] authorize 临时失败 (HTTPError: HTTP Error 403: )，8.0s 后重试...
+10:52:22 [INFO] [步骤4] 跟随 authorize URL 重定向 (尝试 5/5)...
+10:52:23 [INFO] [CF] Cookie 状态更新 url=https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=1615a1d3-47dc-4cb6-a3b4-98d7ab3467bb&prompt=login&screen_hint=signup&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&login_hint=wpyryhl433254%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=gvB3wRcP3dXXhZjkPZ0cuH2tuP8T1vsvFyhuZ4hE2pM keys=['.auth.openai.com:__cf_bm']
+10:52:23 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=1615a1d3-47dc-4cb6-a3b4-98d7ab3467bb&prompt=login&screen_hint=signup&ext-oai-did=66dddc75-f94f-4938-b32f-d6f4669393f7&auth_session_logging_id=207c79d1-27bb-4623-b0c6-44dcc4b5c7ef&login_hint=wpyryhl433254%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=gvB3wRcP3dXXhZjkPZ0cuH2tuP8T1vsvFyhuZ4hE2pM
+10:52:23 [ERROR] [失败] wpyryhl433254@outlook.com: HTTPError: HTTP Error 403: 
+10:52:24 [INFO] [邮箱:outlook] wpyryhl433254@outlook.com 已恢复 available
+
+>>> [2] ❌失败 (70s) codex=✗ HTTP Error 403: 
+  间隔 20s 后继续...
+
+======================================================================
+### 第 3/5 个号 ###
+======================================================================
+10:52:44 [INFO] [Outlook] 选中账号: wpyryhl433254@outlook.com（DB id=12）
+10:52:44 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=wpyryhl433254@outlook.com
+10:52:44 [INFO] [注册] 开始：wpyryhl433254@outlook.com，代理=socks5h://...sid-***...@socks5h://127.0.0.1:7897
+10:52:44 [INFO] [注册] 本次随机生日: 1991-09-25
+10:52:44 [INFO] [Clearance] 已为 chatgpt.com 预热并注入 12 个 cookie
+10:52:44 [INFO] [Clearance] 已为 auth.openai.com 预热并注入 7 个 cookie
+10:52:45 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.auth.openai.com:__cf_bm', '.auth.openai.com:cf_clearance', '.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'auth.openai.com:__cf_bm', 'auth.openai.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:52:45 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/
+10:52:45 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:52:45 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (1/5)，已注入 clearance 立即重试
+10:52:46 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:52:46 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/
+10:52:46 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:52:46 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (2/5)，已注入 clearance 立即重试
+10:52:48 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:52:48 [INFO] [指纹] 已从 ChatGPT 登录页同步前端版本：build=prod-d0df7dcfc06dadffff6103bf857bfa2689f4969e seq=11131982
+10:52:48 [INFO] [指纹] 已采纳服务端下发的 oai-did=1615a1d3…
+10:52:49 [INFO] [预检:chatgpt-home] 通过 (3/5)
+10:52:51 [INFO] [Bootstrap] 匿名态 ChatGPT 预热开始
+10:52:52 [INFO] [Bootstrap] 匿名态 ChatGPT 预热完成
+10:52:55 [INFO] [步骤2.5] 导航 /auth/login_with（对齐真实页面链路）...
+10:52:56 [INFO] [步骤2.5] login_with 导航完成: https://chatgpt.com/auth/login_with?callback_path=%2F&screen_hint=signup&login_hint=wpyryhl433254%40outlook.com&auth_session_logging_id=c9a771e3-f131-4123-98e1-
+10:52:57 [INFO] [步骤1] 获取 OAuth Providers...
+10:52:58 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:52:58 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:52:58 [WARNING] [providers] 代理链路临时失败 (1/5): HTTPError: HTTP Error 403: ，保留当前会话，1.0s 后重试
+10:53:00 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:53:00 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:53:00 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:53:00 [WARNING] [providers] 代理链路临时失败 (2/5): HTTPError: HTTP Error 403: ，保留当前会话，2.0s 后重试
+10:53:03 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:53:03 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:53:03 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:53:03 [WARNING] [providers] 代理链路临时失败 (3/5): HTTPError: HTTP Error 403: ，保留当前会话，4.0s 后重试
+10:53:08 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:53:08 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:53:08 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:53:08 [WARNING] [providers] 代理链路临时失败 (4/5): HTTPError: HTTP Error 403: ，保留当前会话，8.0s 后重试
+10:53:17 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:53:17 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:53:17 [ERROR] [失败] wpyryhl433254@outlook.com: HTTPError: HTTP Error 403: 
+10:53:17 [INFO] [邮箱:outlook] wpyryhl433254@outlook.com 已恢复 available
+
+>>> [3] ❌失败 (33s) codex=✗ HTTP Error 403: 
+  间隔 20s 后继续...
+
+======================================================================
+### 第 4/5 个号 ###
+======================================================================
+10:53:37 [INFO] [Outlook] 选中账号: wpyryhl433254@outlook.com（DB id=12）
+10:53:37 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=wpyryhl433254@outlook.com
+10:53:37 [INFO] [注册] 开始：wpyryhl433254@outlook.com，代理=socks5h://...sid-***...@socks5h://127.0.0.1:7897
+10:53:37 [INFO] [注册] 本次随机生日: 1977-03-27
+10:53:37 [INFO] [Clearance] 已为 chatgpt.com 预热并注入 12 个 cookie
+10:53:37 [INFO] [Clearance] 已为 auth.openai.com 预热并注入 7 个 cookie
+10:53:39 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.auth.openai.com:__cf_bm', '.auth.openai.com:cf_clearance', '.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'auth.openai.com:__cf_bm', 'auth.openai.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:53:39 [INFO] [指纹] 已从 ChatGPT 登录页同步前端版本：build=prod-d0df7dcfc06dadffff6103bf857bfa2689f4969e seq=11131982
+10:53:39 [INFO] [指纹] 已采纳服务端下发的 oai-did=1615a1d3…
+10:53:39 [INFO] [预检:chatgpt-home] 通过 (1/5)
+10:53:42 [INFO] [Bootstrap] 匿名态 ChatGPT 预热开始
+10:53:43 [INFO] [Bootstrap] 匿名态 ChatGPT 预热完成
+10:53:45 [INFO] [步骤2.5] 导航 /auth/login_with（对齐真实页面链路）...
+10:53:46 [INFO] [步骤2.5] login_with 导航完成: https://chatgpt.com/auth/login_with?callback_path=%2F&screen_hint=signup&login_hint=wpyryhl433254%40outlook.com&auth_session_logging_id=3f691e5b-4dde-473a-af22-
+10:53:48 [INFO] [步骤1] 获取 OAuth Providers...
+10:53:49 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:53:49 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:53:49 [WARNING] [providers] 代理链路临时失败 (1/5): HTTPError: HTTP Error 403: ，保留当前会话，1.0s 后重试
+10:53:51 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:53:51 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:53:51 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:53:51 [WARNING] [providers] 代理链路临时失败 (2/5): HTTPError: HTTP Error 403: ，保留当前会话，2.0s 后重试
+10:53:54 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:53:54 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:53:54 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:53:54 [WARNING] [providers] 代理链路临时失败 (3/5): HTTPError: HTTP Error 403: ，保留当前会话，4.0s 后重试
+10:53:59 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:53:59 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:53:59 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:53:59 [WARNING] [providers] 代理链路临时失败 (4/5): HTTPError: HTTP Error 403: ，保留当前会话，8.0s 后重试
+10:54:08 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:54:08 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:54:08 [ERROR] [失败] wpyryhl433254@outlook.com: HTTPError: HTTP Error 403: 
+10:54:08 [INFO] [邮箱:outlook] wpyryhl433254@outlook.com 已恢复 available
+
+>>> [4] ❌失败 (32s) codex=✗ HTTP Error 403: 
+  间隔 20s 后继续...
+
+======================================================================
+### 第 5/5 个号 ###
+======================================================================
+10:54:29 [INFO] [Outlook] 选中账号: wpyryhl433254@outlook.com（DB id=12）
+10:54:29 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=wpyryhl433254@outlook.com
+10:54:29 [INFO] [注册] 开始：wpyryhl433254@outlook.com，代理=socks5h://...sid-***...@socks5h://127.0.0.1:7897
+10:54:29 [INFO] [注册] 本次随机生日: 1986-11-09
+10:54:29 [INFO] [Clearance] 已为 chatgpt.com 预热并注入 12 个 cookie
+10:54:29 [INFO] [Clearance] 已为 auth.openai.com 预热并注入 7 个 cookie
+10:54:30 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.auth.openai.com:__cf_bm', '.auth.openai.com:cf_clearance', '.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'auth.openai.com:__cf_bm', 'auth.openai.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:54:30 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/
+10:54:30 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:54:30 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (1/5)，已注入 clearance 立即重试
+10:54:31 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:54:31 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/
+10:54:31 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:54:31 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (2/5)，已注入 clearance 立即重试
+10:54:32 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:54:32 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/
+10:54:32 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 30 条）
+10:54:32 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (3/5)，已注入 clearance 立即重试
+10:54:34 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm', '.chatgpt.com:cf_clearance', 'chatgpt.com:__cf_bm', 'chatgpt.com:cf_clearance']
+10:54:34 [INFO] [指纹] 已从 ChatGPT 登录页同步前端版本：build=prod-d0df7dcfc06dadffff6103bf857bfa2689f4969e seq=11131982
+10:54:34 [INFO] [指纹] 已采纳服务端下发的 oai-did=1615a1d3…
+10:54:34 [INFO] [预检:chatgpt-home] 通过 (4/5)
+10:54:36 [INFO] [Bootstrap] 匿名态 ChatGPT 预热开始
+10:54:37 [INFO] [Bootstrap] 匿名态 ChatGPT 预热完成
+10:54:40 [INFO] [步骤2.5] 导航 /auth/login_with（对齐真实页面链路）...
+10:54:41 [INFO] [步骤2.5] login_with 导航完成: https://chatgpt.com/auth/login_with?callback_path=%2F&screen_hint=signup&login_hint=wpyryhl433254%40outlook.com&auth_session_logging_id=9540d9e4-7c5f-4f46-aeb6-
+10:54:43 [INFO] [步骤1] 获取 OAuth Providers...
+10:54:43 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:54:43 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:54:43 [WARNING] [providers] 代理链路临时失败 (1/5): HTTPError: HTTP Error 403: ，保留当前会话，1.0s 后重试
+10:54:45 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:54:45 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:54:45 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:54:45 [WARNING] [providers] 代理链路临时失败 (2/5): HTTPError: HTTP Error 403: ，保留当前会话，2.0s 后重试
+10:54:48 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:54:48 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:54:48 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:54:48 [WARNING] [providers] 代理链路临时失败 (3/5): HTTPError: HTTP Error 403: ，保留当前会话，4.0s 后重试
+10:54:54 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:54:54 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:54:54 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 32 条）
+10:54:54 [WARNING] [providers] 代理链路临时失败 (4/5): HTTPError: HTTP Error 403: ，保留当前会话，8.0s 后重试
+10:55:03 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/providers keys=['.chatgpt.com:__cf_bm']
+10:55:03 [WARNING] [熔断] 当前会话收到 HTTP 403（冷却已禁用，继续重试）：https://chatgpt.com/api/auth/providers
+10:55:03 [ERROR] [失败] wpyryhl433254@outlook.com: HTTPError: HTTP Error 403: 
+10:55:03 [INFO] [邮箱:outlook] wpyryhl433254@outlook.com 已恢复 available
+
+>>> [5] ❌失败 (34s) codex=✗ HTTP Error 403: 
+
+======================================================================
+### 汇总 (总耗时 323s) ###
+======================================================================
+注册成功: 0/5    Codex授权成功: 0/5
+
+  [1] ❌                                       74s codex=✗ Failed to perform, curl: (28) Operation timed out after 12002 milliseconds with 0 bytes received. See https://
+  [2] ❌                                       70s codex=✗ HTTP Error 403: 
+  [3] ❌                                       33s codex=✗ HTTP Error 403: 
+  [4] ❌                                       32s codex=✗ HTTP Error 403: 
+  [5] ❌                                       34s codex=✗ HTTP Error 403: 
