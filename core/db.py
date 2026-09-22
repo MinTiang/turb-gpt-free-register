@@ -2338,6 +2338,8 @@ def claim_next_outlook() -> dict | None:
         row["status"] = "used"
         row["used_at"] = _now()
         row["note"] = None
+        # 注意: fail_streak 不在领取时重置——只有失败才释放回池并累加,
+        # 连续 2 次即退役;成功路径直接终态 used, 不经过 release。
         _save_outlook(rows)
         return _decorate_outlook(row)
 
@@ -2351,7 +2353,16 @@ def release_outlook(email: str, status: str = "available", note: str | None = No
             return
         row["status"] = status
         if status == "available":
+            # 释放回池 = 本次尝试失败。连续 2 次失败(如死出口/废号)自动退役,
+            # 否则按 id 排序的取号会无限重选同一个坏邮箱堵死整个队列
+            # (实测 2026-09-22 服务器: 同一邮箱连吃 8 个任务)。
             row["used_at"] = None
+            streak = int(row.get("fail_streak") or 0) + 1
+            row["fail_streak"] = streak
+            if streak >= 2:
+                row["status"] = "failed"
+                row["note"] = f"连续失败 {streak} 次自动退役: {(row.get('note') or '')[:80]}"
+
         elif status in ("used", "failed", "disabled"):
             row["used_at"] = row.get("used_at") or _now()
         if note is not None:
