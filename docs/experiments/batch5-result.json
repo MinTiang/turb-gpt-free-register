@@ -1,5 +1,5 @@
 {
- "when": "2026-09-22 11:20:29",
+ "when": "2026-09-22 11:28:54",
  "results": [
   {
    "idx": 1,
@@ -7,7 +7,7 @@
    "ok": false,
    "codex_ok": false,
    "err": "HTTP Error 403: ",
-   "sec": 51.448132276535034
+   "sec": 73.89051818847656
   },
   {
    "idx": 2,
@@ -15,7 +15,7 @@
    "ok": false,
    "codex_ok": false,
    "err": "HTTP Error 403: ",
-   "sec": 73.54300832748413
+   "sec": 35.62399864196777
   },
   {
    "idx": 3,
@@ -23,7 +23,7 @@
    "ok": false,
    "codex_ok": false,
    "err": "HTTP Error 403: ",
-   "sec": 38.86169242858887
+   "sec": 35.79033184051514
   },
   {
    "idx": 4,
@@ -31,7 +31,7 @@
    "ok": false,
    "codex_ok": false,
    "err": "HTTP Error 403: ",
-   "sec": 52.15356135368347
+   "sec": 32.06712985038757
   },
   {
    "idx": 5,
@@ -39,7 +39,7 @@
    "ok": false,
    "codex_ok": false,
    "err": "HTTP Error 403: ",
-   "sec": 34.14810347557068
+   "sec": 39.473554611206055
   }
  ]
 }

@@ -283,3 +283,64 @@ for attempt in range(5):
 **中期**: 引入 FlareSolverr(需 Docker 部署 flaresolverr + privoxy),被拦时刷新 clearance
 
 **长期**: 使用住宅/ISP 代理(非免费节点),CF 通过率应显著提升
+
+---
+
+# 5 号批量测试报告 (2026-09-22 11:23-11:30)
+
+## 测试结果: 0/5 注册成功
+
+| 轮次 | 节点 | 结果 | 失败点 |
+|---|---|---|---|
+| v1 | 9极限白嫖 | 0/5 | 409 会话失效 / Timeout / 403 |
+| v2 | 9极限白嫖 | 0/5 | 403 (providers) / Timeout |
+| v3 | 9极限白嫖 | 0/5 | 409 / Timeout |
+| v4 | 9极限白嫖 | 0/5 | 403 (signin) |
+| v5 | 极限白嫖🇳🇱荷兰 | 0/5 | 403 (providers) |
+
+## 关键发现
+
+### 1. clearance 机制本身有效(已验证)
+
+**独立对照实验(同节点同 IP)**:
+| 条件 | chatgpt.com | providers 端点 |
+|---|---|---|
+| 无预热 | 0/5 | 0/3 |
+| **有预热** | **5/5** | **3/3** |
+
+**实时实验(此刻)**: 1/4 通过(首次 200,后续 403)
+
+### 2. 节点池整体状态极差
+
+**30 节点扫描**:
+- 24 个 → 🔒 CF challenge (403)
+- 5 个 → ❌ SSLError/Timeout
+- **1 个 → ✅ 200**
+
+**10 节点抽样(11:30)**: ✅可用 0 | 🔒CF拦 9 | ❌错误 1
+
+**节点退化速度**: `极限白嫖https🇳🇱荷兰` 在 11:21 扫描时 OK,11:25 测试时 1/4,11:30 测试时 0/4 —— **几分钟内从可用退化到完全被封**。
+
+### 3. clearance 的局限性
+
+- **一次性**: FlareSolverr 解出的 cookie 被 CF 识别后即失效(首次 200,后续 403)
+- **依赖节点信誉**: 节点 IP 信誉太低时,clearance 也无法救回(0/4 实验)
+- **FlareSolverr 本身**: 03:22 报 `ERR_CONNECTION_CLOSED`(节点断连),不是 clearance 逻辑问题
+
+### 4. 已修复的 bug
+
+| bug | 影响 | 修复 |
+|---|---|---|
+| `apply_clearance_to_session` 用 `session.cookies` 但 BrowserSession 无此属性 | 注入 0 cookie 却返回 True | `_resolve_cookie_jar()` 兼容两种入参 |
+| clearance 被 `rebuild_transport` 清空 | 注入后立即丢失 | 改为 reset 后再注入 |
+| 服务端 Set-Cookie 覆盖 cf_clearance | 后续请求重新被拦 | `get/post` 请求前 `_ensure_clearance_cookies()` 自动补注入 |
+| 403 熔断冷却 900s 挡死重试 | 一次 403 后 15 分钟无法重试 | `CF_CIRCUIT_COOLDOWN_SEC_403=0` |
+
+## 结论
+
+**clearance 机制已正确实现并验证有效**(独立实验 0%→100%),但**当前免费节点池的 IP 信誉已全面崩坏**(30 节点中仅 1 个可用,且几分钟内退化),导致 5 号批量测试 0/5。
+
+**下一步建议**:
+1. **换节点池**: 当前免费节点已被 CF 大规模标记,需要住宅/ISP 代理
+2. **或等待节点池恢复**: 免费节点的 CF 封禁通常是临时的(小时~天级)
+3. **clearance 代码已就绪**: 节点恢复后无需改代码即可生效
