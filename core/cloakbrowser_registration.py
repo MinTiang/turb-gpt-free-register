@@ -196,6 +196,18 @@ def _run_cloak_registration_impl(
         last_state_log = 0.0
         email_submit_count = 1
         switch_tried = False
+        # ---- 每状态时间卡点: 从该状态首次进入起累计计时, 处理动作不重置预算 ----
+        state_budgets = {
+            "otp": 300.0,          # 验证码页总停留
+            "reset": 360.0,        # 重置密码页总停留
+            "create_pw": 150.0,    # 创建密码页
+            "login_pw": 120.0,     # 登录密码页
+            "profile": 120.0,      # about-you 资料页
+            "auth_error": 90.0,    # 授权错误页恢复宽限
+            "login_page": 180.0,   # 登录首页(邮箱提交不前进)
+        }
+        state_first: dict = {}
+        login_logged = False
         otp_used = set()
         otp_attempts = 0
         reset_code_ts = None
@@ -213,7 +225,41 @@ def _run_cloak_registration_impl(
             now = time.time()
             if now - last_state_log >= 8.0:
                 last_state_log = now
-                logger.info("[Cloak注册][页面机] 观察 url=%s", last_url[:120])
+                left = deadline - now
+                logger.info("[Cloak注册][页面机] 观察 url=%s (全局剩余 %.0fs)", last_url[:110], max(0.0, left))
+
+            # 状态分类: 每个状态首次进入起累计计时(处理动作不重置预算)
+            st = None
+            if "/reset-password" in low:
+                st = "reset"
+            elif "/create-account/password" in low:
+                st = "create_pw"
+            elif "email-verification" in low:
+                st = "otp"
+            elif "/log-in" in low:
+                st = "login_pw"
+            elif "/about-you" in low:
+                st = "profile"
+            elif "/auth/error" in low:
+                st = "auth_error"
+            elif "chatgpt.com/auth/login" in low:
+                st = "login_page"
+            if st:
+                first = state_first.setdefault(st, now)
+                over = now - first - state_budgets.get(st, 300.0)
+                if over > 0:
+                    if st == "otp":
+                        if not otp_used:
+                            raise RuntimeError(
+                                "验证码页停留超时且从未取到验证码,邮箱疑似死号,该邮箱作废")
+                        raise RuntimeError(
+                            "验证码页停留超时(取到码但持续无效),该邮箱作废")
+                    if st == "reset":
+                        if reset_code_filled:
+                            raise RuntimeError("重置密码页停留超时(码已填但未完成),该邮箱作废")
+                        raise RuntimeError(
+                            "重置密码页停留超时且未收到重置码,邮箱疑似死号,该邮箱作废")
+                    raise RuntimeError(f"页面状态[{st}]停留超时 {over:.0f}s,该邮箱作废")
 
             # Turnstile 质询:能点就点(短超时,不阻塞其它状态判断)
             try:
@@ -249,7 +295,9 @@ def _run_cloak_registration_impl(
             # 登录态已建立 → 注册/恢复完成
             try:
                 if _has_access_token(driver):
-                    logger.info("[Cloak注册][页面机] 已检测到登录态(accessToken)")
+                    if not login_logged:
+                        login_logged = True
+                        logger.info("[Cloak注册][页面机] 已检测到登录态(accessToken),流程完成")
                     if not profile_done:
                         create_acknowledged = True
                     break
