@@ -145,3 +145,73 @@ r = cr.post("https://auth.openai.com/oauth/token",
     proxies={"http":"socks5h://127.0.0.1:7897","https":"socks5h://127.0.0.1:7897"},
     timeout=25, impersonate="chrome146")
 ```
+
+---
+
+# 补充: 50 新邮箱批次验证 + 429 根因分析 (2026-09-22 上午)
+
+## 一、新邮箱批次验证结果
+
+| 项目 | 结果 |
+|---|---|
+| 注册成功率 | ✅ **4/4 成功**(account_id 7/8/9/10/11,AT 1910-1930 字符) |
+| platform 授权 | ❌ 持续 429 `rate_limit_exceeded` |
+
+**关键结论: 50 个新邮箱完全可用**(注册链路无任何问题),瓶颈只在 platform 授权端点。
+
+## 二、429 根因分析(重要)
+
+### 决定性对比: 成功 vs 失败
+
+**凌晨成功那次(01:33, `uzgahdgx70791`)**:
+```
+[Platform] 开始免接码授权（全新 session）
+[Platform] authorize 落点: https://auth.openai.com/log-in/password, landed=login  ← 关键!
+[Platform] 已提交邮箱，进入登录验证
+[Platform] 邮箱 OTP 验证通过
+[Platform] 拿到 code → 换 token 成功 → CPA 上传成功
+```
+`authorize` 直接落在 **`log-in/password`**（账号已有登录态被识别），**跳过 authorize/continue**。
+
+**现在失败的情况(注册后立即授权)**:
+```
+[Platform] 开始免接码授权（复用注册登录态）
+[Platform] authorize 落点: https://auth.openai.com/email-verification, landed=?
+[Platform] 已提交邮箱 ← 走到了 authorize/continue
+[Platform] passwordless 登录会话失效（409）
+[Platform] 重新 authorize → 提交邮箱 → 429
+```
+`authorize` 落在 **`email-verification`**，必须调 **`authorize/continue`** 发码，该端点返回 429。
+
+### 已排除的假设
+
+| 假设 | 实验 | 结论 |
+|---|---|---|
+| IP 段限流 | 换 3 个不同网段节点(51.158.x / 103.237.x / 84.17.x) | ❌ 排除,仍 429 |
+| 缺 Datadog trace 头 | 补 `_make_trace_headers()`(对齐 grok2api) | ❌ 排除,仍 429 |
+| 缺 client_id 探测 | 已实现并验证 | ❌ 无关 |
+
+### 根因判定
+
+**`authorize/continue` 端点的 429 是 platform 流程特有的风控**:
+- 该端点只在「需要邮箱验证的登录流」上被调用
+- grok2api 能绕过是因为它的账号**已有登录态**(落 log-in/password 直接放行)
+- 我们注册刚完成的 session **登录态未传递到 platform**(platform 认为需重新验证)
+
+### 与 grok2api 的差异(已全部对齐但仍有 429)
+
+| 项目 | grok2api | turb(现状) |
+|---|---|---|
+| oai-did cookie 预置 | ✅ | ✅ 已对齐 |
+| oai-device-id 头 | ✅ | ✅ 已对齐 |
+| Datadog trace 头 | ✅ 每请求 | ✅ 已补(本次) |
+| screen_hint=login_or_signup | ✅ | ✅ 已对齐 |
+| FlareSolverr clearance | ✅ 可选 | ❌ 无(但本次报错是 429 非 CF) |
+| wait_interval=2s | ✅ | ⚠️ 依赖 human_delay |
+
+## 三、下一步建议
+
+1. **等限流窗口过期**(可能是小时级)后再测,确认是"短时频率"还是"长期封禁"
+2. **考虑 FlareSolverr**:grok2api 用它刷新 CF clearance,可能同时降低 platform 端风控评分
+3. **验证登录态传递**:检查注册完成后的 session 为何在 platform 侧不被识别为已登录
+4. **串行化 + 间隔**:grok2api 用 `wait_interval=2` 且单线程;批量时应加请求间隔

@@ -24,6 +24,7 @@ platform token 上传 CPA 作 type=codex auth-file 可被 CPA 的 codex 通道�
 """
 import json
 import logging
+import random
 import secrets
 import time
 from datetime import datetime, timezone
@@ -261,6 +262,24 @@ def _authorize_continue_login(session: BrowserSession, email: str) -> dict:
     return data
 
 
+def _make_trace_headers() -> dict:
+    """复刻 grok2api _make_trace_headers：注入 Datadog RUM 链路追踪头。
+
+    platform 的 authorize/continue 缺 trace 上下文时更易被判为自动化请求
+    (grok2api 在每个 platform 请求都带；我们此前缺失，可能是 429 的诱因之一)。
+    """
+    trace_id = random.getrandbits(64)
+    parent_id = random.getrandbits(64)
+    return {
+        "traceparent": f"00-{secrets.token_hex(16)}-{format(int(parent_id), '016x')}-01",
+        "tracestate": "dd=s:1;o:rum",
+        "x-datadog-origin": "rum",
+        "x-datadog-parent-id": str(parent_id),
+        "x-datadog-sampling-priority": "1",
+        "x-datadog-trace-id": str(trace_id),
+    }
+
+
 def _post_platform_json(session: BrowserSession, url: str, payload: dict, referer: str,
                         sentinel_header: str | None = None, so_header: str | None = None):
     """
@@ -269,6 +288,7 @@ def _post_platform_json(session: BrowserSession, url: str, payload: dict, refere
     与 grok2api 的 _json_headers 对齐：除 auth JSON 头外，额外补齐 oai-* 设备上下文头
     （重点是 oai-device-id，须与 authorize GET 置的 oai-did cookie / device_id 参数一致），
     否则 sentinel 登录会话会因设备不连续返回 409 "sign-in session is no longer valid"。
+    另注入 Datadog trace 头（grok2api 每请求都带）。
     """
     headers = session.get_auth_headers(referer=referer)
     if sentinel_header:
@@ -280,6 +300,7 @@ def _post_platform_json(session: BrowserSession, url: str, payload: dict, refere
         session._attach_oai_context_headers(headers)
     except Exception:
         headers["oai-device-id"] = getattr(session, "device_id", "")
+    headers.update(_make_trace_headers())
     return session.post(url, headers=headers, data=json.dumps(payload), allow_redirects=False)
 
 
