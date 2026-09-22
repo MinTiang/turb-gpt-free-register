@@ -880,9 +880,39 @@ class BrowserSession:
         logger.warning("[熔断] 当前会话收到 HTTP %s，进入冷却 %ss，停止后续请求：%s", status, min(cool_down, 3600), url)
         return resp
 
+    def _ensure_clearance_cookies(self, url: str) -> None:
+        """请求前确保 clearance cookie 在位。
+
+        服务端的 Set-Cookie（每次响应都会刷新 __cf_bm 等）会把 FlareSolverr
+        注入的 cf_clearance 覆盖掉，导致后续请求重新被 CF 拦。这里在发请求前
+        检查目标 host 是否有 cf_clearance，缺失则从 clearance 缓存/刷新补注入。
+        CLEARANCE_MODE=none 时为空操作。
+        """
+        try:
+            from config import clearance as _ccfg
+            if str(getattr(_ccfg, "CLEARANCE_MODE", "none") or "none").strip().lower() != "flaresolverr":
+                return
+            from urllib.parse import urlparse
+            host = (urlparse(url).hostname or "").lower()
+            if host not in ("chatgpt.com", "auth.openai.com", "sentinel.openai.com"):
+                return
+            # 已有 cf_clearance 就不重复注入
+            for cookie in list(self.session.cookies.jar):
+                if getattr(cookie, "name", "") == "cf_clearance" and host.endswith(
+                    str(getattr(cookie, "domain", "") or "").lstrip(".").lower()
+                ):
+                    return
+            from core import clearance as _clearance
+            bundle = _clearance.refresh_clearance(f"https://{host}/")
+            if bundle:
+                _clearance.apply_clearance_to_session(self, bundle)
+        except Exception:
+            pass
+
     def get(self, url: str, headers: dict = None, skip_target_headers: bool = False, **kwargs):
         """发送 GET 请求"""
         self._raise_if_circuit_open()
+        self._ensure_clearance_cookies(url)
         if not skip_target_headers:
             headers = self._attach_openai_target_headers_for_url(url, headers)
         headers = _chrome_wire_order(headers)
@@ -892,6 +922,7 @@ class BrowserSession:
     def post(self, url: str, headers: dict = None, skip_target_headers: bool = False, **kwargs):
         """发送 POST 请求"""
         self._raise_if_circuit_open()
+        self._ensure_clearance_cookies(url)
         if not skip_target_headers:
             headers = self._attach_openai_target_headers_for_url(url, headers)
         headers = _chrome_wire_order(headers)

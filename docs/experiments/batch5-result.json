@@ -1,13 +1,13 @@
 {
- "when": "2026-09-22 10:55:03",
+ "when": "2026-09-22 11:20:29",
  "results": [
   {
    "idx": 1,
    "email": "",
    "ok": false,
    "codex_ok": false,
-   "err": "Failed to perform, curl: (28) Operation timed out after 12002 milliseconds with 0 bytes received. See https://",
-   "sec": 73.87311720848083
+   "err": "HTTP Error 403: ",
+   "sec": 51.448132276535034
   },
   {
    "idx": 2,
@@ -15,7 +15,7 @@
    "ok": false,
    "codex_ok": false,
    "err": "HTTP Error 403: ",
-   "sec": 70.26654982566833
+   "sec": 73.54300832748413
   },
   {
    "idx": 3,
@@ -23,7 +23,7 @@
    "ok": false,
    "codex_ok": false,
    "err": "HTTP Error 403: ",
-   "sec": 33.396864891052246
+   "sec": 38.86169242858887
   },
   {
    "idx": 4,
@@ -31,7 +31,7 @@
    "ok": false,
    "codex_ok": false,
    "err": "HTTP Error 403: ",
-   "sec": 31.582075595855713
+   "sec": 52.15356135368347
   },
   {
    "idx": 5,
@@ -39,7 +39,7 @@
    "ok": false,
    "codex_ok": false,
    "err": "HTTP Error 403: ",
-   "sec": 34.07946181297302
+   "sec": 34.14810347557068
   }
  ]
 }
