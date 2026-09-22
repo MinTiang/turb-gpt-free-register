@@ -189,11 +189,17 @@ def _run_cloak_registration_impl(
             if bool(getattr(_codex_cfg, "ENABLE_CODEX_AUTO", False)):
                 oauth_driver = str(getattr(_codex_cfg, "CODEX_OAUTH_DRIVER", "") or "").strip().lower()
                 if oauth_driver in ("platform", "platform_free", "grok2api"):
-                    # platform 免接码为纯协议流程，不复用浏览器窗口，走统一分发
+                    # platform 免接码为纯协议流程，不复用浏览器窗口，走统一分发。
+                    # 必须显式传 proxy：不传时 run_codex_oauth 会从 PROXY_POOL 重抽，
+                    # 出口与刚注册成功的 cloak 链路不一致，平台 authorize 会被 CF 拦
+                    # （实测 2026-09-22：cloak 注册成功但授权 403）。
                     from core.codex_oauth import run_codex_oauth
-                    logger.info("[Cloak注册][Codex] CODEX_OAUTH_DRIVER=platform，走免接码协议授权")
+                    logger.info(
+                        "[Cloak注册][Codex] CODEX_OAUTH_DRIVER=platform，走免接码协议授权（沿用注册代理 %s）",
+                        (proxy.split("@")[-1] if proxy and "@" in proxy else proxy) or "直连",
+                    )
                     _check_manual_stop()
-                    codex_result = run_codex_oauth(email, force=True)
+                    codex_result = run_codex_oauth(email, proxy=proxy, force=True)
                 else:
                     from core.browser_codex_oauth import run_browser_codex_oauth
                     logger.info("[Cloak注册][Codex] ENABLE_CODEX_AUTO=True，复用当前 CloakBrowser 窗口执行 Codex 授权")

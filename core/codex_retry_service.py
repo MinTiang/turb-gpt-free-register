@@ -216,6 +216,9 @@ def run_worker(
         logger.info("[Codex 补跑] 开始：%s", email)
         logger.info("[Codex 补跑] 阶段说明：获取授权地址 → 登录邮箱 → 邮箱 OTP → 手机验证（platform 免接码驱动跳过）→ 捕获 callback → 提交/保存凭证")
         check_stop_requested(email)
+        # 补跑只拿到邮箱，没有注册时的代理上下文，出口由 run_codex_oauth 从
+        # PROXY_POOL 抽取（{email} 粘性条目会命中该账号注册时的同一出口）。
+        # 池若是 Clash 这类非粘性入口，补跑出口与注册出口不一致，CF 可能拦。
         result = run_codex_oauth(email, force=True)
         check_stop_requested(email)
         logger.info(
