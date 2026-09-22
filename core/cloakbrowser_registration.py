@@ -300,7 +300,22 @@ def _run_cloak_registration_impl(
         if data_saver is not None:
             _run_with_timeout(data_saver.stop, 10, label="省流量收尾(finally)")
         if driver and not bool(_cfg.CLOAK_KEEP_BROWSER_OPEN):
-            _run_with_timeout(driver.quit, 30, label="浏览器关闭")
+            quit_ok = True
+            def _quit():
+                nonlocal quit_ok
+                try:
+                    driver.quit()
+                except Exception:
+                    quit_ok = False
+            _run_with_timeout(_quit, 30, label="浏览器关闭")
+            # quit 挂死/异常时浏览器进程树还活着(每个 200-500MB,过夜泄漏
+            # 可把容器内存吃满——实测 20G),必须按启动时记录的标记强杀兜底。
+            if not quit_ok:
+                try:
+                    from core.cloakbrowser_driver import force_kill_browser
+                    force_kill_browser(driver)
+                except Exception as exc:
+                    logger.warning("[Cloak注册] 强杀浏览器失败: %s: %s", type(exc).__name__, str(exc)[:120])
 
 
 

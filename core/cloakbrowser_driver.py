@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import subprocess
 import re
 import time
 from dataclasses import dataclass
@@ -623,6 +625,58 @@ def _build_cloak_locale_options(proxy_url: str | None = None) -> dict:
     return {k: v for k, v in out.items() if v}
 
 
+def _scan_chromium_user_data_dirs() -> set:
+    """扫描 /proc，返回当前所有 chromium 进程的 user-data-dir 标记（仅 POSIX）。"""
+    markers: set = set()
+    if os.name != "posix":
+        return markers
+    try:
+        for pid in os.listdir("/proc"):
+            if not pid.isdigit():
+                continue
+            try:
+                with open(f"/proc/{pid}/cmdline", "rb") as f:
+                    cmd = f.read().decode("utf-8", "replace")
+            except Exception:
+                continue
+            if "chrom" not in cmd.lower():
+                continue
+            for part in cmd.split("\x00"):
+                if part.startswith("--user-data-dir=") and len(part) > 20:
+                    markers.add(part.split("=", 1)[1])
+    except Exception:
+        pass
+    return markers
+
+
+def force_kill_browser(driver) -> int:
+    """quit 超时后的兜底：按 user-data-dir 标记 SIGKILL 浏览器进程树。
+
+    泄漏的 Chromium 每个占 200-500MB 且永远活着（实测 2026-09-22：容器过夜
+    涨到 20G）。quit 挂死被放弃时必须强杀，否则批量重试一晚能泄漏几十个。
+    返回杀掉的标记数。仅 POSIX（容器/Linux 宿主）生效。
+    """
+    if os.name != "posix":
+        return 0
+    markers = list(set(getattr(driver, "_kill_markers", None) or []))
+    if not markers:
+        return 0
+    killed = 0
+    try:
+        for m in markers:
+            r = subprocess.run(
+                ["pkill", "-9", "-f", f"--user-data-dir={m}"],
+                capture_output=True, timeout=15,
+            )
+            if r.returncode == 0:
+                killed += 1
+    except Exception as exc:
+        logger.warning("[Cloak] 强杀浏览器进程失败: %s: %s", type(exc).__name__, str(exc)[:120])
+    if killed:
+        logger.warning("[Cloak] quit 超时/失败，已按标记强杀 %d 组浏览器进程", killed)
+    return killed
+
+
 def build_cloak_driver(proxy: str | None = None) -> tuple[CloakSeleniumDriver, CloakOpenResult]:
     """启动 CloakBrowser 并返回 Selenium 风格 driver。
 
@@ -683,6 +737,7 @@ def build_cloak_driver(proxy: str | None = None) -> tuple[CloakSeleniumDriver, C
     if locale_opts.get("accept_language"):
         context_kwargs["extra_http_headers"] = {"Accept-Language": locale_opts["accept_language"]}
 
+    _BEFORE_LAUNCH_MARKERS = _scan_chromium_user_data_dirs()
     if user_data_dir:
         context = launch_persistent_context(user_data_dir, **opts)
         page = context.new_page()
@@ -694,6 +749,12 @@ def build_cloak_driver(proxy: str | None = None) -> tuple[CloakSeleniumDriver, C
         page = context.new_page()
 
     driver = CloakSeleniumDriver(browser=browser, context=context, page=page)
+    # 记录本实例浏览器的 user-data-dir 标记：quit 超时被放弃时按标记强杀，
+    # 防止 Chromium 进程泄漏(每个 200-500MB，过夜可堆积数十 GB)。
+    try:
+        driver._kill_markers = list(_scan_chromium_user_data_dirs() - _BEFORE_LAUNCH_MARKERS)
+    except Exception:
+        driver._kill_markers = []
     # 共享页面操作函数(page_ops)需要一个显式日志前缀，
     # 避免 Cloak 注册流程里出现 `[Roxy注册]`。
     driver._registration_log_prefix = "[Cloak注册]"

@@ -15,6 +15,16 @@ services:
         APT_MIRROR: ${APT_MIRROR:-deb.debian.org}
     container_name: turb-webui
     restart: unless-stopped
+    # init: 用 tini 作 PID 1, 自动回收僵尸子进程(浏览器/工具子进程退出后不留僵尸)
+    init: true
+    # 硬上限: 即使出现内存/进程泄漏, 最坏 OOM 重启本容器, 不会拖死宿主机
+    mem_limit: 4g
+    pids_limit: 512
+    logging:
+      driver: json-file
+      options:
+        max-size: "50m"
+        max-file: "3"
     ports:
       - "${WEBUI_PORT:-5000}:5000"
     volumes:
