@@ -1,0 +1,142 @@
+>>> 邮箱: 
+18:44:54 [INFO] [Cloak] 出口IP地理信息：ip=158.180.85.221 country=KR city=Chuncheon timezone=Asia/Seoul
+18:44:54 [INFO] [Cloak] 启动 CloakBrowser：headless=False humanize=True geoip=True proxy=http://127.0.0.1:7897 locale=ko-KR timezone=Asia/Seoul accept_language=ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7 persistent=False
+18:44:55 [INFO] HTTP Request: GET https://pypi.org/pypi/cloakbrowser/json "HTTP/1.1 200 OK"
+18:44:56 [INFO] HTTP Request: GET https://api.ipify.org "HTTP/1.1 200 OK"
+18:44:57 [INFO] [Cloak注册] 开始：，profile=cloakbrowser
+18:44:57 [INFO] [Cloak注册] 打开登录页：https://chatgpt.com/auth/login
+18:45:08 [INFO] [Outlook] 选中账号: woerbyn88966@outlook.com（DB id=20）
+18:45:08 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=woerbyn88966@outlook.com
+18:45:08 [INFO] [EmailProvider] 已找到邮箱输入框，开始分配邮箱: woerbyn88966@outlook.com
+18:45:13 [INFO] [Cloak注册] 已填写邮箱并校验通过：woerbyn88966@outlook.com
+18:45:15 [INFO] [Cloak注册] 邮箱提交前状态稳定：{'ok': True, 'value': 'woerbyn88966@outlook.com', 'active': True, 'hasForm': True, 'hasSubmit': True, 'submitDisabled': False, 'url': 'https://chatgpt.com/auth/login'}
+18:45:17 [INFO] [Cloak注册] 邮箱稳定表单提交：{'ok': True, 'reason': 'stable_async_enter_click', 'value': 'woerbyn88966@outlook.com', 'submitDisabled': False, 'submitAttrs': 'submit btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-vis', 'url': 'https://chatgpt.com/auth/login'}
+18:45:18 [INFO] [Cloak注册] 已提交邮箱，等待进入密码页或验证码页（1/3）
+18:45:20 [INFO] [Cloak注册] 邮箱提交后检测到输入框短暂清空，继续等待跳转：elapsed=0.0s debounce=18.0s url=https://chatgpt.com/auth/login?email=woerbyn88966%40outlook.com
+18:45:22 [INFO] [Cloak注册] 邮箱提交后检测到输入框短暂清空，继续等待跳转：elapsed=2.4s debounce=18.0s url=https://chatgpt.com/auth/login?email=woerbyn88966%40outlook.com
+18:45:22 [INFO] [Cloak注册] 邮箱提交后仍停留在 login?email，中途补交一次表单：{'ok': True, 'reason': 'resubmitted_email_form', 'value': 'woerbyn88966@outlook.com', 'hasForm': True, 'hasSubmit': True}
+18:45:27 [INFO] [Cloak注册] 邮箱提交后已进入下一步：otp
+18:45:27 [INFO] [Cloak注册] 无密码模式：验证码页不切密码分支，直接交给 OTP 流程：email=woerbyn88966@outlook.com
+18:45:27 [INFO] [Cloak注册][OTP] 等待验证码：woerbyn88966@outlook.com（第 1/3 次）
+18:45:27 [INFO] [Outlook] 开始轮询 woerbyn88966@outlook.com 的收件箱（mode=auto, Graph + IMAP 本地直连，REST 兜底），最长 90s, settle=5s...
+18:45:29 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+18:45:29 [INFO] [Outlook] 邮件诊断 top=[{'p': 'remote_graph', 'date': '2026-09-22T10:45:29Z', 'openai': True, 'after': True, 'otp': True, 'subject': 'ChatGPT 임시 인증 코드'}, {'p': 'remote_graph', 'date': '2026-08-30T03:33:14Z', 'openai': False, 'after': False, 'otp': False, 'subject': '连接到 Microsoft 帐户的新应用'}, {'p': 'remote_graph', 'date': '2026-08-30T03:33:07Z', 'openai': False, 'after': False, 'otp': False, 'subject': '已添加 Microsoft 帐户安全信息'}]
+18:45:29 [INFO] [Outlook] 首次锁定 OTP=567575, source=remote_graph, ts=2026-09-22T10:45:29Z, subject='ChatGPT 임시 인증 코드', 等 5s 看是否有更晚邮件...
+18:45:29 [INFO] [Outlook] 已锁定候选 OTP=567575，等 settle 中（剩余 settle ~4s, 总剩余 87s）...
+18:45:33 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+18:45:33 [INFO] [Outlook] 已锁定候选 OTP=567575，等 settle 中（剩余 settle ~1s, 总剩余 83s）...
+18:45:37 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+18:45:37 [INFO] [Outlook] settle 完成，返回 OTP=567575, source=remote_graph, protocol=graph, subject='ChatGPT 임시 인증 코드'
+18:45:37 [INFO] [Cloak注册][OTP] 收到验证码：567575
+18:45:37 [INFO] [Cloak注册] OTP 输入框(JS 定位): selector=#_r_5_-code
+18:45:40 [INFO] [Cloak注册] OTP 回读校验一致:567575
+18:45:51 [INFO] [Cloak注册] 检测到资料页，开始填写姓名生日：url=https://auth.openai.com/about-you inputs=[{'tag': 'INPUT', 'type': 'text', 'name': 'name', 'id': '_r_i_-name', 'placeholder': '성명', 'autocomplete': 'name', 'aria': '', 'value': '', 'visible': True}, {'tag': 'INPUT', 'type': 'number', 'name': 'age', 'id': '_r_i_-age', 'placeholder': '연령', 'autocomplete': 'off', 'aria': '', 'value': '', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'allCheckboxes', 'id': '_r_i_-allCheckboxes', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'personalInfoConsent', 'id': '_r_i_-personalInfoConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'thirdPartyConsent', 'id': '_r_i_-thirdPartyConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'overseasTransferConsent', 'id': '_r_i_-overseasTransferConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}]
+18:45:55 [INFO] [Cloak注册] 已填写姓名字段：Megan Ford
+18:45:55 [INFO] [Cloak注册] 已填写年龄字段：41
+18:45:55 [INFO] [Cloak注册] 已勾选 about-you/profile 同意协议复选框：['allCheckboxes']
+18:45:59 [INFO] [Cloak注册] 已点击资料页提交按钮，等待 OAuth 跳转
+18:46:09 [INFO] [Cloak注册] /api/auth/session 已返回 accessToken
+18:46:09 [INFO] [Cloak注册] 已拿到 accessToken：woerbyn88966@outlook.com
+18:46:09 [INFO] [Cloak注册][Codex] 浏览器内走 platform 免接码授权（client=app_2SKx(platform)，保留注册登录态）
+18:46:09 [INFO] [Codex][Platform][Browser] 打开 platform 授权页：woerbyn88966@outlook.com（device_id=3887534b…）
+18:48:54 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:48:54 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:48:55 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:48:55 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:48:55 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:48:56 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:48:56 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:48:57 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:48:57 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:48:58 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:48:59 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:48:59 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:00 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:00 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:01 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:01 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:01 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:02 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:02 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:03 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:04 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:04 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:05 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:05 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:06 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:06 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:07 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:07 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:07 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:08 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:09 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:10 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:10 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:10 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:11 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:11 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:12 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:12 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:13 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:13 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:14 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:15 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:15 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:16 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:16 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:16 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:17 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:17 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:18 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:18 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:19 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:20 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:20 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:21 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:21 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:22 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:22 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:22 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:23 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:23 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:25 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:25 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:25 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:26 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:26 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:27 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:27 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:28 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:28 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:28 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:30 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:30 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:31 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:31 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:31 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:32 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:32 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:33 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:33 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:34 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:35 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:35 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:36 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:36 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:36 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:37 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:37 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:38 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:38 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:39 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:40 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:40 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:41 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:41 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:42 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:42 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:42 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:43 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:43 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:44 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击
+18:49:45 [INFO] [Cloak注册] 当前疑似 OAuth 授权页，跳过邮箱入口兜底点击

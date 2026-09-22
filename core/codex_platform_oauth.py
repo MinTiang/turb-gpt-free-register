@@ -890,6 +890,8 @@ def _browser_handle_email_otp(driver, email: str, otp_provider, used_codes: set)
     except Exception:
         return False
 
+    if len(used_codes) >= 3:
+        return False
     from core.browser_codex_oauth import (
         _wait_for_otp_input,
         _wait_for_fresh_email_otp,
@@ -928,24 +930,45 @@ def _browser_handle_email_otp(driver, email: str, otp_provider, used_codes: set)
     return True
 
 
-def _browser_handle_email_input(driver, email: str) -> bool:
-    """当前页是邮箱输入页(未登录)时填邮箱并提交。返回是否处理。
-
-    platform authorize 带 login_hint，但未登录时仍会先要邮箱。填完提交后
-    OpenAI 对无密码账号直接发 OTP（不需要点"使用验证码登录"，页面会自动走）。
-    """
-    from core.page_ops import _type_email_address, _submit_email_step
+def _browser_has_email_input(driver) -> bool:
+    """页面是否真有可见的邮箱输入框（DOM 判定，避免把其它页误当登录页反复填写）。"""
     try:
-        _type_email_address(driver, email, timeout=4)
+        return bool(driver.execute_script(r"""
+        const visible = el => !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length));
+        return [...document.querySelectorAll('input')].some(el => visible(el) && (
+            el.getAttribute('type') === 'email'
+            || el.getAttribute('name') === 'email'
+            || el.id === 'email'
+            || (el.getAttribute('autocomplete') || '') === 'email'
+            || (el.getAttribute('autocomplete') || '') === 'username'
+        ));
+        """))
     except Exception:
         return False
+
+
+def _browser_handle_email_input(driver, email: str, attempts: dict) -> bool:
+    """当前页是邮箱输入页(未登录)时填邮箱并提交。返回是否处理。
+
+    必须先 DOM 验证真有邮箱框——否则会在非登录页上反复"填写+提交"死循环
+    （实测 2026-09-22：状态机每轮都误判，页面永不前进还刷屏日志）。
+    attempts["email"] 记录已尝试次数，最多 3 次，超限后本分支放行交给其它分支/超时。
+    """
+    if attempts.get("email", 0) >= 3:
+        return False
+    if not _browser_has_email_input(driver):
+        return False
+    from core.page_ops import _type_email_address, _submit_email_step
     from core.humanize import delay as human_delay
-    logger.info(f"[Codex][Platform][Browser] 检测到邮箱输入页，已填写并提交：{email}")
-    human_delay("form")
+    attempts["email"] = attempts.get("email", 0) + 1
+    logger.info(f"[Codex][Platform][Browser] 检测到邮箱输入页（第 {attempts['email']}/3 次），填写并提交：{email}")
     try:
+        _type_email_address(driver, email, timeout=8)
+        human_delay("form")
         _submit_email_step(driver)
     except Exception as exc:
-        logger.warning(f"[Codex][Platform][Browser] 邮箱提交异常（继续轮询）：{str(exc)[:140]}")
+        logger.warning(f"[Codex][Platform][Browser] 邮箱填写/提交异常（继续轮询其它分支）：{str(exc)[:140]}")
+        return False
     return True
 
 
@@ -982,12 +1005,30 @@ def _browser_wait_platform_callback(driver, email: str, timeout: float, otp_prov
         "//button[contains(., '继续')]", "//button[contains(., '确认')]",
     ]
     used_codes: set = set()
+    attempts: dict = {}
     last_url = ""
+    last_state_log = 0.0
     while time.time() < end:
         try:
             last_url = str(driver.current_url or "")
         except Exception:
             last_url = ""
+        # 可观测：每 10s 打一次当前页面快照，卡住时能看出停在什么页面
+        now_ts = time.time()
+        if now_ts - last_state_log >= 10.0:
+            last_state_log = now_ts
+            try:
+                summary = driver.execute_script(r"""
+                const visible = el => !!(el && (el.offsetWidth || el.offsetHeight || el.getClientRects().length));
+                const inputs = [...document.querySelectorAll('input')].filter(visible).map(el => ({
+                  type: el.getAttribute('type')||'', name: el.getAttribute('name')||'', id: (el.id||'').slice(-24),
+                }));
+                const btns = [...document.querySelectorAll('button')].filter(visible).slice(0,4).map(b => (b.textContent||'').trim().slice(0,20));
+                return {inputs: inputs, buttons: btns, title: (document.title||'').slice(0,40)};
+                """)
+                logger.info(f"[Codex][Platform][Browser] 页面快照 url={last_url[:110]} state={json.dumps(summary, ensure_ascii=False)[:260]}")
+            except Exception as exc:
+                logger.info(f"[Codex][Platform][Browser] 页面快照失败（页面可能跳转中）：{str(exc)[:90]} url={last_url[:110]}")
         if _is_platform_callback(last_url):
             params = _extract_callback_params(last_url)
             if params:
@@ -1000,8 +1041,8 @@ def _browser_wait_platform_callback(driver, email: str, timeout: float, otp_prov
                 "Codex CLI client（app_EMoam…）。platform 免接码必须用 app_2SKx… 的 authorize URL"
             )
         # 动态状态机：每轮识别当前页面并处理对应分支，任何意外都只是本轮不匹配
-        # 邮箱输入页（未登录）
-        if _browser_handle_email_input(driver, email):
+        # 邮箱输入页（未登录，DOM 验证 + 最多 3 次）
+        if _browser_handle_email_input(driver, email, attempts):
             continue
         # 邮箱验证码页：自动收码填入（优先级最高，别去点 submit 提交空码）
         if otp_provider is not None and _browser_handle_email_otp(driver, email, otp_provider, used_codes):
