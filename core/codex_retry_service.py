@@ -214,7 +214,7 @@ def run_worker(
         if batch_label:
             logger.info("[Codex 补跑] 批量任务：%s", batch_label)
         logger.info("[Codex 补跑] 开始：%s", email)
-        logger.info("[Codex 补跑] 阶段说明：获取授权地址 → 登录邮箱 → 邮箱 OTP → 手机验证（platform 免接码驱动跳过）→ 捕获 callback → 提交/保存凭证")
+        logger.info("[Codex 补跑] 阶段说明：获取授权地址 → 登录邮箱 → 邮箱 OTP → 手机验证（接码渠道）→ 捕获 callback → 提交/保存凭证")
         check_stop_requested(email)
         # 补跑只拿到邮箱，没有注册时的代理上下文，出口由 run_codex_oauth 从
         # PROXY_POOL 抽取（{email} 粘性条目会命中该账号注册时的同一出口）。

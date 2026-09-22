@@ -5,15 +5,9 @@ codex2api 的账号接口是 POST /api/admin/accounts/import，body 为
 `{"accounts": [{...}]}` 或裸条目数组，条目字段见 admin/handler.go 的
 jsonAccountEntry。本模块只负责把 turb 拿到的 OAuth 凭证整理成它认的字段。
 
-两种授权来源的差别（必须区分，否则续期失败）：
-
-    接码授权  CODEX_OAUTH_DRIVER=protocol/cloak 走 Codex CLI 客户端
-              client_id = app_EMoamEEZ73f0CkXaXp7hrann
-    平台授权  CODEX_OAUTH_DRIVER=platform 走官网 platform.openai.com 客户端
-              client_id = app_2SKx67EdpoN0G6j64rFvigXD
-
+唯一来源是接码授权（Codex CLI 客户端，client_id = app_EMoamEEZ73f0CkXaXp7hrann）。
 OpenAI 的 refresh_token 绑定签发它的 client，用错 client 刷新会返回
-401 invalid_client（实测 2026-09-22）。因此推送时一律带上 client_id，
+401 invalid_client（实测 2026-09-22）。推送时显式带上 client_id，
 codex2api 落库到 credentials.oauth_client_id，刷新时按它选 client。
 """
 from __future__ import annotations
@@ -26,69 +20,13 @@ import requests
 
 logger = logging.getLogger(__name__)
 
-# 两种授权的 client（与 codex2api auth 包中的常量一致）
+# 接码授权签发 client（Codex CLI 官方客户端，与 codex2api auth 包常量一致）
 CLI_CLIENT_ID = "app_EMoamEEZ73f0CkXaXp7hrann"
-PLATFORM_CLIENT_ID = "app_2SKx67EdpoN0G6j64rFvigXD"
-
-# 授权来源标签 → client_id。codex2api 侧只认这两个 client。
-_DRIVER_CLIENT_ID = {
-    "platform": PLATFORM_CLIENT_ID,
-    "protocol": CLI_CLIENT_ID,
-    "cloak": CLI_CLIENT_ID,
-    "browse": CLI_CLIENT_ID,
-}
 
 
 def resolve_client_id(driver: str = "", payload: dict | None = None) -> str:
-    """决定本次推送该带哪个 client_id。
-
-    优先用驱动名映射；驱动名未知时回退到 payload 里已有的 client_id 或
-    id_token 的 JWT 声明；都拿不到就返回空串（codex2api 侧会退回 CLI client）。
-    """
-    key = str(driver or "").strip().lower()
-    if key in _DRIVER_CLIENT_ID:
-        return _DRIVER_CLIENT_ID[key]
-    data = payload or {}
-    explicit = str(data.get("client_id") or "").strip()
-    if explicit in (CLI_CLIENT_ID, PLATFORM_CLIENT_ID):
-        return explicit
-    # 从 id_token 的 JWT 声明反推（aud / client_id / azp）
-    id_token = str(data.get("id_token") or "").strip()
-    if id_token:
-        detected = _detect_client_id_from_jwt(id_token)
-        if detected:
-            return detected
-    return ""
-
-
-def _detect_client_id_from_jwt(token: str) -> str:
-    """从 JWT 的 aud / client_id / azp 声明里认出签发 client。"""
-    try:
-        import base64
-        parts = str(token).split(".")
-        if len(parts) < 2:
-            return ""
-        seg = parts[1]
-        seg += "=" * (-len(seg) % 4)
-        claims = json.loads(base64.urlsafe_b64decode(seg))
-    except Exception:
-        return ""
-    if not isinstance(claims, dict):
-        return ""
-    candidates = []
-    aud = claims.get("aud")
-    if isinstance(aud, str):
-        candidates.append(aud)
-    elif isinstance(aud, list):
-        candidates.extend(str(x) for x in aud)
-    for field in ("client_id", "azp"):
-        value = claims.get(field)
-        if isinstance(value, str):
-            candidates.append(value)
-    for value in candidates:
-        if value in (CLI_CLIENT_ID, PLATFORM_CLIENT_ID):
-            return value
-    return ""
+    """推送应带的 client_id。现仅剩接码授权来源，恒为 Codex CLI client。"""
+    return CLI_CLIENT_ID
 
 
 def _codex2api_origin() -> str:
@@ -139,7 +77,7 @@ def build_import_entry(payload: dict, driver: str = "") -> dict:
 def push_to_codex2api(payload: dict, driver: str = "", entry: dict | None = None) -> dict:
     """推送单个账号到 codex2api。
 
-    driver 决定 client_id（platform → 官网 client；其余 → Codex CLI client）。
+    推送带 Codex CLI client 标识（当前唯一授权来源为接码授权）。
     失败抛异常，由调用方决定是否影响主流程。
     """
     origin = _codex2api_origin()

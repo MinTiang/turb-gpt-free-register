@@ -8,44 +8,20 @@ from core import codex2api_push as push
 
 
 class ClientIdResolutionTests(unittest.TestCase):
-    def test_driver_mapping(self):
-        # 平台授权走官网 client；接码(cloak/browse 同属接码链路)走 Codex CLI
-        self.assertEqual(push.resolve_client_id("platform"), push.PLATFORM_CLIENT_ID)
-        self.assertEqual(push.resolve_client_id("protocol"), push.CLI_CLIENT_ID)
-        self.assertEqual(push.resolve_client_id("cloak"), push.CLI_CLIENT_ID)
-
-    def test_payload_client_id_used_when_driver_unknown(self):
-        payload = {"client_id": push.PLATFORM_CLIENT_ID}
-        self.assertEqual(push.resolve_client_id("", payload), push.PLATFORM_CLIENT_ID)
-
-    def test_detect_from_id_token_claims(self):
-        import base64
-
-        def mk(payload):
-            seg = base64.urlsafe_b64encode(json.dumps(payload).encode()).decode().rstrip("=")
-            return f"h.{seg}.s"
-
-        self.assertEqual(
-            push.resolve_client_id("", {"id_token": mk({"aud": [push.PLATFORM_CLIENT_ID]})}),
-            push.PLATFORM_CLIENT_ID,
-        )
-        self.assertEqual(
-            push.resolve_client_id("", {"id_token": mk({"azp": push.CLI_CLIENT_ID})}),
-            push.CLI_CLIENT_ID,
-        )
-
-    def test_unknown_driver_without_hint_returns_empty(self):
-        self.assertEqual(push.resolve_client_id("unknown", {}), "")
+    def test_always_cli_client(self):
+        # 现仅剩接码授权来源, 恒为 Codex CLI client
+        for driver in ("protocol", "cloak", "", "anything"):
+            self.assertEqual(push.resolve_client_id(driver), push.CLI_CLIENT_ID)
 
 
 class BuildImportEntryTests(unittest.TestCase):
-    def test_platform_entry_carries_platform_client(self):
+    def test_entry_carries_cli_client(self):
         entry = push.build_import_entry(
             {"email": "u@example.com", "account_id": "a1", "access_token": "at",
              "refresh_token": "rt", "id_token": "idt", "expired": "2026-10-01T00:00:00Z"},
             "platform",
         )
-        self.assertEqual(entry["client_id"], push.PLATFORM_CLIENT_ID)
+        self.assertEqual(entry["client_id"], push.CLI_CLIENT_ID)
         self.assertEqual(entry["expires_at"], "2026-10-01T00:00:00Z")
         self.assertEqual(entry["email"], "u@example.com")
 
@@ -78,7 +54,7 @@ class PushRequestTests(unittest.TestCase):
 
     def test_multipart_form_with_format_json(self):
         # /accounts/import 是 multipart 上传（format=json + file 字段）
-        call, _ = self._push("platform", {
+        call, _ = self._push("protocol", {
             "email": "u@example.com", "access_token": "at", "refresh_token": "rt"})
         self.assertTrue(call["url"].endswith("/api/admin/accounts/import"))
         self.assertEqual(call["data"], {"format": "json"})
@@ -86,7 +62,7 @@ class PushRequestTests(unittest.TestCase):
         self.assertTrue(fname.startswith("codex-") and fname.endswith(".json"))
         self.assertEqual(ctype, "application/json")
         sent = json.loads(blob.decode("utf-8"))
-        self.assertEqual(sent["client_id"], push.PLATFORM_CLIENT_ID)
+        self.assertEqual(sent["client_id"], push.CLI_CLIENT_ID)
         self.assertEqual(call["headers"]["X-Admin-Key"], "k")
 
     def test_rejects_payload_without_credentials(self):

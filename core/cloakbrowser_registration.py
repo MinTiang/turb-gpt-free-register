@@ -28,35 +28,6 @@ from core.page_ops import (  # noqa: F401
 logger = logging.getLogger(__name__)
 
 
-def _export_browser_cookies(driver) -> list:
-    """导出 CloakBrowser 当前全部 cookie，供协议层复用登录态。
-
-    platform 免接码授权在协议层跑，拿不到 Selenium 会话；把浏览器已建立的
-    cookie 注入新建 BrowserSession，authorize 才能像复用注册 session 那样直接放行。
-
-    浏览器卡态时 get_cookies 可能挂住，因此走看门狗；失败返回空列表
-    （调用方降级为全新登录，不中断注册主流程）。
-    """
-    try:
-        raw = _run_with_timeout(lambda: driver.get_cookies(), 15.0, label="导出cookie")
-    except Exception as exc:
-        logger.warning("[Cloak注册] 导出 cookie 失败: %s: %s", type(exc).__name__, str(exc)[:120])
-        return []
-    if not raw:
-        logger.warning("[Cloak注册] 未导出到 cookie，platform 授权将按全新登录走")
-        return []
-    # 只保留 openai 相关域，避免把无关 cookie 带进协议会话
-    picked = []
-    for c in raw:
-        if not isinstance(c, dict):
-            continue
-        domain = str(c.get("domain") or "").lower()
-        if any(d in domain for d in ("chatgpt.com", "openai.com")):
-            picked.append(c)
-    logger.info("[Cloak注册] 已导出 %d 条 openai 域 cookie（共 %d 条）", len(picked), len(raw))
-    return picked
-
-
 def _run_with_timeout(fn, seconds: float, *, label: str):
     """带看门狗超时地执行收尾调用;超时放弃(线程留守)并返回 None。
 
@@ -216,20 +187,21 @@ def _run_cloak_registration_impl(
         try:
             from config import codex as _codex_cfg
             if bool(getattr(_codex_cfg, "ENABLE_CODEX_AUTO", False)):
-                oauth_driver = str(getattr(_codex_cfg, "CODEX_OAUTH_DRIVER", "") or "").strip().lower()
-                # 浏览器通道一律走浏览器版 platform 免接码授权：CF 盾、登录态、
-                # Turnstile 都在这个窗口里；授权地址用 platform client（app_2SKx…，
-                # 免手机号）。之前走协议接口（platform 协议版 / CPA 的 CLI client
-                # 浏览器版）都被 CF 或手机验证页挡住——实测 2026-09-22。
-                # clear_existing_state 概念已不适用：新流程不清理任何状态。
-                from core.codex_platform_oauth import run_platform_codex_oauth_browser
-                logger.info(
-                    "[Cloak注册][Codex] 浏览器内走 platform 免接码授权"
-                    "（client=%s，保留注册登录态）",
-                    "app_2SKx(platform)",
-                )
+                # 浏览器通道复用当前窗口跑 CLI 授权：CF 盾和注册登录态都在这个
+                # 窗口里。clear_existing_state=False 保留登录态，避免重新走一遍
+                # 邮箱验证。新账号缺 Codex 权益时授权流程会出手机验证页，由
+                # 接码渠道完成（这是拿到能出量的 Codex 凭证的唯一途径）。
+                from core.browser_codex_oauth import run_browser_codex_oauth
+                logger.info("[Cloak注册][Codex] 复用当前 CloakBrowser 窗口执行 Codex 授权（保留登录态）")
                 _check_manual_stop()
-                codex_result = run_platform_codex_oauth_browser(driver, email, proxy=proxy)
+                codex_result = run_browser_codex_oauth(
+                    email,
+                    reuse_existing_profile=True,
+                    existing_driver=driver,
+                    existing_opened=opened,
+                    force=True,
+                    clear_existing_state=False,
+                )
             else:
                 logger.info("[Cloak注册][Codex] ENABLE_CODEX_AUTO=False，注册后跳过 Codex OAuth")
         except Exception as exc:

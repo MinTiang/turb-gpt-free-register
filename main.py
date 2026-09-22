@@ -511,9 +511,8 @@ def run_registration(
             logger.debug("已跳过 2FA 设置 (config.ENABLE_2FA=False)")
 
         # ==================== 阶段 7.5: Codex OAuth（注册成功→拿回调/CPA凭证）====================
-        # 复用注册阶段已登录的 session（cookie/device_id/代理与注册完全一致）：
-        #   - CODEX_OAUTH_DRIVER=platform 免接码：登录态直接放行，零验证码（grok2api 同款做法）；
-        #   - 其余驱动在各自内部自建/自管会话，session 参数仅 platform 免接码驱动消费。
+        # 复用注册阶段已登录的 session（cookie/device_id/代理与注册完全一致）；
+        # 其余驱动在各自内部自建/自管会话，session 参数由 codex 授权入口自行消费。
         # 产出：
         #   1) codex_result["callback_url"]  命中 redirect_uri 的整条 Location（携带 code/state）
         #   2) codex_result["file_path"]     CPA 可直接导入的 codex-{email}.json

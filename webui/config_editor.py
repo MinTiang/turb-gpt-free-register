@@ -171,11 +171,7 @@ EDITABLE_FIELDS = [
 
     {
         "key": "CODEX_OAUTH_DRIVER", "file": "codex.py", "type": "str", "group": "Codex",
-        "label": "Codex授权驱动", "help": "platform=免接码（platform OAuth 直接换 token 上传 CPA，无需接码短信，忽略授权地址来源）；protocol=原协议授权；cloak=用 CloakBrowser；same_as_registration=跟随注册驱动",
-    },
-    {
-        "key": "PLATFORM_OAUTH_UPLOAD_TO_CPA", "file": "codex.py", "type": "bool", "group": "Codex",
-        "label": "Platform凭证上传CPA", "help": "platform 免接码驱动换 token 成功后自动上传 CPA auth-files；关闭则仅本地保存（SQLite）",
+        "label": "Codex授权驱动", "help": "protocol=协议接码授权（手机验证走接码渠道）；cloak=用 CloakBrowser 窗口授权；same_as_registration=跟随注册驱动",
     },
     {
         "key": "ENABLE_2FA", "file": "twofa.py", "type": "bool", "group": "功能开关",

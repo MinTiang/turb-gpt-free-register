@@ -1431,8 +1431,8 @@ def _save_sub2_local_record(
 def _maybe_push_to_codex2api(result: dict, driver: str) -> None:
     """授权成功后把账号推送到 codex2api（ENABLE_CODEX2API_PUSH 打开时）。
 
-    两种授权带的参数不同：platform 用官网 client，接码用 Codex CLI client，
-    见 core/codex2api_push.py。推送失败只告警，不影响授权结果与 CPA 上传。
+    推送时带 Codex CLI client 标识，见 core/codex2api_push.py。
+    推送失败只告警，不影响授权结果与 CPA 上传。
     """
     try:
         from config import codex as _cfg2
@@ -1457,24 +1457,19 @@ def run_codex_oauth(
     force: bool = False,
     _cpa_reauth_round: int = 1,
     session=None,
-    cookies=None,
 ) -> dict:
     """
     注册成功后的 Codex OAuth 授权入口。
 
-    platform 免接码驱动优先复用注册流程保留下来的已登录 BrowserSession（对齐 grok2api
-    extract_platform_oauth_credentials：同一登录会话再发一次 platform authorize，零邮箱验证码）。
-    传 session=None 时回退为「全新 session 重登录」，兜底消耗 1 封邮箱 OTP（其余驱动同）。
+    传 session（注册流程已登录的 BrowserSession）时复用其上下文；否则全新 session
+    重登录，兜底消耗 1 封邮箱 OTP。
 
     Args:
         email: 已注册成功的账号邮箱
         otp_provider: 邮箱 OTP 获取回调 fn(email, after_ts)->code，默认用 wait_for_otp
         proxy: 代理（不传从 PROXY_POOL 抽）
         force: True 时跳过 ENABLE_CODEX_AUTO 开关限制，供手动补跑使用
-        session: 可选，注册流程已登录的 BrowserSession（protocol 驱动注册后传入，platform 免接码复用其登录态）
-        cookies: 可选，浏览器导出的 cookie（cloak 驱动注册后传入）。浏览器会话无法
-            直接交给协议层，改为导出 cookie 注入新建的 BrowserSession 以复用登录态；
-            缺它时 platform authorize 要走全新登录，更容易撞上 CF 质询。
+        session: 可选，注册流程已登录的 BrowserSession（protocol 驱动注册后传入）
 
     Returns:
         结构化结果 dict。任何异常都被吞掉转 status=failed，不向上抛，不影响注册主流程。
@@ -1484,7 +1479,7 @@ def run_codex_oauth(
     if not email:
         return _codex_result(status="skipped", message="email 为空")
 
-    # 精简后 Codex OAuth 只支持：platform（免接码协议）、protocol（纯协议）、
+    # Codex OAuth 支持：protocol（纯协议接码）、
     # cloak（CloakBrowser 真实浏览器跑页面并捕获 localhost callback）。
     try:
         from config import codex as _codex_cfg
@@ -1492,11 +1487,6 @@ def run_codex_oauth(
         if oauth_driver == "same_as_registration":
             from config import register as _register_cfg
             oauth_driver = str(getattr(_register_cfg, "REGISTRATION_DRIVER", "protocol") or "protocol").strip().lower()
-        if oauth_driver in ("platform", "platform_free", "grok2api"):
-            # platform 免接码驱动（grok2api 移植）：纯协议流程，本地 PKCE + 换 token + 上传 CPA auth-files，
-            # 忽略 CODEX_AUTH_URL_SOURCE。
-            from core.codex_platform_oauth import run_platform_codex_oauth
-            return run_platform_codex_oauth(email, otp_provider=otp_provider, proxy=proxy, force=True, session=session)
         if oauth_driver in ("cloak", "cloakbrowser"):
             from config import cloakbrowser as _cloak_cfg
             from core.cloakbrowser_driver import build_cloak_driver
@@ -1520,7 +1510,7 @@ def run_codex_oauth(
                     except Exception:
                         pass
         if oauth_driver not in ("protocol", "api", "http"):
-            raise RuntimeError(f"[Codex] 不支持的 CODEX_OAUTH_DRIVER={oauth_driver!r}，可选 platform / protocol / cloak")
+            raise RuntimeError(f"[Codex] 不支持的 CODEX_OAUTH_DRIVER={oauth_driver!r}，可选 protocol / cloak")
     except ImportError:
         # 没装 Cloak 依赖时继续走协议模式，保持旧行为。
         pass
@@ -1531,15 +1521,8 @@ def run_codex_oauth(
     # 单次 Codex 授权全程统一身份；下一任务即使是同一账号也生成全新的隔离身份。
     task_seed = f"codex-oauth:{email.lower()}:{uuid.uuid4()}"
     session = BrowserSession(proxy=proxy, fingerprint_seed=task_seed)
-    # 浏览器通道（cloak）注册后传入 cookie：注入后本 session 具备同一登录态，
-    # platform authorize 可像复用注册 session 一样直接放行。
-    if cookies:
-        session.import_cookies(cookies)
     try:
-        logger.info(
-            "[Codex] 开始授权（%s）：%s",
-            "复用浏览器登录态" if cookies else "全新 session", email,
-        )
+        logger.info(f"[Codex] 开始授权（全新 session）：{email}")
         logger.info(
             "[Codex] 统一指纹上下文：device_id=%s oai_session_id=%s auth_session_logging_id=%s %s",
             session.device_id,
