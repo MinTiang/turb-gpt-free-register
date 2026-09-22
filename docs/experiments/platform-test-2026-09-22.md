@@ -215,3 +215,71 @@ r = cr.post("https://auth.openai.com/oauth/token",
 2. **考虑 FlareSolverr**:grok2api 用它刷新 CF clearance,可能同时降低 platform 端风控评分
 3. **验证登录态传递**:检查注册完成后的 session 为何在 platform 侧不被识别为已登录
 4. **串行化 + 间隔**:grok2api 用 `wait_interval=2` 且单线程;批量时应加请求间隔
+
+---
+
+# 对比实验: 429/403 根因定位 (2026-09-22 上午 补充)
+
+## 实验结论: 不是代码问题,是节点层的 CF 拦截概率
+
+### 关键实验数据
+
+**实验1: 极简头 vs 完整头(交错对照,同节点)**
+| 请求方式 | 通过率 |
+|---|---|
+| 极简头(oai-device-id + accept) | 6/6 ✅ |
+| 完整浏览器头 | 6/6 ✅ |
+→ **头完整度不是主因**
+
+**实验2: 逐参数添加(8 个参数单独+组合)**
+| 参数 | 结果 |
+|---|---|
+| 基线 / +login_hint / +code_challenge / +nonce / +state / +auth0Client / +max_age / +response_mode | 全部 ✅ |
+| 全参数(真实流程同款) | ✅ 302 |
+→ **URL 参数不是主因**
+
+**实验3: 逐层剥离(inner session / BrowserSession.get / _with_net_retry)**
+| 层级 | 结果 |
+|---|---|
+| inner session.get | ✅ 200 |
+| BrowserSession.get | ✅ 200 |
+| _with_net_retry(s.get) | ✅ 200 |
+→ **BrowserSession 封装层不是主因**
+
+**实验4: 量化采样(每节点 10 次)**
+| 节点 | 通过率 |
+|---|---|
+| 9极限白嫖https🇺🇸美国 | **5/10** |
+| 14极限白嫖https🇺🇸美国 | **5/10** |
+
+→ **通过率稳定 50%,随机分布(OK/CF/CF/OK/OK/CF...)**,证明是**节点层的 CF 拦截概率**
+
+### 最终结论
+
+**429 和 403 是同一风控的两种表现,根源是免费节点的 IP 质量:**
+1. CF 在 `auth.openai.com/api/accounts/authorize` 上做概率性拦截(约 50%)
+2. 被拦 → CF 质询页(403 "Just a moment")
+3. 未通过质询继续请求 → 升级为 429 rate_limit
+4. 换节点/换 IP 段**不改变概率**(因为所有免费节点 IP 段都被标记)
+
+### 为什么 grok2api "没有 429"
+
+grok2api 的差异**不在请求构造**(我们已逐项对齐:oai-did cookie / oai-device-id / screen_hint / trace 头),
+而在:
+1. **FlareSolverr clearance 刷新** —— 被 CF 拦时主动刷新 `cf_clearance` cookie,我们缺这个
+2. **wait_interval=2s + 单线程** —— 不会因连续重试把会话打脏
+
+### 建议
+
+**短期(不改代码)**: 接受 50% 通过率,靠重试补偿 —— 每次授权失败后换节点重试,平均 2 次成功
+```python
+# 授权失败后自动换节点重试
+for attempt in range(5):
+    r = run_codex_oauth(email, force=True)
+    if r.get("ok"): break
+    switch_node(random_node())  # 换节点
+```
+
+**中期**: 引入 FlareSolverr(需 Docker 部署 flaresolverr + privoxy),被拦时刷新 clearance
+
+**长期**: 使用住宅/ISP 代理(非免费节点),CF 通过率应显著提升
