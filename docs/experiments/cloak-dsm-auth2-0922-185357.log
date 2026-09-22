@@ -1,0 +1,139 @@
+>>> 邮箱: 
+18:53:58 [INFO] [Cloak] 出口IP地理信息：ip=158.180.85.221 country=KR city=Chuncheon timezone=Asia/Seoul
+18:53:58 [INFO] [Cloak] 启动 CloakBrowser：headless=False humanize=True geoip=True proxy=http://127.0.0.1:7897 locale=ko-KR timezone=Asia/Seoul accept_language=ko-KR,ko;q=0.9,en-US;q=0.8,en;q=0.7 persistent=False
+18:53:59 [INFO] HTTP Request: GET https://pypi.org/pypi/cloakbrowser/json "HTTP/1.1 200 OK"
+18:54:00 [INFO] HTTP Request: GET https://api.ipify.org "HTTP/1.1 200 OK"
+18:54:01 [INFO] [Cloak注册] 开始：，profile=cloakbrowser
+18:54:01 [INFO] [Cloak注册] 打开登录页：https://chatgpt.com/auth/login
+18:54:08 [INFO] [Outlook] 选中账号: wodhjyy11706@outlook.com（DB id=21）
+18:54:08 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=wodhjyy11706@outlook.com
+18:54:08 [INFO] [EmailProvider] 已找到邮箱输入框，开始分配邮箱: wodhjyy11706@outlook.com
+18:54:13 [INFO] [Cloak注册] 已填写邮箱并校验通过：wodhjyy11706@outlook.com
+18:54:17 [INFO] [Cloak注册] 邮箱提交前状态稳定：{'ok': True, 'value': 'wodhjyy11706@outlook.com', 'active': True, 'hasForm': True, 'hasSubmit': True, 'submitDisabled': False, 'url': 'https://chatgpt.com/auth/login'}
+18:54:18 [INFO] [Cloak注册] 邮箱稳定表单提交：{'ok': True, 'reason': 'stable_async_enter_click', 'value': 'wodhjyy11706@outlook.com', 'submitDisabled': False, 'submitAttrs': 'submit btn relative group-focus-within/dialog:focus-visible:[outline-width:1.5px] group-focus-within/dialog:focus-visible:[outline-offset:2.5px] group-focus-within/dialog:focus-vis', 'url': 'https://chatgpt.com/auth/login'}
+18:54:19 [INFO] [Cloak注册] 已提交邮箱，等待进入密码页或验证码页（1/3）
+18:54:22 [INFO] [Cloak注册] 邮箱提交后已进入下一步：otp
+18:54:22 [INFO] [Cloak注册] 无密码模式：验证码页不切密码分支，直接交给 OTP 流程：email=wodhjyy11706@outlook.com
+18:54:22 [INFO] [Cloak注册][OTP] 等待验证码：wodhjyy11706@outlook.com（第 1/3 次）
+18:54:22 [INFO] [Outlook] 开始轮询 wodhjyy11706@outlook.com 的收件箱（mode=auto, Graph + IMAP 本地直连，REST 兜底），最长 90s, settle=5s...
+18:54:25 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+18:54:25 [INFO] [Outlook] 邮件诊断 top=[{'p': 'remote_graph', 'date': '2026-08-31T20:32:06Z', 'openai': False, 'after': False, 'otp': False, 'subject': '连接到 Microsoft 帐户的新应用'}]
+18:54:25 [INFO] [Outlook] 暂未收到符合条件的 OpenAI 邮件，3s 后重试（剩余 87s）...
+18:54:28 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+18:54:28 [INFO] [Outlook] 首次锁定 OTP=603442, source=remote_graph, ts=2026-09-22T10:54:26Z, subject='ChatGPT 임시 인증 코드', 等 5s 看是否有更晚邮件...
+18:54:28 [INFO] [Outlook] 已锁定候选 OTP=603442，等 settle 中（剩余 settle ~4s, 总剩余 83s）...
+18:54:32 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+18:54:32 [INFO] [Outlook] 已锁定候选 OTP=603442，等 settle 中（剩余 settle ~1s, 总剩余 79s）...
+18:54:36 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+18:54:36 [INFO] [Outlook] settle 完成，返回 OTP=603442, source=remote_graph, protocol=graph, subject='ChatGPT 임시 인증 코드'
+18:54:36 [INFO] [Cloak注册][OTP] 收到验证码：603442
+18:54:37 [INFO] [Cloak注册] OTP 输入框(JS 定位): selector=#_r_5_-code
+18:54:39 [INFO] [Cloak注册] OTP 回读校验一致:603442
+18:54:50 [INFO] [Cloak注册] 检测到资料页，开始填写姓名生日：url=https://auth.openai.com/about-you inputs=[{'tag': 'INPUT', 'type': 'text', 'name': 'name', 'id': '_r_i_-name', 'placeholder': '성명', 'autocomplete': 'name', 'aria': '', 'value': '', 'visible': True}, {'tag': 'INPUT', 'type': 'number', 'name': 'age', 'id': '_r_i_-age', 'placeholder': '연령', 'autocomplete': 'off', 'aria': '', 'value': '', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'allCheckboxes', 'id': '_r_i_-allCheckboxes', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'personalInfoConsent', 'id': '_r_i_-personalInfoConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'thirdPartyConsent', 'id': '_r_i_-thirdPartyConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}, {'tag': 'INPUT', 'type': 'checkbox', 'name': 'overseasTransferConsent', 'id': '_r_i_-overseasTransferConsent', 'placeholder': '', 'autocomplete': '', 'aria': '', 'value': 'on', 'visible': True}]
+18:54:54 [INFO] [Cloak注册] 已填写姓名字段：Charlotte Lee
+18:54:54 [INFO] [Cloak注册] 已填写年龄字段：56
+18:54:54 [INFO] [Cloak注册] 已勾选 about-you/profile 同意协议复选框：['allCheckboxes']
+18:54:57 [INFO] [Cloak注册] 已点击资料页提交按钮，等待 OAuth 跳转
+18:55:09 [INFO] [Cloak注册] /api/auth/session 已返回 accessToken
+18:55:09 [INFO] [Cloak注册] 已拿到 accessToken：wodhjyy11706@outlook.com
+18:55:09 [INFO] [Cloak注册][Codex] 浏览器内走 platform 免接码授权（client=app_2SKx(platform)，保留注册登录态）
+18:55:09 [INFO] [Codex][Platform][Browser] 打开 platform 授权页：wodhjyy11706@outlook.com（device_id=951e77f1…）
+18:55:09 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [{"type": "file", "name": "", "id": "upload-photos"}, {"type": "file", "name": "upload-media", "id": "upload-media"}, {"type": "file", "name": "", "id": "upload-camera"}], "buttons": ["", "검색", "최근 채팅", ""], "title": "ChatGPT"}
+18:55:19 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:55:29 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:55:40 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:55:50 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:56:00 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:56:10 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:56:20 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:56:31 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:56:41 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:56:51 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:57:01 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:57:11 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:57:21 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:57:32 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:57:42 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:57:52 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:58:02 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:58:12 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:58:23 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:58:33 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:58:43 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:58:53 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:59:03 [INFO] [Codex][Platform][Browser] 页面快照 url=https://chatgpt.com/ state={"inputs": [], "buttons": ["계속", "", "검색", ""], "title": "ChatGPT"}
+18:59:09 [WARNING] [Codex][Platform][Browser] 失败：wodhjyy11706@outlook.com，RuntimeError: [Codex][Platform][Browser] 等待 platform callback 超时，最后 URL=https://chatgpt.com/
+18:59:09 [INFO] [Cloak注册] 注册成功后随机停留 21.4s：wodhjyy11706@outlook.com
+18:59:31 [INFO] [Cloak注册] 停留结束,开始收尾(流量统计→入库)
+18:59:31 [INFO] [Cloak] 注册浏览器网络流量：上传 6402.03 KiB，下载 10241.09 KiB，合计 16643.12 KiB，HTTP请求 676（失败 4，未完成 0）
+18:59:31 [INFO] [Cloak注册] 收尾完成,入库账号
+18:59:31 [INFO] [Save] 账号及凭证已保存到 SQLite, id=24, email=wodhjyy11706@outlook.com
+18:59:31 [INFO] [Plan] 注册后自动套餐查询已跳过: id=24, email=wodhjyy11706@outlook.com
+
+=== RESULT ===
+{
+ "success": false,
+ "email": "wodhjyy11706@outlook.com",
+ "account_id": 24,
+ "totp_secret": null,
+ "codex": {
+  "status": "failed",
+  "ok": false,
+  "http_status": null,
+  "email": "wodhjyy11706@outlook.com",
+  "file_path": null,
+  "callback_url": null,
+  "message": "RuntimeError: [Codex][Platform][Browser] 等待 platform callback 超时，最后 URL=https://chatgpt.com/"
+ },
+ "network_traffic": {
+  "available": true,
+  "method": "playwright.request.sizes",
+  "label": "Cloak",
+  "started_at": "2026-09-22T10:54:00.996+00:00",
+  "finished_at": "2026-09-22T10:59:31.187+00:00",
+  "duration_seconds": 330.191,
+  "upload_bytes": 6555674,
+  "download_bytes": 10486878,
+  "total_bytes": 17042552,
+  "http_upload_bytes": 6555376,
+  "http_download_bytes": 10486507,
+  "websocket_upload_bytes": 298,
+  "websocket_download_bytes": 371,
+  "request_count": 676,
+  "completed_request_count": 672,
+  "failed_request_count": 4,
+  "unfinished_request_count": 0,
+  "unknown_size_request_count": 40,
+  "websocket_count": 1,
+  "detail_log_enabled": false,
+  "detail_log_max_entries": 2000,
+  "detail_recorded_count": 0,
+  "js_coverage": {
+   "enabled": false,
+   "supported": null,
+   "target_count": 0,
+   "started_target_count": 0,
+   "collected": false,
+   "script_count": 0,
+   "executed_script_count": 0,
+   "candidate_script_count": 0,
+   "function_count": 0,
+   "executed_function_count": 0,
+   "logged_function_count": 0,
+   "max_entries": 1000,
+   "candidate_scripts": [],
+   "scripts": [],
+   "error": null
+  },
+  "note": "浏览器侧 HTTP 请求/响应字节（含可获取的请求/响应头和主体）；另计 WebSocket 帧 payload；不含 TLS/IP/代理隧道开销",
+  "data_saver_enabled": false,
+  "data_saver_method": "disabled",
+  "data_saver_blocked_resource_types": [],
+  "data_saver_blocked_url_patterns": [],
+  "data_saver_blocked_count": 0,
+  "data_saver_blocked_by_type": {},
+  "data_saver_blocked_by_url_pattern": {}
+ },
+ "error": "Codex 未完成: RuntimeError: [Codex][Platform][Browser] 等待 platform callback 超时，最后 URL=https://chatgpt.com/",
+ "access_token": "<1928 chars>"
+}

@@ -930,6 +930,13 @@ def _browser_handle_email_otp(driver, email: str, otp_provider, used_codes: set)
     return True
 
 
+def _is_auth_host_url(url: str) -> bool:
+    try:
+        return (urlparse(url or "").hostname or "").lower().endswith("auth.openai.com")
+    except Exception:
+        return False
+
+
 def _browser_has_email_input(driver) -> bool:
     """页面是否真有可见的邮箱输入框（DOM 判定，避免把其它页误当登录页反复填写）。"""
     try:
@@ -1099,6 +1106,7 @@ def run_platform_codex_oauth_browser(driver, email: str, *, proxy: str | None = 
             "audience": _platform_cfg("PLATFORM_OAUTH_AUDIENCE", "https://api.openai.com/v1"),
             "redirect_uri": _platform_callback_url(),
             "device_id": device_id,
+            "screen_hint": "login",
             "max_age": "0",
             "login_hint": email,
             "scope": _platform_cfg("PLATFORM_OAUTH_SCOPE", "openid profile email offline_access"),
@@ -1118,7 +1126,37 @@ def run_platform_codex_oauth_browser(driver, email: str, *, proxy: str | None = 
         except Exception:
             pass
 
-        # 2. 动态状态机一路处理到 callback：邮箱输入/OTP/账号选择/consent 全部
+        # 2. 导航 + 记录重定向链（18:55 实测：无 screen_hint 时被重定向回
+        #    chatgpt.com 首页，OAuth 流程根本没启动；链路日志用于定位这类问题）
+        def _nav_and_trace() -> list[str]:
+            chain: list[str] = []
+            try:
+                driver.get(auth_url)
+            except Exception as exc:
+                logger.warning(f"[Codex][Platform][Browser] driver.get 异常（继续读当前页）：{str(exc)[:120]}")
+            trace_end = time.time() + 20.0
+            while time.time() < trace_end:
+                try:
+                    u = str(driver.current_url or "")
+                except Exception:
+                    u = ""
+                if u and (not chain or chain[-1] != u):
+                    chain.append(u)
+                    logger.info(f"[Codex][Platform][Browser] 重定向 → {u[:130]}")
+                if _is_platform_callback(u) or _is_auth_host_url(u):
+                    # 已到 auth.openai.com 或 callback，链路稳定，提前结束
+                    if _is_platform_callback(u) or _url_path(u) not in ("", "/"):
+                        break
+                time.sleep(0.5)
+            return chain
+
+        chain = _nav_and_trace()
+        if not any(_is_auth_host_url(u) for u in chain):
+            # 授权页没进 auth.openai.com（被带去 chatgpt.com 等）：再试一次
+            logger.warning("[Codex][Platform][Browser] 未进入 auth.openai.com，重试导航（第 2 次）")
+            chain = _nav_and_trace()
+
+        # 3. 动态状态机一路处理到 callback：邮箱输入/OTP/账号选择/consent 全部
         #    在轮询循环里按当前页面动态分支，不预设顺序，任何意外页面只是多等一轮
         callback_url = _browser_wait_platform_callback(driver, email, timeout, otp_provider=otp_provider)
         params_cb = _extract_callback_params(callback_url)
