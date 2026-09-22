@@ -470,11 +470,12 @@ def _run_cloak_registration_impl(
                 outcome = _wait_after_email_otp_submit(driver, timeout=10)
                 logger.info("[Cloak注册][页面机][OTP] 提交后状态:%s", outcome)
                 if outcome != "accepted":
-                    otp_after_ts = time.time()
-                    resend = _click_resend_email_otp(driver, timeout=25)
-                    if resend.get("reason") == "left_verification_page":
-                        continue
-                    human_delay("api")
+                    # 页面可能已跳走(实测: 提交后进重置密码页, 再点"重发"会误点别的按钮
+                    # 并反复取同一封旧码)。只有确认仍在验证码页才重发。
+                    if _is_email_verification_page(driver):
+                        otp_after_ts = time.time()
+                        _click_resend_email_otp(driver, timeout=25)
+                        human_delay("api")
                 continue
 
             # 邮箱输入页再现(登录流重启):重填邮箱(最多再填 2 次)
@@ -597,13 +598,17 @@ def _run_cloak_registration_impl(
         try:
             if email:
                 from core.email_provider import release_email
-                _perm = any(k in str(exc) for k in ("停用/封禁", "重置密码页", "废号", "该邮箱作废", "邮箱疑似死号"))
+                # 死邮箱(停用): 多轮完全收不到邮件, 邮箱本身不可用
                 if "邮箱疑似死号" in str(exc):
                     _rel = "disabled"
+                    logger.warning("[Cloak注册] 邮箱疑似死号,标记停用: %s", email)
+                # 流程失败但邮箱是活的(OTP 无效/重置未完成/账号异常):
+                # 标 failed, 不再自动回池空转, 但可在邮箱库手动改回 available 重试
+                elif any(k in str(exc) for k in ("停用/封禁", "重置密码页", "废号", "该邮箱作废")):
+                    _rel = "failed"
+                    logger.warning("[Cloak注册] 流程失败(邮箱可用),标记 failed 可手动重试: %s", email)
                 else:
-                    _rel = "failed" if (create_acknowledged or _perm) else "available"
-                if _perm:
-                    logger.warning("[Cloak注册] 永久性失败,邮箱标记 failed 不再回池: %s", email)
+                    _rel = "failed" if create_acknowledged else "available"
                 release_email(email, status=_rel, note=f"Cloak注册失败: {str(exc)[:180]}")
         except Exception:
             pass
