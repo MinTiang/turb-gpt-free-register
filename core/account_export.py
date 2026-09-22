@@ -313,6 +313,22 @@ def follow_oauth_callback(session: BrowserSession, continue_url: str, referer: s
 
     logger.info(f"[OAuth回调] 跟随 continue_url 完成 OAuth 回调...")
     resp = session.get(continue_url, headers=headers, allow_redirects=True)
+    # CF 拦截回调(403/429)时：重建传输层 + 注入 FlareSolverr clearance 后重试一次
+    # （CLEARANCE_MODE=none 时空操作，行为与原来一致）。
+    try:
+        _status = int(getattr(resp, "status_code", 0) or 0)
+    except Exception:
+        _status = 0
+    if _status in (403, 429):
+        try:
+            from core.openai_auth import _reset_after_challenge, _try_apply_clearance
+            _reset_after_challenge(session)
+            _host = "chatgpt.com" if str(continue_url).startswith("https://chatgpt.com") else "auth.openai.com"
+            if _try_apply_clearance(session, f"https://{_host}/"):
+                logger.warning("[OAuth回调] 回调被拦(status=%s)，已注入 clearance 重试", _status)
+                resp = session.get(continue_url, headers=headers, allow_redirects=True)
+        except Exception as exc:
+            logger.warning("[OAuth回调] clearance 重试异常(忽略): %s: %s", type(exc).__name__, str(exc)[:140])
     # 必须在本阶段暴露 callback 的 403/429；否则 BrowserSession 虽已熔断，
     # 错误却会延迟到 fetch_session，查活无法针对 callback 原请求重试。
     resp.raise_for_status()

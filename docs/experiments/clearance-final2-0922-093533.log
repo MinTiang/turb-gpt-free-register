@@ -1,0 +1,103 @@
+>>> 邮箱: 
+09:35:33 [INFO] [Outlook] 选中账号: wqplzx26927@outlook.com（DB id=9）
+09:35:33 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=wqplzx26927@outlook.com
+09:35:34 [INFO] [指纹] 出口IP地理信息: ip=138.199.35.212 country=US city=Los Angeles timezone=America/Los_Angeles
+09:35:34 [INFO] [注册] 开始：wqplzx26927@outlook.com，代理=socks5h://...sid-***...@socks5h://127.0.0.1:7897
+09:35:34 [INFO] [注册] 本次随机生日: 1976-10-29
+09:35:34 [INFO] [Clearance] 开始刷新 chatgpt.com 的 CF clearance（入口 https://chatgpt.com/log-in，FlareSolverr）...
+09:35:46 [INFO] [Clearance] chatgpt.com clearance 刷新完成 (12.4s, 12 cookies: __Host-next-auth.csrf-token, __Secure-next-auth.callback-url, __cf_bm, __cflb, __obi, _cfuvid, _dd_s, cf_clearance, g_state, oai-did, oai-sc, precise_location_permission) cf_clearance=有
+09:35:46 [INFO] [Clearance] 已为 chatgpt.com 预热并注入 12 个 cookie
+09:35:46 [INFO] [Clearance] 开始刷新 auth.openai.com 的 CF clearance（入口 https://auth.openai.com/log-in，FlareSolverr）...
+09:36:00 [INFO] [Clearance] auth.openai.com clearance 刷新完成 (14.0s, 7 cookies: __cf_bm, __cflb, _cfuvid, _dd_s, cf_clearance, oai-did, oaicom-stable-id) cf_clearance=有
+09:36:00 [INFO] [Clearance] 已为 auth.openai.com 预热并注入 7 个 cookie
+09:36:02 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm']
+09:36:02 [WARNING] [熔断] 当前会话收到 HTTP 403，进入冷却 900s，停止后续请求：https://chatgpt.com/
+09:36:02 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 0 条）
+09:36:02 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (1/5)，已注入 clearance 立即重试
+09:36:03 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm']
+09:36:03 [WARNING] [熔断] 当前会话收到 HTTP 403，进入冷却 900s，停止后续请求：https://chatgpt.com/
+09:36:03 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 0 条）
+09:36:03 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (2/5)，已注入 clearance 立即重试
+09:36:05 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm']
+09:36:05 [INFO] [指纹] 已从 ChatGPT 登录页同步前端版本：build=prod-d0df7dcfc06dadffff6103bf857bfa2689f4969e seq=11131982
+09:36:05 [INFO] [指纹] 已采纳服务端下发的 oai-did=c0fdb897…
+09:36:05 [INFO] [预检:chatgpt-home] 通过 (3/5)
+09:36:08 [INFO] [Bootstrap] 匿名态 ChatGPT 预热开始
+09:36:09 [INFO] [Bootstrap] 匿名态 ChatGPT 预热完成
+09:36:12 [INFO] [步骤2.5] 导航 /auth/login_with（对齐真实页面链路）...
+09:36:13 [INFO] [步骤2.5] login_with 导航完成: https://chatgpt.com/auth/login_with?callback_path=%2F&screen_hint=signup&login_hint=wqplzx26927%40outlook.com&auth_session_logging_id=bcaf4a48-730c-4dec-ae60-2c
+09:36:15 [INFO] [步骤1] 获取 OAuth Providers...
+09:36:15 [INFO] [步骤1] 成功获取 4 个 providers: ['openai', 'openai-dev', 'openai-sidetron', 'openai-sidetron-dev']
+09:36:15 [INFO] [步骤2] 获取 CSRF Token...
+09:36:16 [INFO] [步骤2] 获取 CSRF Token 成功: 14e08e912431295bebce...
+09:36:17 [INFO] [步骤3] 发起 OAuth Signin 请求, 邮箱: wqplzx26927@outlook.com
+09:36:17 [INFO] [步骤3] 获取 authorize URL 成功，已确认 signup/oai-did 上下文
+09:36:18 [INFO] [步骤4] 跟随 authorize URL 重定向 (尝试 1/5)...
+09:36:19 [INFO] [CF] Cookie 状态更新 url=https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=c0fdb897-838b-4111-ad5d-2303422fd98a&prompt=login&screen_hint=signup&ext-oai-did=c0fdb897-838b-4111-ad5d-2303422fd98a&auth_session_logging_id=bcaf4a48-730c-4dec-ae60-2c11b16c20d6&login_hint=wqplzx26927%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=UGKsiEw225EW2Gmihbr18ypBfR7OakLQynNfZEkcMb0 keys=['.auth.openai.com:__cf_bm', '.chatgpt.com:__cf_bm']
+09:36:19 [WARNING] [熔断] 当前会话收到 HTTP 403，进入冷却 900s，停止后续请求：https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=c0fdb897-838b-4111-ad5d-2303422fd98a&prompt=login&screen_hint=signup&ext-oai-did=c0fdb897-838b-4111-ad5d-2303422fd98a&auth_session_logging_id=bcaf4a48-730c-4dec-ae60-2c11b16c20d6&login_hint=wqplzx26927%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=UGKsiEw225EW2Gmihbr18ypBfR7OakLQynNfZEkcMb0
+09:36:19 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 11 条）
+09:36:19 [WARNING] [步骤4] authorize 临时失败 (HTTPError: HTTP Error 403: )，1.0s 后重试...
+09:36:20 [INFO] [步骤4] 跟随 authorize URL 重定向 (尝试 2/5)...
+09:36:22 [INFO] [CF] Cookie 状态更新 url=https://auth.openai.com/api/accounts/authorize?client_id=app_X8zY6vW2pQ9tR3dE7nK1jL5gH&scope=openid%20email%20profile%20offline_access%20model.request%20model.read%20organization.read%20organization.write&response_type=code&redirect_uri=https%3A%2F%2Fchatgpt.com%2Fapi%2Fauth%2Fcallback%2Fopenai&audience=https%3A%2F%2Fapi.openai.com%2Fv1&device_id=c0fdb897-838b-4111-ad5d-2303422fd98a&prompt=login&screen_hint=signup&ext-oai-did=c0fdb897-838b-4111-ad5d-2303422fd98a&auth_session_logging_id=bcaf4a48-730c-4dec-ae60-2c11b16c20d6&login_hint=wqplzx26927%40outlook.com&ccaps=login_methods%20chatgpt_login_finalizer_v1&auth_return_target_category=chatgpt_home&state=UGKsiEw225EW2Gmihbr18ypBfR7OakLQynNfZEkcMb0 keys=['.auth.openai.com:__cf_bm']
+09:36:22 [INFO] [步骤4] 重定向完成, 最终URL: https://auth.openai.com/email-verification
+09:36:25 [INFO] [OTP] 等待验证码：wqplzx26927@outlook.com（第 1/3 次）
+09:36:25 [INFO] [Outlook] 开始轮询 wqplzx26927@outlook.com 的收件箱（mode=auto, Graph + IMAP 本地直连，REST 兜底），最长 90s, settle=5s...
+09:36:28 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+09:36:28 [INFO] [Outlook] 邮件诊断 top=[{'p': 'remote_graph', 'date': '2026-09-22T01:36:27Z', 'openai': True, 'after': True, 'otp': True, 'subject': 'Your temporary ChatGPT verification code'}, {'p': 'remote_graph', 'date': '2026-08-30T03:07:12Z', 'openai': False, 'after': False, 'otp': False, 'subject': '连接到 Microsoft 帐户的新应用'}]
+09:36:28 [INFO] [Outlook] 首次锁定 OTP=406507, source=remote_graph, ts=2026-09-22T01:36:27Z, subject='Your temporary ChatGPT verification code', 等 5s 看是否有更晚邮件...
+09:36:28 [INFO] [Outlook] 已锁定候选 OTP=406507，等 settle 中（剩余 settle ~4s, 总剩余 86s）...
+09:36:32 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+09:36:32 [INFO] [Outlook] 已锁定候选 OTP=406507，等 settle 中（剩余 settle ~1s, 总剩余 83s）...
+09:36:36 [WARNING] [Outlook] imap 请求失败: secure_post https://mail.chatai.codes/api/fetch-imap HTTP 501: {"success":false,"protocol":"imap","code":"IMAP_REQUIRES_CONTAINER","error":"Cloudflare Workers 免费运行时不支持当前 IMAP TCP/TLS 实现；请使用 Graph 或开通 Workers Paid 后部署 Containers 版","reason":"IMAP 需要连接 outlook.offi
+09:36:36 [INFO] [Outlook] settle 完成，返回 OTP=406507, source=remote_graph, protocol=graph, subject='Your temporary ChatGPT verification code'
+09:36:42 [INFO] [CF] Cookie 状态更新 url=https://sentinel.openai.com/backend-api/sentinel/frame.html?sv=20260810913b keys=['.auth.openai.com:__cf_bm', '.sentinel.openai.com:__cf_bm']
+09:36:42 [INFO] [Sentinel] 请求 sentinel token, flow=email_otp_validate
+09:36:43 [INFO] [Sentinel] 获取 sentinel token 成功, persona=chatgpt-noauth
+09:36:43 [INFO] [Sentinel] 需要 PoW: seed=0.25051911267543425, difficulty=06564c
+09:36:43 [INFO] [Sentinel] 服务端要求项: ['turnstile', 'so', 'pow']
+09:36:43 [INFO] [SentinelRunner] 调用 Node 生成 token, flow=email_otp_validate
+09:36:43 [INFO] [SentinelRunner] token 生成成功, flow=email_otp_validate, 包含 turnstile=True, 包含 so=True, 字段: {'p': 613, 't': 1028, 'c': 2360, 'id': 36, 'flow': 18, '_so': 628}
+09:36:43 [INFO] [Sentinel] 检测到 SO 字段，已构建 so-token 头
+09:36:45 [INFO] [步骤10] 已添加 openai-sentinel-so-token 头
+09:36:45 [INFO] [步骤10] 提交邮箱验证码: 406507
+09:36:46 [INFO] [步骤10] 验证码验证成功: about_you
+09:36:46 [INFO] [步骤10] 验证响应摘要: {"continue_url": "https://auth.openai.com/about-you", "method": "GET", "page": {"type": "about_you", "backstack_behavior": "default"}, "oai-client-auth-session": {"app_name_enum": "chat", "auth_session_logging_id": "bcaf4a48-730c-4dec-ae60-2c11b16c20d6", "country_code_hint": "US", "destination_app_name": "ChatGPT Web", "email": "wqplzx26927@outlook.com", "email_verification_mode": "passwordless_signup", "openai_client_id": "app_X8zY6vW2pQ9tR3dE7nK1jL5gH", "original_screen_hint": "signup", "passwordless_disabled": false, "passwordless_otp_from_password_redirect": false, "passwordless_signup_from_default_redirect": true, "promo": "", "requested_oauth_scopes": ["email", "model.read", "model.request", "offline_access", "openid", "organization.read", "organization.write", "profile"], "session_id": "authsess_wWaeDyUFrupK4UQ5ozFMAQjJ", "signup_mode": "email_signup", "signup_source": "", "username": {"kind": "email", "value": "wqplzx26927@outlook.com"}, "email_verified": true, "about_you_train
+09:36:46 [INFO] [步骤10] 后续分支判断: page_type=about_you, has_continue_url=True
+09:36:46 [INFO] [步骤10.5] 导航到 about-you 页面，建立资料页状态
+09:36:47 [INFO] [步骤10.5] about-you 导航完成，落点: https://auth.openai.com/about-you
+09:36:48 [INFO] [Sentinel] 请求 sentinel token, flow=oauth_create_account
+09:36:49 [INFO] [Sentinel] 获取 sentinel token 成功, persona=chatgpt-noauth
+09:36:49 [INFO] [Sentinel] 需要 PoW: seed=0.44528875509541643, difficulty=061a80
+09:36:49 [INFO] [Sentinel] 服务端要求项: ['turnstile', 'so', 'pow']
+09:36:49 [INFO] [SentinelRunner] 调用 Node 生成 token, flow=oauth_create_account
+09:36:50 [INFO] [SentinelRunner] token 生成成功, flow=oauth_create_account, 包含 turnstile=True, 包含 so=True, 字段: {'p': 537, 't': 1052, 'c': 2360, 'id': 36, 'flow': 20, '_so': 628}
+09:36:50 [INFO] [Sentinel] 检测到 SO 字段，已构建 so-token 头
+09:36:54 [INFO] [步骤12] 已添加 openai-sentinel-so-token 头
+09:36:54 [INFO] [步骤12] 提交用户信息, 名称: Gerald Rodriguez, 生日: 1976-10-29
+09:37:00 [INFO] [步骤12] 创建接口返回成功，等待 OAuth 回调建立登录态
+09:37:00 [INFO] [注册] 创建接口已通过：wqplzx26927@outlook.com，继续完成 OAuth 回调
+09:37:04 [INFO] [登录态] 完成 OAuth 回调并拉取 Token：wqplzx26927@outlook.com (尝试 1/5)
+09:37:04 [INFO] [OAuth回调] 跟随 continue_url 完成 OAuth 回调...
+09:37:05 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/api/auth/callback/openai?code=ac_Ki4SyMQWJONmuY2Qsb94ekCIXNVpdVUj_XUo_04BbKA.I6rwDDMEL79oCfkXlOo-wpAxA7qbJz_ST59Y_zkL3po&scope=openid+email+profile+offline_access+model.request+model.read+organization.read+organization.write&state=UGKsiEw225EW2Gmihbr18ypBfR7OakLQynNfZEkcMb0 keys=['.auth.openai.com:__cf_bm', '.chatgpt.com:__cf_bm', '.sentinel.openai.com:__cf_bm']
+09:37:05 [WARNING] [熔断] 当前会话收到 HTTP 403，进入冷却 900s，停止后续请求：https://chatgpt.com/api/auth/callback/openai?code=ac_Ki4SyMQWJONmuY2Qsb94ekCIXNVpdVUj_XUo_04BbKA.I6rwDDMEL79oCfkXlOo-wpAxA7qbJz_ST59Y_zkL3po&scope=openid+email+profile+offline_access+model.request+model.read+organization.read+organization.write&state=UGKsiEw225EW2Gmihbr18ypBfR7OakLQynNfZEkcMb0
+09:37:05 [WARNING] [登录态] 回调或拉取 Token 失败：wqplzx26927@outlook.com，HTTPError: HTTP Error 403: ，1.0s 后重试
+09:37:06 [INFO] [登录态] 完成 OAuth 回调并拉取 Token：wqplzx26927@outlook.com (尝试 2/5)
+09:37:06 [INFO] [OAuth回调] 跟随 continue_url 完成 OAuth 回调...
+09:37:06 [WARNING] [登录态] 回调或拉取 Token 失败：wqplzx26927@outlook.com，RuntimeError: 当前 BrowserSession 已熔断冷却（剩余 898s）：HTTP 403 from https://chatgpt.com/api/auth/callback/openai?code=ac_Ki4SyMQWJONmuY2Qsb94ekCIXNVpdVUj_XUo_04BbKA.I6rwDDMEL79oCfkXlOo-wpAxA7qbJz_ST59Y，2.0s 后重试
+09:37:08 [INFO] [登录态] 完成 OAuth 回调并拉取 Token：wqplzx26927@outlook.com (尝试 3/5)
+09:37:08 [INFO] [OAuth回调] 跟随 continue_url 完成 OAuth 回调...
+09:37:08 [WARNING] [登录态] 回调或拉取 Token 失败：wqplzx26927@outlook.com，RuntimeError: 当前 BrowserSession 已熔断冷却（剩余 896s）：HTTP 403 from https://chatgpt.com/api/auth/callback/openai?code=ac_Ki4SyMQWJONmuY2Qsb94ekCIXNVpdVUj_XUo_04BbKA.I6rwDDMEL79oCfkXlOo-wpAxA7qbJz_ST59Y，4.0s 后重试
+09:37:12 [INFO] [登录态] 完成 OAuth 回调并拉取 Token：wqplzx26927@outlook.com (尝试 4/5)
+09:37:12 [INFO] [OAuth回调] 跟随 continue_url 完成 OAuth 回调...
+09:37:12 [WARNING] [登录态] 回调或拉取 Token 失败：wqplzx26927@outlook.com，RuntimeError: 当前 BrowserSession 已熔断冷却（剩余 892s）：HTTP 403 from https://chatgpt.com/api/auth/callback/openai?code=ac_Ki4SyMQWJONmuY2Qsb94ekCIXNVpdVUj_XUo_04BbKA.I6rwDDMEL79oCfkXlOo-wpAxA7qbJz_ST59Y，8.0s 后重试
+09:37:20 [INFO] [登录态] 完成 OAuth 回调并拉取 Token：wqplzx26927@outlook.com (尝试 5/5)
+09:37:20 [INFO] [OAuth回调] 跟随 continue_url 完成 OAuth 回调...
+09:37:20 [ERROR] [失败] wqplzx26927@outlook.com: RuntimeError: OAuth 回调/拉取 Token 重试耗尽：wqplzx26927@outlook.com，最后错误：RuntimeError: 当前 BrowserSession 已熔断冷却（剩余 884s）：HTTP 403 from https://chatgpt.com/api/auth/callback/openai?code=ac_Ki4SyMQWJONmuY2Qsb94ekCIXNVpdVUj_XUo_04BbKA.I6rwDDMEL79oCfkXlOo-wpAxA7qbJz_ST59Y_zkL3po&scope=openid+email+profile+offline_access+model.request+model.read+organization.read+organization.write&state=UGKsiEw225EW2Gmihbr18ypBfR7OakLQynNfZEkcMb0
+09:37:20 [WARNING] [邮箱:outlook] wqplzx26927@outlook.com 已创建但后续失败，标记为 failed，不再重新注册
+
+=== RESULT ===
+{
+ "success": false,
+ "email": "wqplzx26927@outlook.com",
+ "error": "OAuth 回调/拉取 Token 重试耗尽：wqplzx26927@outlook.com，最后错误：RuntimeError: 当前 BrowserSession 已熔断冷却（剩余 884s）：HTTP 403 from https://chatgpt.com/api/auth/callback/openai?code=ac_Ki4SyMQWJONmuY2Qsb94ekCIXNVpdVUj_XUo_04BbKA.I6rwDDMEL79oCfkXlOo-wpAxA7qbJz_ST59Y_zkL3po&scope=openid+email+profile+offline_access+model.request+model.read+organization.read+organization.write&state=UGKsiEw225EW2Gmihbr18ypBfR7OakLQynNfZEkcMb0"
+}

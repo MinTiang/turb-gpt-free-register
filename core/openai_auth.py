@@ -259,8 +259,50 @@ def _is_cf_challenge_exc(exc: Exception) -> bool:
         return False
 
 
+def _prime_clearance_if_enabled(session: BrowserSession, hosts) -> bool:
+    """CLEARANCE_MODE=flaresolverr 时为主机主动预热并注入 clearance cookie。"""
+    try:
+        from core import clearance as _clearance
+        from config import clearance as _ccfg
+        if str(getattr(_ccfg, "CLEARANCE_MODE", "none") or "none").strip().lower() != "flaresolverr":
+            return False
+        proxy_for_fs = str(getattr(_ccfg, "CLEARANCE_PROXY_URL", "") or "").strip()
+        ok = False
+        for host in hosts:
+            if _clearance.prime_session(session, host, proxy_url=proxy_for_fs):
+                ok = True
+        return ok
+    except Exception as exc:
+        logger.warning("[Clearance] 预热异常(忽略): %s: %s", type(exc).__name__, str(exc)[:140])
+        return False
+
+
+def _try_apply_clearance(session: BrowserSession, target_url: str) -> bool:
+    """CLEARANCE_MODE=flaresolverr 时解一次 CF 质询并注入会话。
+
+    返回 True 表示已注入 cf_clearance（调用方可跳过退避直接重试）；
+    默认 mode=none / 刷新失败 / 未拿到 cf_clearance 时返回 False（原行为不变）。
+    """
+    try:
+        from core import clearance as _clearance
+        from config import clearance as _ccfg
+        if str(getattr(_ccfg, "CLEARANCE_MODE", "none") or "none").strip().lower() != "flaresolverr":
+            return False
+        proxy_for_fs = str(getattr(_ccfg, "CLEARANCE_PROXY_URL", "") or "").strip()
+        bundle = _clearance.refresh_clearance(target_url, proxy_url=proxy_for_fs)
+        if not bundle:
+            return False
+        return bool(_clearance.apply_clearance_to_session(session, bundle))
+    except Exception as exc:
+        logger.warning("[Clearance] 注入异常(忽略): %s: %s", type(exc).__name__, str(exc)[:140])
+        return False
+
+
 def _reset_after_challenge(session: BrowserSession) -> None:
-    """质询后重建传输层：被质询响应种下的 __cf_bm 会绑定污染状态，必须整体丢弃。"""
+    """质询后重建传输层：被质询响应种下的 __cf_bm 会绑定污染状态，必须整体丢弃。
+
+    FlareSolverr clearance 需在调用本函数**之后**注入（rebuild 会清 CF 系 cookie）。
+    """
     rebuild = getattr(session, "rebuild_transport", None)
     if callable(rebuild):
         try:
@@ -312,6 +354,9 @@ def network_preflight(session: BrowserSession) -> None:
     代理完全不可达等网络错误仍然直接抛出。
     """
     timeout = max(1.0, float(getattr(_protocol_cfg, "OPENAI_PREFLIGHT_TIMEOUT", 12.0)))
+    # CLEARANCE_MODE=flaresolverr 时先主动预热 clearance（实测无 cookie 通过率
+    # ~40%，注入 FlareSolverr cookie 后 5/5）。默认 none 时空操作。
+    _prime_clearance_if_enabled(session, ("chatgpt.com", "auth.openai.com"))
     checks = [
         ("chatgpt-home", lambda: session.get(
             "https://chatgpt.com/",
@@ -330,12 +375,19 @@ def network_preflight(session: BrowserSession) -> None:
                 resp = fn()
                 if _is_cf_challenge_response(resp):
                     challenged = True
-                    # 质询 403 会种下被污染的 __cf_bm，必须重建传输层再重试。
+                    # 1) 先重建传输层：质询 403 种下的 __cf_bm 绑定污染状态，
+                    #    必须整体丢弃（clearance 走模式时这里会连 CF 系 cookie 一起清）。
                     _reset_after_challenge(session)
+                    # 2) 再注入 FlareSolverr 的干净 clearance 整组 cookie
+                    #    （默认 mode=none 时为空操作，重试行为与原来一致）。
+                    got_clearance = _try_apply_clearance(session, "https://chatgpt.com/")
                     logger.warning(
-                        "[预检:%s] 首页导航被 CF 托管质询 (%s/%s)，将依赖后续 API 路由继续",
+                        "[预检:%s] 首页导航被 CF 托管质询 (%s/%s)%s",
                         label, attempt, max_attempts,
+                        "，已注入 clearance 立即重试" if got_clearance else "，将依赖后续 API 路由继续",
                     )
+                    if got_clearance:
+                        continue
                     _interruptible_sleep(retry_delay * attempt)
                     continue
                 resp.raise_for_status()

@@ -64,10 +64,18 @@ OPENAI_PROXY_RETRY_DELAY = 1.0
 # 避免失效节点按全局 30 秒超时长时间占住注册 worker。
 OPENAI_PREFLIGHT_TIMEOUT = 12.0
 
+# CF 拦截后的会话熔断冷却时长（秒）。免费节点池的 CF 拦截是概率性的
+# （同会话换一次请求就可能通过），900s 会把后续所有重试都挡死。
+# 0 = 不冷却（仅告警，配合 clearance 注入与换节点重试）。
+CF_CIRCUIT_COOLDOWN_SEC_403 = 0
+CF_CIRCUIT_COOLDOWN_SEC_429 = 300
+
 
 apply_env_overrides(globals(), {
     "OPENAI_PROXY_RETRY_MAX_ATTEMPTS": "int",
     "OPENAI_PROXY_RETRY_DELAY": "float",
     "OPENAI_PREFLIGHT_TIMEOUT": "float",
     "TELEMETRY_ENABLED": "bool",
+    "CF_CIRCUIT_COOLDOWN_SEC_403": "int",
+    "CF_CIRCUIT_COOLDOWN_SEC_429": "int",
 })

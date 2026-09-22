@@ -1,0 +1,28 @@
+>>> 邮箱: 
+09:32:03 [INFO] [Outlook] 选中账号: wqplzx26927@outlook.com（DB id=9）
+09:32:03 [INFO] [EmailProvider] 使用邮箱来源: outlook, email=wqplzx26927@outlook.com
+09:32:04 [INFO] [指纹] 出口IP地理信息: ip=138.199.35.212 country=US city=Los Angeles timezone=America/Los_Angeles
+09:32:04 [INFO] [注册] 开始：wqplzx26927@outlook.com，代理=socks5h://...sid-***...@socks5h://127.0.0.1:7897
+09:32:04 [INFO] [注册] 本次随机生日: 1992-09-10
+09:32:04 [INFO] [Clearance] 开始刷新 chatgpt.com 的 CF clearance（入口 https://chatgpt.com/log-in，FlareSolverr）...
+09:32:12 [INFO] [Clearance] chatgpt.com clearance 刷新完成 (8.5s, 11 cookies: __Host-next-auth.csrf-token, __Secure-next-auth.callback-url, __cf_bm, __cflb, __obi, _cfuvid, _dd_s, g_state, oai-did, oai-sc, precise_location_permission) cf_clearance=无
+09:32:12 [INFO] [Clearance] 已为 chatgpt.com 预热并注入 11 个 cookie
+09:32:12 [INFO] [Clearance] 开始刷新 auth.openai.com 的 CF clearance（入口 https://auth.openai.com/log-in，FlareSolverr）...
+09:32:25 [INFO] [Clearance] auth.openai.com clearance 刷新完成 (12.7s, 7 cookies: __cf_bm, __cflb, _cfuvid, _dd_s, cf_clearance, oai-did, oaicom-stable-id) cf_clearance=有
+09:32:25 [INFO] [Clearance] 已为 auth.openai.com 预热并注入 7 个 cookie
+09:32:26 [INFO] [CF] Cookie 状态更新 url=https://chatgpt.com/ keys=['.chatgpt.com:__cf_bm']
+09:32:26 [WARNING] [熔断] 当前会话收到 HTTP 403，进入冷却 900s，停止后续请求：https://chatgpt.com/
+09:32:26 [INFO] [Session] 已重建 TLS 传输层（丢弃受质询污染的 CF Cookie，保留业务 Cookie 0 条）
+09:32:26 [WARNING] [预检:chatgpt-home] 首页导航被 CF 托管质询 (1/5)，已注入 clearance 立即重试
+09:32:38 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (2/5): Timeout: Failed to perform, curl: (28) Operation timed out after 12013 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-erro，2.0s 后重试
+09:32:52 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (3/5): Timeout: Failed to perform, curl: (28) Operation timed out after 12006 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-erro，4.0s 后重试
+09:33:08 [WARNING] [预检:chatgpt-home] 代理链路临时失败 (4/5): Timeout: Failed to perform, curl: (28) Operation timed out after 12014 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-erro，8.0s 后重试
+09:33:28 [ERROR] [失败] wqplzx26927@outlook.com: Timeout: Failed to perform, curl: (28) Operation timed out after 12008 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-errors.html first for more details.
+09:33:28 [INFO] [邮箱:outlook] wqplzx26927@outlook.com 已恢复 available
+
+=== RESULT ===
+{
+ "success": false,
+ "email": "wqplzx26927@outlook.com",
+ "error": "Failed to perform, curl: (28) Operation timed out after 12008 milliseconds with 0 bytes received. See https://curl.se/libcurl/c/libcurl-errors.html first for more details."
+}

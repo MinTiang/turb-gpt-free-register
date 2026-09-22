@@ -815,7 +815,10 @@ class BrowserSession:
         CF 托管质询会把“污染”的 __cf_bm 绑在当前 TLS 会话上：带着质询响应
         种下的 Cookie 重试会持续 403。放弃传输层重新握手相当于浏览器里
         “新开一个干净连接”。keep_session_cookies=True 时保留非 CF 的业务
-        Cookie（NextAuth state、oai-did 等），只丢弃 Cloudflare 系 Cookie。
+        Cookie（NextAuth state、oai-did 等），丢弃全部 Cloudflare 系 Cookie。
+
+        注意顺序（2026-09-22）：FlareSolverr clearance 必须在 rebuild **之后**
+        注入 —— rebuild 会清空 CF 系 cookie，先注入会被丢掉。
         """
         saved = []
         if keep_session_cookies:
@@ -858,7 +861,20 @@ class BrowserSession:
         if status not in (403, 429):
             return resp
         retry_after = self._parse_retry_after(getattr(resp, "headers", {}).get("retry-after") if getattr(resp, "headers", None) else None)
-        cool_down = retry_after if retry_after > 0 else (300 if status == 429 else 900)
+        # 冷却时长可配：默认 403→900s / 429→300s。免费节点池场景下 CF 拦截是
+        # 概率性的（换一次请求就可能通过），900s 会把后续所有重试都挡死，因此
+        # 可通过 CF_CIRCUIT_COOLDOWN_SEC_403/429 调低（0 = 不冷却，仅告警）。
+        if retry_after > 0:
+            cool_down = retry_after
+        else:
+            from config import openai_protocol as _protocol_cfg
+            if status == 429:
+                cool_down = int(getattr(_protocol_cfg, "CF_CIRCUIT_COOLDOWN_SEC_429", 300) or 0)
+            else:
+                cool_down = int(getattr(_protocol_cfg, "CF_CIRCUIT_COOLDOWN_SEC_403", 900) or 0)
+        if cool_down <= 0:
+            logger.warning("[熔断] 当前会话收到 HTTP %s（冷却已禁用，继续重试）：%s", status, url)
+            return resp
         self.blocked_until = max(self.blocked_until, time.time() + min(cool_down, 3600))
         self.blocked_reason = f"HTTP {status} from {url}"
         logger.warning("[熔断] 当前会话收到 HTTP %s，进入冷却 %ss，停止后续请求：%s", status, min(cool_down, 3600), url)

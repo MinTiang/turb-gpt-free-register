@@ -170,10 +170,16 @@ def _platform_authorize(session: BrowserSession, email: str, screen_hint: str = 
         target_origin=_AUTH_BASE,
     )
     logger.info("[Codex][Platform] 跟随 platform authorize URL 建立会话...")
-    resp = proto._with_net_retry(
-        "platform authorize",
-        lambda: session.get(target_url, headers=headers, allow_redirects=True),
-    )
+
+    def _do_authorize():
+        return session.get(target_url, headers=headers, allow_redirects=True)
+
+    resp = proto._with_net_retry("platform authorize", _do_authorize)
+    # CF 拦截（403 质询页 / 429）时用 FlareSolverr 刷新 clearance 再重试一次。
+    # 免费节点池实测约 50% 请求被概率性拦截；解出的 cf_clearance 注入后可放行。
+    if _maybe_refresh_clearance_on_block(session, resp, target_url):
+        human_delay("challenge")
+        resp = proto._with_net_retry("platform authorize(clearance 重试)", _do_authorize)
     final_url = str(getattr(resp, "url", "") or "")
     status = int(getattr(resp, "status_code", 0) or 0)
     if status != 200:
@@ -190,6 +196,36 @@ def _platform_authorize(session: BrowserSession, email: str, screen_hint: str = 
         landed = "login" if "/log-in" in final_url.lower() else ""
     logger.info(f"[Codex][Platform] authorize 落点: {final_url[:160]}, landed={landed or '?'}")
     return code_verifier, final_url
+
+
+def _maybe_refresh_clearance_on_block(session: BrowserSession, resp, target_url: str) -> bool:
+    """响应疑似 CF 拦截时刷新 clearance 并注入会话。返回是否值得重试。
+
+    CLEARANCE_MODE=none（默认）时立即返回 False，保持原行为不变。
+    """
+    try:
+        from core import clearance as _clearance
+        from config import clearance as _ccfg
+        if str(getattr(_ccfg, "CLEARANCE_MODE", "none") or "none").strip().lower() != "flaresolverr":
+            return False
+        if not _clearance._is_cf_challenge(resp):
+            return False
+        proxy_for_fs = str(getattr(_ccfg, "CLEARANCE_PROXY_URL", "") or "").strip()
+        bundle = _clearance.refresh_clearance(target_url, proxy_url=proxy_for_fs, force=False)
+        if not bundle:
+            return False
+        injected = _clearance.apply_clearance_to_session(session, bundle)
+        if not injected:
+            logger.warning("[Codex][Platform] clearance 注入未含 cf_clearance，放弃重试")
+            return False
+        logger.info(
+            "[Codex][Platform] 检测到 CF 拦截，已注入 clearance(%s)，重试 authorize",
+            ", ".join(sorted(bundle.cookies.keys()))[:80],
+        )
+        return True
+    except Exception as exc:
+        logger.warning("[Codex][Platform] clearance 刷新异常(忽略): %s: %s", type(exc).__name__, str(exc)[:140])
+        return False
 
 
 def _reset_auth_cookies(session: BrowserSession) -> None:
@@ -233,16 +269,46 @@ def _authorize_continue_login(session: BrowserSession, email: str) -> dict:
     sentinel_resp = request_sentinel_token(session, "authorize_continue")
     sentinel_header, so_header = build_sentinel_header(session, sentinel_resp, "authorize_continue")
     payload = {"username": {"kind": "email", "value": email}}
+    target = f"{_AUTH_BASE}/api/accounts/authorize/continue"
 
-    resp = _post_platform_json(
-        session,
-        f"{_AUTH_BASE}/api/accounts/authorize/continue",
-        payload,
-        referer=f"{_AUTH_BASE}/log-in?usernameKind=email",
-        sentinel_header=sentinel_header,
-        so_header=so_header,
-    )
+    def _send():
+        return _post_platform_json(
+            session,
+            target,
+            payload,
+            referer=f"{_AUTH_BASE}/log-in?usernameKind=email",
+            sentinel_header=sentinel_header,
+            so_header=so_header,
+        )
+
+    resp = _send()
     status = int(getattr(resp, "status_code", 0) or 0)
+    # 403 CF 质询：解一次 clearance 再重试（CLEARANCE_MODE=none 时空操作）。
+    if status == 403 and _maybe_refresh_clearance_on_block(session, resp, target):
+        human_delay("challenge")
+        try:
+            sentinel_resp = request_sentinel_token(session, "authorize_continue")
+            sentinel_header, so_header = build_sentinel_header(session, sentinel_resp, "authorize_continue")
+        except Exception as exc:
+            logger.warning("[Codex][Platform] clearance 后重取 sentinel 失败(沿用旧值): %s", str(exc)[:120])
+        resp = _send()
+        status = int(getattr(resp, "status_code", 0) or 0)
+    # 429 rate_limit：已过 CF，是 OpenAI 对该"未登录态+邮箱"的短时频率限制，
+    # clearance 无效。做一次缓慢退避后重试（一次性，不无限等）。
+    if status == 429:
+        from core import clearance as _cl
+        if _cl.is_rate_limited(resp):
+            backoff = 45.0
+            logger.warning("[Codex][Platform] 触发限流(429)，退避 %.0fs 后重试一次", backoff)
+            human_delay("api")
+            time.sleep(backoff)
+            try:
+                sentinel_resp = request_sentinel_token(session, "authorize_continue")
+                sentinel_header, so_header = build_sentinel_header(session, sentinel_resp, "authorize_continue")
+            except Exception:
+                pass
+            resp = _send()
+            status = int(getattr(resp, "status_code", 0) or 0)
     if status != 200:
         if status == 409 and _is_signin_session_invalid_body(resp.text or ""):
             raise _SigninSessionInvalidError(
