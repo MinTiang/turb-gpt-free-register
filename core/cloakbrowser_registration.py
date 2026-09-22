@@ -192,7 +192,7 @@ def _run_cloak_registration_impl(
                         continue
             return False
 
-        deadline = time.time() + 900.0
+        deadline = time.time() + 300.0
         last_state_log = 0.0
         email_submit_count = 1
         switch_tried = False
@@ -303,15 +303,22 @@ def _run_cloak_registration_impl(
 
             # 登录态已建立 → 注册/恢复完成
             try:
-                if _has_access_token(driver):
-                    if not login_logged:
-                        login_logged = True
-                        logger.info("[Cloak注册][页面机] 已检测到登录态(accessToken),流程完成")
-                    if not profile_done:
-                        create_acknowledged = True
-                    break
+                logged_in = bool(driver.execute_script(
+                    "try { var x=new XMLHttpRequest();"
+                    " x.open('GET','/api/auth/session',false);"
+                    " x.send(null);"
+                    " if(x.status!==200) return false;"
+                    " var j=JSON.parse(x.responseText);"
+                    " return !!(j&&j.accessToken);} catch(e){ return false; }"))
             except Exception:
-                pass
+                logged_in = False
+            if logged_in:
+                if not login_logged:
+                    login_logged = True
+                    logger.info("[Cloak注册][页面机] 已检测到登录态(accessToken),流程完成")
+                if not profile_done:
+                    create_acknowledged = True
+                break
 
             # 重置密码页:老账号密码未知 → 取邮件码 + 设置新密码完成恢复
             if "/reset-password" in low:
@@ -499,18 +506,19 @@ def _run_cloak_registration_impl(
 
             # 资料页(about-you):仅在页面上出现时才进入(避免在其它页误等 5s+刷日志)
             if "about-you" in low:
-                try:
-                    if _complete_profile_page(driver, name, birthday, timeout=15):
-                        profile_done = True
-                        create_acknowledged = True
-                        logger.info("[Cloak注册][页面机] 资料页已提交")
-                        human_delay("post_auth")
-                except Exception as exc:
-                    logger.warning("[Cloak注册][页面机] 资料页处理异常(继续观察): %s", str(exc)[:120])
+                if not profile_done:
+                    try:
+                        if _complete_profile_page(driver, name, birthday, timeout=15):
+                            profile_done = True
+                            create_acknowledged = True
+                            logger.info("[Cloak注册][页面机] 资料页已提交,等待跳转")
+                            human_delay("post_auth")
+                    except Exception as exc:
+                        logger.warning("[Cloak注册][页面机] 资料页处理异常(继续观察): %s", str(exc)[:120])
                 continue
 
         if time.time() >= deadline and not _has_access_token(driver):
-            raise RuntimeError(f"页面状态机超时(900s),最后页面: {last_url[:160]}")
+            raise RuntimeError(f"页面状态机超时(300s),最后页面: {last_url[:160]}")
 
         session_info = _fetch_chatgpt_session(driver, timeout=120)
         access_token = session_info["accessToken"]
