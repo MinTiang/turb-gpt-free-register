@@ -413,7 +413,10 @@ class CloakSeleniumDriver:
             pass
 
     def get(self, url: str) -> None:
-        self.page.goto(url, wait_until="domcontentloaded", timeout=self._page_load_timeout_ms)
+        # commit: 收到响应即返回。domcontentloaded 在部分代理出口上永远不触发,
+        # goto 会一直阻塞(超时参数也不生效), 注册线程直接卡死
+        # (实测 2026-09-22 服务器: 打开登录页后再无日志)。
+        self.page.goto(url, wait_until="commit", timeout=self._page_load_timeout_ms)
 
     def back(self) -> None:
         self.page.go_back(wait_until="domcontentloaded", timeout=self._page_load_timeout_ms)
