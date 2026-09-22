@@ -1457,6 +1457,7 @@ def run_codex_oauth(
     force: bool = False,
     _cpa_reauth_round: int = 1,
     session=None,
+    cookies=None,
 ) -> dict:
     """
     注册成功后的 Codex OAuth 授权入口。
@@ -1471,6 +1472,9 @@ def run_codex_oauth(
         proxy: 代理（不传从 PROXY_POOL 抽）
         force: True 时跳过 ENABLE_CODEX_AUTO 开关限制，供手动补跑使用
         session: 可选，注册流程已登录的 BrowserSession（protocol 驱动注册后传入，platform 免接码复用其登录态）
+        cookies: 可选，浏览器导出的 cookie（cloak 驱动注册后传入）。浏览器会话无法
+            直接交给协议层，改为导出 cookie 注入新建的 BrowserSession 以复用登录态；
+            缺它时 platform authorize 要走全新登录，更容易撞上 CF 质询。
 
     Returns:
         结构化结果 dict。任何异常都被吞掉转 status=failed，不向上抛，不影响注册主流程。
@@ -1527,8 +1531,15 @@ def run_codex_oauth(
     # 单次 Codex 授权全程统一身份；下一任务即使是同一账号也生成全新的隔离身份。
     task_seed = f"codex-oauth:{email.lower()}:{uuid.uuid4()}"
     session = BrowserSession(proxy=proxy, fingerprint_seed=task_seed)
+    # 浏览器通道（cloak）注册后传入 cookie：注入后本 session 具备同一登录态，
+    # platform authorize 可像复用注册 session 一样直接放行。
+    if cookies:
+        session.import_cookies(cookies)
     try:
-        logger.info(f"[Codex] 开始授权（全新 session）：{email}")
+        logger.info(
+            "[Codex] 开始授权（%s）：%s",
+            "复用浏览器登录态" if cookies else "全新 session", email,
+        )
         logger.info(
             "[Codex] 统一指纹上下文：device_id=%s oai_session_id=%s auth_session_logging_id=%s %s",
             session.device_id,

@@ -300,6 +300,50 @@ class BrowserSession:
         logger.info("[指纹] 已采纳服务端下发的 oai-did=%s…", self.device_id[:8])
         return self.device_id
 
+    def import_cookies(self, cookies) -> int:
+        """从浏览器导出的 cookie 列表恢复登录态，返回注入条数。
+
+        用于 cloak 注册后把浏览器已建立的登录态交给协议 session：platform
+        免接码授权复用同一登录态时 authorize 直接放行，不必重新登录
+        （2026-09-22：cloak 注册成功但授权走全新 session，被 CF 拦在质询页）。
+
+        cookies 接受 selenium 风格 dict 列表（name/value/domain/path），
+        也接受 {name: value} 映射（domain 缺省用目标域）。
+        """
+        count = 0
+        try:
+            items = cookies.items() if isinstance(cookies, dict) else None
+            if items is not None:
+                for name, value in items:
+                    for domain in (".chatgpt.com", ".openai.com", ".auth.openai.com"):
+                        try:
+                            self.session.cookies.set(str(name), value, domain=domain, path="/")
+                            count += 1
+                        except Exception:
+                            continue
+                return count
+            for cookie in list(cookies or []):
+                if not isinstance(cookie, dict):
+                    continue
+                name = str(cookie.get("name") or "").strip()
+                if not name:
+                    continue
+                value = cookie.get("value")
+                domain = str(cookie.get("domain") or "").strip() or None
+                path = str(cookie.get("path") or "/") or "/"
+                domains = [domain] if domain else [".chatgpt.com", ".auth.openai.com"]
+                for dom in domains:
+                    try:
+                        self.session.cookies.set(name, value, domain=dom, path=path)
+                        count += 1
+                    except Exception:
+                        continue
+        except Exception as exc:
+            logger.warning("[Session] 导入 cookie 失败: %s: %s", type(exc).__name__, str(exc)[:120])
+        if count:
+            logger.info("[Session] 已从浏览器导入 %d 条 cookie（复用登录态）", count)
+        return count
+
     def cf_cookie_snapshot(self) -> dict:
         """返回当前 CookieJar 中的 Cloudflare 关键 Cookie 摘要，便于确认同 IP/同会话连续性。"""
         out = {}

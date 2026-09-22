@@ -28,6 +28,35 @@ from core.page_ops import (  # noqa: F401
 logger = logging.getLogger(__name__)
 
 
+def _export_browser_cookies(driver) -> list:
+    """导出 CloakBrowser 当前全部 cookie，供协议层复用登录态。
+
+    platform 免接码授权在协议层跑，拿不到 Selenium 会话；把浏览器已建立的
+    cookie 注入新建 BrowserSession，authorize 才能像复用注册 session 那样直接放行。
+
+    浏览器卡态时 get_cookies 可能挂住，因此走看门狗；失败返回空列表
+    （调用方降级为全新登录，不中断注册主流程）。
+    """
+    try:
+        raw = _run_with_timeout(lambda: driver.get_cookies(), 15.0, label="导出cookie")
+    except Exception as exc:
+        logger.warning("[Cloak注册] 导出 cookie 失败: %s: %s", type(exc).__name__, str(exc)[:120])
+        return []
+    if not raw:
+        logger.warning("[Cloak注册] 未导出到 cookie，platform 授权将按全新登录走")
+        return []
+    # 只保留 openai 相关域，避免把无关 cookie 带进协议会话
+    picked = []
+    for c in raw:
+        if not isinstance(c, dict):
+            continue
+        domain = str(c.get("domain") or "").lower()
+        if any(d in domain for d in ("chatgpt.com", "openai.com")):
+            picked.append(c)
+    logger.info("[Cloak注册] 已导出 %d 条 openai 域 cookie（共 %d 条）", len(picked), len(raw))
+    return picked
+
+
 def _run_with_timeout(fn, seconds: float, *, label: str):
     """带看门狗超时地执行收尾调用;超时放弃(线程留守)并返回 None。
 
@@ -190,16 +219,20 @@ def _run_cloak_registration_impl(
                 oauth_driver = str(getattr(_codex_cfg, "CODEX_OAUTH_DRIVER", "") or "").strip().lower()
                 if oauth_driver in ("platform", "platform_free", "grok2api"):
                     # platform 免接码为纯协议流程，不复用浏览器窗口，走统一分发。
-                    # 必须显式传 proxy：不传时 run_codex_oauth 会从 PROXY_POOL 重抽，
-                    # 出口与刚注册成功的 cloak 链路不一致，平台 authorize 会被 CF 拦
-                    # （实测 2026-09-22：cloak 注册成功但授权 403）。
+                    # 两项都必须传，缺一就会被 CF 拦（实测 2026-09-22：cloak 注册成功
+                    # 但授权 403）：
+                    #   proxy   —— 不传则从 PROXY_POOL 重抽，出口与注册不一致；
+                    #   cookies —— 不传则平台授权按全新登录走，不认 cloak 已建立的登录态。
                     from core.codex_oauth import run_codex_oauth
+                    exported = _export_browser_cookies(driver)
                     logger.info(
-                        "[Cloak注册][Codex] CODEX_OAUTH_DRIVER=platform，走免接码协议授权（沿用注册代理 %s）",
+                        "[Cloak注册][Codex] CODEX_OAUTH_DRIVER=platform，走免接码协议授权"
+                        "（沿用注册代理 %s，导出 cookie %d 条）",
                         (proxy.split("@")[-1] if proxy and "@" in proxy else proxy) or "直连",
+                        len(exported),
                     )
                     _check_manual_stop()
-                    codex_result = run_codex_oauth(email, proxy=proxy, force=True)
+                    codex_result = run_codex_oauth(email, proxy=proxy, force=True, cookies=exported)
                 else:
                     from core.browser_codex_oauth import run_browser_codex_oauth
                     logger.info("[Cloak注册][Codex] ENABLE_CODEX_AUTO=True，复用当前 CloakBrowser 窗口执行 Codex 授权")
