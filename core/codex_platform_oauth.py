@@ -928,6 +928,27 @@ def _browser_handle_email_otp(driver, email: str, otp_provider, used_codes: set)
     return True
 
 
+def _browser_handle_email_input(driver, email: str) -> bool:
+    """当前页是邮箱输入页(未登录)时填邮箱并提交。返回是否处理。
+
+    platform authorize 带 login_hint，但未登录时仍会先要邮箱。填完提交后
+    OpenAI 对无密码账号直接发 OTP（不需要点"使用验证码登录"，页面会自动走）。
+    """
+    from core.page_ops import _type_email_address, _submit_email_step
+    try:
+        _type_email_address(driver, email, timeout=4)
+    except Exception:
+        return False
+    from core.humanize import delay as human_delay
+    logger.info(f"[Codex][Platform][Browser] 检测到邮箱输入页，已填写并提交：{email}")
+    human_delay("form")
+    try:
+        _submit_email_step(driver)
+    except Exception as exc:
+        logger.warning(f"[Codex][Platform][Browser] 邮箱提交异常（继续轮询）：{str(exc)[:140]}")
+    return True
+
+
 def _clear_otp_inputs_local(driver) -> None:
     from core.page_ops import _clear_otp_inputs
     _clear_otp_inputs(driver)
@@ -978,6 +999,10 @@ def _browser_wait_platform_callback(driver, email: str, timeout: float, otp_prov
                 "[Codex][Platform][Browser] 授权流程要求手机验证：授权地址很可能用成了 "
                 "Codex CLI client（app_EMoam…）。platform 免接码必须用 app_2SKx… 的 authorize URL"
             )
+        # 动态状态机：每轮识别当前页面并处理对应分支，任何意外都只是本轮不匹配
+        # 邮箱输入页（未登录）
+        if _browser_handle_email_input(driver, email):
+            continue
         # 邮箱验证码页：自动收码填入（优先级最高，别去点 submit 提交空码）
         if otp_provider is not None and _browser_handle_email_otp(driver, email, otp_provider, used_codes):
             continue
@@ -1010,7 +1035,6 @@ def run_platform_codex_oauth_browser(driver, email: str, *, proxy: str | None = 
     from core.humanize import delay as human_delay
     from core.session import BrowserSession
     from core import codex_oauth as proto
-    from core.browser_codex_oauth import _fill_email_and_otp
 
     if not email:
         return proto._codex_result(status="skipped", message="email 为空")
@@ -1053,10 +1077,8 @@ def run_platform_codex_oauth_browser(driver, email: str, *, proxy: str | None = 
         except Exception:
             pass
 
-        # 2. 浏览器里完成登录（邮箱/OTP/密码/MFA——已登录则直接跳过）
-        _fill_email_and_otp(driver, email, otp_provider, auth_url)
-
-        # 3. 点穿 账号选择/consent 直到 callback
+        # 2. 动态状态机一路处理到 callback：邮箱输入/OTP/账号选择/consent 全部
+        #    在轮询循环里按当前页面动态分支，不预设顺序，任何意外页面只是多等一轮
         callback_url = _browser_wait_platform_callback(driver, email, timeout, otp_provider=otp_provider)
         params_cb = _extract_callback_params(callback_url)
         code = (params_cb or {}).get("code", "")
