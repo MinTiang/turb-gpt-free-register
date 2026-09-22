@@ -208,6 +208,7 @@ def _run_cloak_registration_impl(
         }
         state_first: dict = {}
         login_logged = False
+        profile_done = False
         otp_used = set()
         otp_attempts = 0
         reset_code_ts = None
