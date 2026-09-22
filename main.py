@@ -567,28 +567,6 @@ def run_registration(
         logger.info(f"[完成] {email}，账号ID={account_id}，Token={access_token[:16]}...")
 
         # ==================== 阶段9: 后置自动触发 flow ====================
-        # 只有走完回调、拿到 token 并保存成功的账号，才会触发 flow。
-        # flow 请求不影响账号保存状态，但会记录结果并参与批量统计。
-        flow_result = {"status": "skipped", "ok": False, "message": "未触发"}
-        try:
-            from core.flow_trigger import trigger_flow
-            flow_result = trigger_flow(access_token)
-        except Exception as exc:
-            flow_result = {"status": "failed", "ok": False, "message": f"{type(exc).__name__}: {exc}"}
-
-        if flow_result.get("ok"):
-            logger.info(
-                f"[Flow] 成功：{email}，HTTP={flow_result.get('http_status')}, "
-                f"flow_id={flow_result.get('flow_id') or '未解析'}"
-            )
-        elif flow_result.get("status") == "skipped":
-            logger.info(f"[Flow] 跳过：{email}，原因={flow_result.get('message')}")
-        else:
-            logger.warning(
-                f"[Flow] 失败：{email}，HTTP={flow_result.get('http_status') or '无'}, "
-                f"原因={flow_result.get('message')}"
-            )
-
         logger.debug(f"[完成] TOTP Secret: {totp_secret or '(未设置)'}")
 
         # 注册任务的成功判定：账号本身(注册+token)+Codex 授权都成功才算 success。
@@ -603,7 +581,7 @@ def run_registration(
 
         return {"success": task_success, "email": email, "account_id": account_id,
                 "access_token": access_token, "totp_secret": totp_secret,
-                "flow": flow_result, "codex": codex_result,
+                "codex": codex_result,
                 "error": task_error}
 
     except Exception as e:

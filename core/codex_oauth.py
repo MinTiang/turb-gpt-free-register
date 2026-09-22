@@ -146,7 +146,7 @@ def _codex_result(
     message: str = "",
     credential_payload: dict | None = None,
 ) -> dict:
-    """构造与 flow_trigger._flow_result 同形态的结构化结果。
+    """构造结构化授权结果。
 
     credential_payload 承载本次授权拿到的凭证（access/refresh/id_token 等），
     供 codex2api 推送使用；不参与落库，也不写日志。
