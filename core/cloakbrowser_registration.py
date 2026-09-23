@@ -561,6 +561,15 @@ def _run_cloak_registration_impl(
                     force_kill_browser(driver)
                 except Exception as exc:
                     logger.warning("[Cloak注册] 强杀浏览器失败: %s: %s", type(exc).__name__, str(exc)[:120])
+            # 主线程无条件脱管+清扫孤儿浏览器(quit 线程可能在 close 上挂死,
+            # 其 finally 的清扫永远执行不到——实测 2026-09-23: 任务成功但
+            # chrome+node driver 残留 ~900MB 累积至 OOM)
+            try:
+                from core.cloakbrowser_driver import release_driver, sweep_orphan_browsers
+                release_driver(driver)
+                sweep_orphan_browsers()
+            except Exception as exc:
+                logger.warning("[Cloak注册] 浏览器清扫失败: %s: %s", type(exc).__name__, str(exc)[:120])
 
 
 

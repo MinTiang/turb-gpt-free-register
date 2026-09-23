@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import signal
 import subprocess
 import re
 import time
@@ -434,6 +435,14 @@ class CloakSeleniumDriver:
             self.browser.close()
         except Exception:
             pass
+        finally:
+            # quit 后无条件脱管并清扫: close "成功"不代表进程退出
+            # (实测 chrome 残留 + node driver 永不退, 每组漏 ~500MB)
+            _ACTIVE_DRIVER_IDS.discard(id(self))
+            try:
+                sweep_orphan_browsers()
+            except Exception:
+                pass
 
     def find_elements(self, by: Any, selector: str) -> list[CloakElement]:
         loc = self._locator(by, selector)
@@ -680,17 +689,89 @@ def force_kill_browser(driver) -> int:
         return 0
     killed = 0
     try:
-        for m in markers:
-            r = subprocess.run(
-                ["pkill", "-9", "-f", f"--user-data-dir={m}"],
-                capture_output=True, timeout=15,
-            )
-            if r.returncode == 0:
+        pids = _pids_by_cmdline(tuple(f"--user-data-dir={m}" for m in markers))
+        for pid in pids:
+            try:
+                os.kill(pid, signal.SIGKILL)
                 killed += 1
+            except Exception:
+                pass
     except Exception as exc:
         logger.warning("[Cloak] 强杀浏览器进程失败: %s: %s", type(exc).__name__, str(exc)[:120])
     if killed:
         logger.warning("[Cloak] quit 超时/失败，已按标记强杀 %d 组浏览器进程", killed)
+    _ACTIVE_DRIVER_IDS.discard(id(driver))
+    try:
+        sweep_orphan_browsers()
+    except Exception:
+        pass
+    return killed
+
+
+# 活跃浏览器实例(quit 后移除)。清扫孤儿时若集合非空说明有并发任务
+# 在用浏览器, 只允许按各自 marker 清理, 不允许一锅端。
+_ACTIVE_DRIVER_IDS: set[int] = set()
+
+
+def release_driver(driver) -> None:
+    """主线程脱管浏览器实例(不依赖 quit 内部 finally——quit 线程可能
+    在 context.close 上挂死被留守, finally 永远执行不到)。"""
+    try:
+        _ACTIVE_DRIVER_IDS.discard(id(driver))
+    except Exception:
+        pass
+
+
+def _pids_by_cmdline(patterns: tuple[str, ...]) -> list[int]:
+    """纯 Python 扫 /proc 找命令行含任一模式的进程(容器里没有 pkill,
+    subprocess 调 pkill 会 FileNotFoundError 被静默——2026-09-23 实测清扫
+    从第一天起就是空转)。"""
+    if os.name != "posix":
+        return []
+    me = os.getpid()
+    pids: list[int] = []
+    try:
+        entries = os.listdir("/proc")
+    except Exception:
+        return []
+    for entry in entries:
+        if not entry.isdigit():
+            continue
+        pid = int(entry)
+        if pid == me:
+            continue
+        try:
+            with open(f"/proc/{entry}/cmdline", "rb") as f:
+                cmd = f.read().replace(b"\x00", b" ").decode("utf-8", "replace")
+        except Exception:
+            continue
+        if any(pat in cmd for pat in patterns):
+            pids.append(pid)
+    return pids
+
+
+def sweep_orphan_browsers(force: bool = False) -> int:
+    """清扫孤儿浏览器进程(chrome + playwright node driver), 纯 os.kill 实现。
+
+    泄漏实测(2026-09-23): quit() 的 context.close/browser.close 在挂起状态下
+    "成功返回"但 chrome 进程不退, playwright node driver(每个 ~130MB)从不退出;
+    每组任务漏 ~500MB, 堆到 mem_limit 触发 OOM, 新浏览器被 SIGKILL
+    (TargetClosedError)。仅当无活跃实例时一锅端; force=True 供手动兜底。
+    """
+    if os.name != "posix":
+        return 0
+    if _ACTIVE_DRIVER_IDS and not force:
+        return 0
+    pids = _pids_by_cmdline(("chrome", "playwright/driver/node"))
+    killed = 0
+    for pid in pids:
+        try:
+            os.kill(pid, signal.SIGKILL)
+            killed += 1
+        except Exception:
+            pass
+    if killed:
+        logger.warning("[Cloak] 已清扫 %d 个孤儿浏览器进程(chrome/node driver)", killed)
     return killed
 
 
@@ -755,17 +836,34 @@ def build_cloak_driver(proxy: str | None = None) -> tuple[CloakSeleniumDriver, C
         context_kwargs["extra_http_headers"] = {"Accept-Language": locale_opts["accept_language"]}
 
     _BEFORE_LAUNCH_MARKERS = _scan_chromium_user_data_dirs()
-    if user_data_dir:
-        context = launch_persistent_context(user_data_dir, **opts)
-        page = context.new_page()
-        browser = getattr(context, "browser", None) or context
-        # persistent context 的 locale/timezone 已通过 launch_persistent_context 参数传入。
-    else:
-        browser = launch(**opts)
-        context = browser.new_context(**context_kwargs)
-        page = context.new_page()
+    try:
+        if user_data_dir:
+            context = launch_persistent_context(user_data_dir, **opts)
+            page = context.new_page()
+            browser = getattr(context, "browser", None) or context
+            # persistent context 的 locale/timezone 已通过 launch_persistent_context 参数传入。
+        else:
+            browser = launch(**opts)
+            context = browser.new_context(**context_kwargs)
+            page = context.new_page()
+    except Exception:
+        # 启动失败(OOM/代理断)时浏览器可能半起: 按新出现的 user-data-dir 杀掉再抛
+        try:
+            _pids = _pids_by_cmdline(tuple(
+                f"--user-data-dir={_m}"
+                for _m in (_scan_chromium_user_data_dirs() - _BEFORE_LAUNCH_MARKERS)
+            ))
+            for _pid in _pids:
+                try:
+                    os.kill(_pid, signal.SIGKILL)
+                except Exception:
+                    pass
+        except Exception:
+            pass
+        raise
 
     driver = CloakSeleniumDriver(browser=browser, context=context, page=page)
+    _ACTIVE_DRIVER_IDS.add(id(driver))
     # 记录本实例浏览器的 user-data-dir 标记：quit 超时被放弃时按标记强杀，
     # 防止 Chromium 进程泄漏(每个 200-500MB，过夜可堆积数十 GB)。
     try:
