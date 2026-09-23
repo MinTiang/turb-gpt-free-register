@@ -519,6 +519,10 @@ def _run_cloak_registration_impl(
                 if "邮箱疑似死号" in str(exc):
                     _rel = "disabled"
                     logger.warning("[Cloak注册] 邮箱疑似死号,标记停用: %s", email)
+                # 账号已被 OpenAI 停用/封禁: 该邮箱的账号死了, 不可能再注册成功, 停用
+                elif "停用/封禁" in str(exc):
+                    _rel = "disabled"
+                    logger.warning("[Cloak注册] 账号已被 OpenAI 停用/封禁,邮箱标记停用: %s", email)
                 # 流程失败但邮箱是活的(OTP 无效/重置未完成/账号异常):
                 # 标 failed, 不再自动回池空转, 但可在邮箱库手动改回 available 重试
                 elif any(k in str(exc) for k in ("停用/封禁", "重置密码页", "废号", "该邮箱作废")):
