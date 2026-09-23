@@ -100,15 +100,17 @@ def _run_cloak_registration_impl(
                 on_email_acquired(email)
             return email
 
-        # 首次邮箱提交只做一次(带内置稳定检测); 失败即任务失败回池。
-        # 其后的页面再现(登录流重启)统一由下方状态机的 email 状态处理,
-        # 不再有第二套计数器。
-        _submit_email_and_wait_next(
-            driver,
-            email,
-            attempts=2,
-            email_supplier=_email_supplier_after_input,
-        )
+        # 首次邮箱提交只做一次(带内置稳定检测)。提交后页面未前进不致命:
+        # 统一交给下方状态机接管(auth_error 状态回登录页, email 状态重填)。
+        try:
+            _submit_email_and_wait_next(
+                driver,
+                email,
+                attempts=1,
+                email_supplier=_email_supplier_after_input,
+            )
+        except Exception as exc:
+            logger.warning("[Cloak注册] 初始邮箱提交未前进,交给状态机接管: %s", str(exc)[:140])
         _check_manual_stop()
 
         # ==================== 页面状态机(识别 → 处理一次 → 等页面变化) ====================
@@ -143,7 +145,7 @@ def _run_cloak_registration_impl(
             " pw: ins.some(el=>el.type==='password'),"
             " code: ins.some(el=>String(el.autocomplete||'').includes('one-time-code')||el.inputmode==='numeric'),"
             " profile: ins.some(el=>el.autocomplete==='name'||el.name==='name')&&ins.some(el=>el.name==='age'),"
-            " turnstile: !!document.querySelector('input[id^=\'cf-chl-widget\']'),"
+            " turnstile: ins.some(el=>String(el.id||'').startsWith('cf-chl-widget')) || !!document.querySelector('input[id^=cf-chl-widget]'),"
             " banned: body.includes('account_deactivated')||body.includes('deleted or deactivated')"
             "};"
         )
@@ -151,7 +153,8 @@ def _run_cloak_registration_impl(
         def _probe() -> dict:
             try:
                 r = driver.execute_script(_PROBE_JS) or {}
-            except Exception:
+            except Exception as exc:
+                logger.warning("[Cloak注册][页面机] 探测异常: %s: %s", type(exc).__name__, str(exc)[:200])
                 r = {}
             return {
                 "url": str(r.get("url") or ""),
@@ -179,6 +182,10 @@ def _run_cloak_registration_impl(
                 if "/create-account/password" in low or "/reset-password" in low:
                     return "pw_new"
                 return "pw_login"
+            if "/reset-password/success" in low:
+                return "reset_success"  # 重置完成: 回登录页用新密码登录
+            if "/reset-password" in low:
+                return "reset_entry"   # 重置入口: 邮箱已预填, 无输入框, 只需点提交触发发码
             if p["email"]:
                 return "email"
             return "unknown"
@@ -227,7 +234,7 @@ def _run_cloak_registration_impl(
         state_ts = 0.0             # 该状态最近一次动作时间
         state_tries: dict = {}     # 每状态已执行动作次数
         max_tries = {"email": 3, "code": 3, "pw_new": 2, "pw_login": 2,
-                     "profile": 2, "auth_error": 2}
+                     "profile": 2, "auth_error": 2, "reset_entry": 2, "reset_success": 2}
         wait_nav = 30.0            # 动作后等页面变化的宽限
         switch_tried = False
         profile_done = False
@@ -290,6 +297,22 @@ def _run_cloak_registration_impl(
                     _maybe_accept(driver)
                 except Exception:
                     pass
+                continue
+
+            if st == "reset_success":
+                logger.info("[Cloak注册][页面机] 重置完成:回登录页用新密码登录(第 %s 次)", state_tries[st])
+                try:
+                    driver.get("https://chatgpt.com/auth/login")
+                    human_delay("navigate")
+                    _maybe_accept(driver)
+                except Exception:
+                    pass
+                continue
+
+            if st == "reset_entry":
+                logger.info("[Cloak注册][页面机] 重置入口页:点击提交触发发码(第 %s 次)", state_tries[st])
+                _click_submit_button()
+                human_delay("form")
                 continue
 
             if st == "email":
