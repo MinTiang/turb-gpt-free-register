@@ -7,6 +7,7 @@ import os
 import signal
 import subprocess
 import re
+import threading
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -711,6 +712,33 @@ def force_kill_browser(driver) -> int:
 # 活跃浏览器实例(quit 后移除)。清扫孤儿时若集合非空说明有并发任务
 # 在用浏览器, 只允许按各自 marker 清理, 不允许一锅端。
 _ACTIVE_DRIVER_IDS: set[int] = set()
+# 活跃实例的 user-data-dir marker(孤儿判定的依据: chrome 进程的
+# --user-data-dir 不在集合中 = 无主, 可安全杀)
+_ACTIVE_MARKERS: set[str] = set()
+_SWEEPER_STARTED = False
+
+
+def _ensure_sweeper() -> None:
+    """60s 周期清扫兜底线程(首次 build 时懒启动)。
+
+    收尾钩子会漏(quit 线程挂死/空窗判断失误), 周期线程按 marker 精确
+    判孤儿, 与活跃任务互不干扰——这是内存/进程只涨不降的最后防线。
+    """
+    global _SWEEPER_STARTED
+    if _SWEEPER_STARTED or os.name != "posix":
+        return
+    _SWEEPER_STARTED = True
+
+    def _loop() -> None:
+        import time as _t
+        while True:
+            _t.sleep(60)
+            try:
+                sweep_orphan_browsers()
+            except Exception:
+                pass
+
+    threading.Thread(target=_loop, daemon=True, name="cloak-browser-sweeper").start()
 
 
 def release_driver(driver) -> None:
@@ -718,6 +746,8 @@ def release_driver(driver) -> None:
     在 context.close 上挂死被留守, finally 永远执行不到)。"""
     try:
         _ACTIVE_DRIVER_IDS.discard(id(driver))
+        for m in (getattr(driver, "_kill_markers", None) or []):
+            _ACTIVE_MARKERS.discard(m)
     except Exception:
         pass
 
@@ -751,27 +781,62 @@ def _pids_by_cmdline(patterns: tuple[str, ...]) -> list[int]:
 
 
 def sweep_orphan_browsers(force: bool = False) -> int:
-    """清扫孤儿浏览器进程(chrome + playwright node driver), 纯 os.kill 实现。
+    """清扫孤儿浏览器进程(按 user-data-dir marker 判定), 纯 os.kill 实现。
 
-    泄漏实测(2026-09-23): quit() 的 context.close/browser.close 在挂起状态下
-    "成功返回"但 chrome 进程不退, playwright node driver(每个 ~130MB)从不退出;
-    每组任务漏 ~500MB, 堆到 mem_limit 触发 OOM, 新浏览器被 SIGKILL
-    (TargetClosedError)。仅当无活跃实例时一锅端; force=True 供手动兜底。
+    2026-09-23 双线程实测教训: "活跃集合空才一锅端"在连续并发下永远
+    不触发(总有实例活跃), quit 挂死漏的浏览器无人清, 堆满 pids_limit。
+    现改为逐进程精确判定: chrome 的 --user-data-dir 不在活跃 marker 集
+    = 无主孤儿, 直接杀(主/renderer/GPU 同 marker 一并清), 活跃任务
+    不受影响, 随时可跑(收尾钩子 + 60s 周期线程双保险)。
+    node driver 兜底: 数量超过活跃实例数+1 容差时, 杀最老的差额部分。
+    force=True 全杀(手动兜底, 无任务时用)。
     """
     if os.name != "posix":
         return 0
-    if _ACTIVE_DRIVER_IDS and not force:
-        return 0
-    pids = _pids_by_cmdline(("chrome", "playwright/driver/node"))
+    me = os.getpid()
+    chrome_procs: list[tuple[int, str]] = []
+    node_procs: list[tuple[int, str]] = []
+    for entry in os.listdir("/proc"):
+        if not entry.isdigit():
+            continue
+        pid = int(entry)
+        if pid == me:
+            continue
+        try:
+            with open(f"/proc/{entry}/cmdline", "rb") as f:
+                cmd = f.read().replace(b"\x00", b" ").decode("utf-8", "replace")
+        except Exception:
+            continue
+        if "chrome" in cmd:
+            chrome_procs.append((pid, cmd))
+        elif "playwright/driver/node" in cmd:
+            node_procs.append((pid, cmd))
     killed = 0
-    for pid in pids:
+    for pid, cmd in chrome_procs:
+        m = re.search(r"--user-data-dir=(\S+)", cmd)
+        marker = m.group(1) if m else None
+        if not force:
+            if not marker:
+                continue          # 无 marker 的 chrome 保守跳过
+            if marker in _ACTIVE_MARKERS:
+                continue          # 活跃实例的进程
         try:
             os.kill(pid, signal.SIGKILL)
             killed += 1
         except Exception:
             pass
+    # node driver 兜底(容差 1: 覆盖刚 build 未登记的窗口)
+    active_n = max(len(_ACTIVE_MARKERS), len(_ACTIVE_DRIVER_IDS))
+    if len(node_procs) > active_n + 1 or force:
+        extras = sorted(node_procs)[: max(0, len(node_procs) - (active_n if not force else 0))]
+        for pid, _ in extras:
+            try:
+                os.kill(pid, signal.SIGKILL)
+                killed += 1
+            except Exception:
+                pass
     if killed:
-        logger.warning("[Cloak] 已清扫 %d 个孤儿浏览器进程(chrome/node driver)", killed)
+        logger.warning("[Cloak] 清扫孤儿浏览器进程 %d 个(chrome/node)", killed)
     return killed
 
 
@@ -870,6 +935,8 @@ def build_cloak_driver(proxy: str | None = None) -> tuple[CloakSeleniumDriver, C
         driver._kill_markers = list(_scan_chromium_user_data_dirs() - _BEFORE_LAUNCH_MARKERS)
     except Exception:
         driver._kill_markers = []
+    _ACTIVE_MARKERS.update(driver._kill_markers)
+    _ensure_sweeper()
     # 共享页面操作函数(page_ops)需要一个显式日志前缀，
     # 避免 Cloak 注册流程里出现 `[Roxy注册]`。
     driver._registration_log_prefix = "[Cloak注册]"
