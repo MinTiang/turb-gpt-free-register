@@ -8,6 +8,7 @@ import signal
 import subprocess
 import re
 import threading
+import weakref
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -713,8 +714,24 @@ def force_kill_browser(driver) -> int:
 # 在用浏览器, 只允许按各自 marker 清理, 不允许一锅端。
 _ACTIVE_DRIVER_IDS: set[int] = set()
 # 活跃实例的 user-data-dir marker(孤儿判定的依据: chrome 进程的
-# --user-data-dir 不在集合中 = 无主, 可安全杀)
+# --user-data-dir 不在集合中 = 无主, 可安全杀)。
+# 由 _DRIVER_REGISTRY(WeakSet) 派生——直接维护集合有并发污染:
+# 双 worker 同时 build 时, 差集扫描会把对方的 marker 混进自己的
+# _kill_markers, 先结束的一方 release 会把对方的保护标记一并移除,
+# 周期清扫随即误杀在跑的浏览器。改为每次从存活的 driver 对象重算。
 _ACTIVE_MARKERS: set[str] = set()
+_DRIVER_REGISTRY: "weakref.WeakSet" = weakref.WeakSet()
+
+
+def _refresh_active_markers() -> None:
+    try:
+        marks: set[str] = set()
+        for d in _DRIVER_REGISTRY:
+            marks.update(getattr(d, "_kill_markers", None) or [])
+        _ACTIVE_MARKERS.clear()
+        _ACTIVE_MARKERS.update(marks)
+    except Exception:
+        pass
 _SWEEPER_STARTED = False
 
 
@@ -746,8 +763,8 @@ def release_driver(driver) -> None:
     在 context.close 上挂死被留守, finally 永远执行不到)。"""
     try:
         _ACTIVE_DRIVER_IDS.discard(id(driver))
-        for m in (getattr(driver, "_kill_markers", None) or []):
-            _ACTIVE_MARKERS.discard(m)
+        _DRIVER_REGISTRY.discard(driver)
+        _refresh_active_markers()
     except Exception:
         pass
 
@@ -793,6 +810,7 @@ def sweep_orphan_browsers(force: bool = False) -> int:
     """
     if os.name != "posix":
         return 0
+    _refresh_active_markers()
     me = os.getpid()
     chrome_procs: list[tuple[int, str]] = []
     node_procs: list[tuple[int, str]] = []
@@ -935,7 +953,8 @@ def build_cloak_driver(proxy: str | None = None) -> tuple[CloakSeleniumDriver, C
         driver._kill_markers = list(_scan_chromium_user_data_dirs() - _BEFORE_LAUNCH_MARKERS)
     except Exception:
         driver._kill_markers = []
-    _ACTIVE_MARKERS.update(driver._kill_markers)
+    _DRIVER_REGISTRY.add(driver)
+    _refresh_active_markers()
     _ensure_sweeper()
     # 共享页面操作函数(page_ops)需要一个显式日志前缀，
     # 避免 Cloak 注册流程里出现 `[Roxy注册]`。

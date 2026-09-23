@@ -172,6 +172,8 @@ def _run_cloak_registration_impl(
                 return "banned"
             if "chatgpt.com" in low and "/auth/" not in low:
                 return "home"
+            if low.startswith("chrome-error://") or "chromewebdata" in low:
+                return "crashed"   # 页面崩溃/导航失败: 回登录页重来, 不能干等
             if "/auth/error" in low:
                 return "auth_error"
             if "/about-you" in low or p["profile"]:
@@ -234,7 +236,7 @@ def _run_cloak_registration_impl(
         state_ts = 0.0             # 该状态最近一次动作时间
         state_tries: dict = {}     # 每状态已执行动作次数
         max_tries = {"email": 3, "code": 3, "pw_new": 2, "pw_login": 2,
-                     "profile": 2, "auth_error": 2, "reset_entry": 2, "reset_success": 2}
+                     "profile": 2, "auth_error": 2, "reset_entry": 2, "reset_success": 2, "crashed": 3}
         wait_nav = 30.0            # 动作后等页面变化的宽限
         switch_tried = False
         profile_done = False
@@ -288,6 +290,16 @@ def _run_cloak_registration_impl(
 
             state_tries[st] = state_tries.get(st, 0) + 1
             state_ts = time.time()
+
+            if st == "crashed":
+                logger.warning("[Cloak注册][页面机] 页面崩溃(chrome-error),回登录页重来(第 %s 次)", state_tries[st])
+                try:
+                    driver.get("https://chatgpt.com/auth/login")
+                    human_delay("navigate")
+                    _maybe_accept(driver)
+                except Exception:
+                    pass
+                continue
 
             if st == "auth_error":
                 logger.warning("[Cloak注册][页面机] 授权错误页,回登录页重来(第 %s 次)", state_tries[st])
