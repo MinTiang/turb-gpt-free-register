@@ -1633,6 +1633,24 @@ def _has_access_token(driver) -> bool:
         return False
 
 
+def _has_access_token_sync(driver) -> bool:
+    """同步版登录态探测: 页内同步 XHR 读 session。
+
+    异步版 _has_access_token 走 execute_async_script, 在 Cloak 适配层单次
+    可阻塞 120s(2026-09-22 实测把 worker 堵死)。状态机等高频调用一律用本版。
+    """
+    try:
+        return bool(driver.execute_script(
+            "try { var x=new XMLHttpRequest();"
+            " x.open('GET','/api/auth/session',false);"
+            " x.send(null);"
+            " if(x.status!==200) return false;"
+            " var j=JSON.parse(x.responseText);"
+            " return !!(j&&j.accessToken);} catch(e){ return false; }"))
+    except Exception:
+        return False
+
+
 def _is_profile_like(snapshot: dict) -> bool:
     """资料页识别：兼容 about-you/profile；年龄/生日控件可能不是 input，而是 React Aria widget。"""
     url = str(snapshot.get('url') or '').lower()
@@ -2354,7 +2372,7 @@ def _complete_profile_page(driver, name: str, birthday: str, timeout: int = 45) 
     last_snapshot = {}
     while time.time() < end:
         time.sleep(1)
-        if _has_access_token(driver):
+        if _has_access_token_sync(driver):
             logger.info('%s 已检测到登录态，资料页可能已跳过', _log_prefix(driver))
             return False
         snap = _page_snapshot(driver)

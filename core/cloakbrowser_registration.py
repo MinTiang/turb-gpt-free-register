@@ -100,51 +100,88 @@ def _run_cloak_registration_impl(
                 on_email_acquired(email)
             return email
 
-        submit_round = 0
-        while True:
-            submit_round += 1
-            try:
-                _submit_email_and_wait_next(
-                    driver,
-                    email,
-                    attempts=2,
-                    email_supplier=_email_supplier_after_input,
-                )
-                break
-            except Exception as exc:
-                if submit_round >= 3:
-                    raise
-                logger.warning(
-                    "[Cloak注册] 第 %s 次邮箱提交失败,回登录页恢复后重试: %s",
-                    submit_round, str(exc)[:150],
-                )
-                try:
-                    driver.get("https://chatgpt.com/auth/login")
-                    human_delay("navigate")
-                    _maybe_accept(driver)
-                except Exception:
-                    pass
+        # 首次邮箱提交只做一次(带内置稳定检测); 失败即任务失败回池。
+        # 其后的页面再现(登录流重启)统一由下方状态机的 email 状态处理,
+        # 不再有第二套计数器。
+        _submit_email_and_wait_next(
+            driver,
+            email,
+            attempts=2,
+            email_supplier=_email_supplier_after_input,
+        )
         _check_manual_stop()
 
-        # ==================== 页面状态机 ====================
-        # 不再按固定线性步骤走:每轮观察当前页面,是什么页面就分发到对应
-        # 处理器(验证码/密码页/重置密码/资料页/质询/登录态),任何意外页面
-        # 只是本轮不匹配,轮询重看——卡死点从"流程错位"降级为"多等一轮"。
-        # 页面语义:
-        #   /reset-password            → 老账号(密码未知):完成重置即恢复注册
-        #   log-in/password            → 老账号(密码已知):填库中密码直接登录
-        #   email-verification         → 验证码:取码填入;新号+密码开关先切"使用密码继续"
-        #   create-account/password    → 新号密码创建页:生成并写入密码
-        #   about-you                  → 填姓名生日
+        # ==================== 页面状态机(识别 → 处理一次 → 等页面变化) ====================
+        # 核心规则(修复"同一页面被反复匹配、重复操作"):
+        #   1) 每轮探测一次 DOM 快照, 分类出唯一状态
+        #   2) 新状态: 执行处理动作一次, 记录动作时间
+        #   3) 同一状态: 只等待不操作; 超过宽限仍未变化 → 有限重试 → 仍不前进才失败
+        #   4) 全局 300s 硬顶; 完成判定只用同步探测
+        # 状态语义:
+        #   banned      OpenAI 明示账号停用 → 失败(failed)
+        #   home        到达 ChatGPT → 完成
+        #   auth_error  /auth/error → 回登录页重来
+        #   profile     about-you/姓名年龄 → 填一次
+        #   code        验证码/重置码输入框 → 取码填一次(含密码分支切换)
+        #   pw_new      创建/重置密码页 → 生成密码填一次
+        #   pw_login    登录密码页 → 已知密码登录; 未知则点忘记密码
+        #   email       邮箱输入页 → 填一次
         from core.page_ops import (
-            _is_email_verification_page,
-            _is_login_password_page,
-            _has_access_token,
-            _solve_cloudflare_challenge_if_present,
             _click_continue_with_password_if_present,
-            _fill_password_page_if_present,
             _human_type_text,
+            _has_access_token_sync,
+            _solve_cloudflare_challenge_if_present,
         )
+
+        _PROBE_JS = (
+            "const vis=el=>!!(el&&(el.offsetWidth||el.offsetHeight||el.getClientRects().length));"
+            "const ins=[...document.querySelectorAll('input')].filter(vis);"
+            "const body=(document.body&&document.body.innerText||'').slice(0,2500).toLowerCase();"
+            "return {"
+            " url: location.href,"
+            " email: ins.some(el=>el.type==='email'||el.autocomplete==='email'||el.name==='email'||el.id==='email'),"
+            " pw: ins.some(el=>el.type==='password'),"
+            " code: ins.some(el=>String(el.autocomplete||'').includes('one-time-code')||el.inputmode==='numeric'),"
+            " profile: ins.some(el=>el.autocomplete==='name'||el.name==='name')&&ins.some(el=>el.name==='age'),"
+            " turnstile: !!document.querySelector('input[id^=\'cf-chl-widget\']'),"
+            " banned: body.includes('account_deactivated')||body.includes('deleted or deactivated')"
+            "};"
+        )
+
+        def _probe() -> dict:
+            try:
+                r = driver.execute_script(_PROBE_JS) or {}
+            except Exception:
+                r = {}
+            return {
+                "url": str(r.get("url") or ""),
+                "email": bool(r.get("email")),
+                "pw": bool(r.get("pw")),
+                "code": bool(r.get("code")),
+                "profile": bool(r.get("profile")),
+                "turnstile": bool(r.get("turnstile")),
+                "banned": bool(r.get("banned")),
+            }
+
+        def _classify(p: dict) -> str:
+            low = p["url"].lower()
+            if p["banned"]:
+                return "banned"
+            if "chatgpt.com" in low and "/auth/" not in low:
+                return "home"
+            if "/auth/error" in low:
+                return "auth_error"
+            if "/about-you" in low or p["profile"]:
+                return "profile"
+            if p["code"] and not p["email"] and not p["pw"]:
+                return "code"
+            if p["pw"]:
+                if "/create-account/password" in low or "/reset-password" in low:
+                    return "pw_new"
+                return "pw_login"
+            if p["email"]:
+                return "email"
+            return "unknown"
 
         stored_password = None
         try:
@@ -159,14 +196,6 @@ def _run_cloak_registration_impl(
             logger.info("[Cloak注册][页面机] 该邮箱本地已有注册密码(老账号),将尝试密码登录/重置")
 
         password_enabled = bool(getattr(_register_cfg, "REGISTER_WITH_PASSWORD", True))
-
-        def _has_visible_password_input() -> bool:
-            try:
-                return bool(driver.execute_script(
-                    "const v=el=>!!(el&&(el.offsetWidth||el.offsetHeight||el.getClientRects().length));"
-                    "return [...document.querySelectorAll('input')].some(el=>v(el)&&el.type==='password')"))
-            except Exception:
-                return False
 
         def _gen_password() -> str:
             import secrets as _sec
@@ -193,86 +222,68 @@ def _run_cloak_registration_impl(
             return False
 
         deadline = time.time() + 300.0
-        last_state_log = 0.0
-        email_submit_count = 1
+        last_log = 0.0
+        last_state = None          # 上一个执行过动作的状态
+        state_ts = 0.0             # 该状态最近一次动作时间
+        state_tries: dict = {}     # 每状态已执行动作次数
+        max_tries = {"email": 3, "code": 3, "pw_new": 2, "pw_login": 2,
+                     "profile": 2, "auth_error": 2}
+        wait_nav = 30.0            # 动作后等页面变化的宽限
         switch_tried = False
-        # ---- 每状态时间卡点: 从该状态首次进入起累计计时, 处理动作不重置预算 ----
-        state_budgets = {
-            "otp": 300.0,          # 验证码页总停留
-            "reset": 360.0,        # 重置密码页总停留
-            "create_pw": 150.0,    # 创建密码页
-            "login_pw": 120.0,     # 登录密码页
-            "profile": 120.0,      # about-you 资料页
-            "auth_error": 90.0,    # 授权错误页恢复宽限
-            "login_page": 180.0,   # 登录首页(邮箱提交不前进)
-        }
-        state_first: dict = {}
-        login_logged = False
         profile_done = False
-        otp_used = set()
-        otp_attempts = 0
-        reset_code_ts = None
-        reset_code_filled = False
-        reset_email_sent = False
         reset_password = None
+        otp_used = set()
         last_url = ""
+
         while time.time() < deadline:
             _check_manual_stop()
-            try:
-                last_url = str(driver.current_url or "")
-            except Exception:
-                last_url = ""
-            low = last_url.lower()
-
+            p = _probe()
+            st = _classify(p)
+            last_url = p["url"]
             now = time.time()
-            if now - last_state_log >= 8.0:
-                last_state_log = now
-                left = deadline - now
-                logger.info("[Cloak注册][页面机] 观察 url=%s (全局剩余 %.0fs)", last_url[:110], max(0.0, left))
+            if now - last_log >= 8.0:
+                last_log = now
+                logger.info("[Cloak注册][页面机] 状态=%s url=%s (剩余 %.0fs)",
+                            st, last_url[:100], max(0.0, deadline - now))
 
-            # 状态分类: 每个状态首次进入起累计计时(处理动作不重置预算)
-            st = None
-            if "/reset-password" in low:
-                st = "reset"
-            elif "/create-account/password" in low:
-                st = "create_pw"
-            elif "email-verification" in low:
-                st = "otp"
-            elif "/log-in" in low:
-                st = "login_pw"
-            elif "/about-you" in low:
-                st = "profile"
-            elif "/auth/error" in low:
-                st = "auth_error"
-            elif "chatgpt.com/auth/login" in low:
-                st = "login_page"
-            if st:
-                first = state_first.setdefault(st, now)
-                over = now - first - state_budgets.get(st, 300.0)
-                if over > 0:
-                    if st == "otp":
-                        if not otp_used:
-                            raise RuntimeError(
-                                "验证码页停留超时且从未取到验证码,邮箱疑似死号,该邮箱作废")
-                        raise RuntimeError(
-                            "验证码页停留超时(取到码但持续无效),该邮箱作废")
-                    if st == "reset":
-                        if reset_code_filled:
-                            raise RuntimeError("重置密码页停留超时(码已填但未完成),该邮箱作废")
-                        raise RuntimeError(
-                            "重置密码页停留超时且未收到重置码,邮箱疑似死号,该邮箱作废")
-                    raise RuntimeError(f"页面状态[{st}]停留超时 {over:.0f}s,该邮箱作废")
+            if st == "banned":
+                raise RuntimeError("账号已被 OpenAI 停用/封禁(account_deactivated),不可注册")
+            if st == "home":
+                logger.info("[Cloak注册][页面机] 已到达 ChatGPT, 注册/恢复完成")
+                create_acknowledged = True
+                break
 
-            # Turnstile 质询:能点就点(短超时,不阻塞其它状态判断)
-            try:
-                if _solve_cloudflare_challenge_if_present(driver, timeout=3.0):
+            # Turnstile 质询独立处理: 检测到就点, 不占用状态动作次数
+            if p["turnstile"]:
+                try:
+                    if _solve_cloudflare_challenge_if_present(driver, timeout=5.0):
+                        continue
+                except Exception:
+                    pass
+
+            if st == "unknown":
+                time.sleep(0.8)
+                continue
+
+            if st == last_state:
+                # 同一页面: 只等待, 不重复操作
+                if time.time() - state_ts < wait_nav:
+                    time.sleep(0.8)
                     continue
-            except Exception:
-                pass
+                if state_tries.get(st, 0) >= max_tries.get(st, 2):
+                    raise RuntimeError(
+                        f"页面[{st}]处理 {state_tries.get(st, 0)} 次后仍未前进,任务失败(邮箱回池,由连续失败机制退役)")
+            else:
+                last_state = st
+                state_tries[st] = 0
+                if st == "code":
+                    otp_after_ts = time.time()
 
-            # 授权错误页(error=undefined 等):回登录页重新走
-            if "/auth/error" in low:
-                logger.warning("[Cloak注册][页面机] 授权错误页,回登录页重来")
+            state_tries[st] = state_tries.get(st, 0) + 1
+            state_ts = time.time()
+
+            if st == "auth_error":
+                logger.warning("[Cloak注册][页面机] 授权错误页,回登录页重来(第 %s 次)", state_tries[st])
                 try:
                     driver.get("https://chatgpt.com/auth/login")
                     human_delay("navigate")
@@ -281,127 +292,77 @@ def _run_cloak_registration_impl(
                     pass
                 continue
 
-            # 封号快速失败:提交凭据后 OpenAI 给 account_deactivated 页,重试无意义
-            if "auth.openai.com" in low:
+            if st == "email":
+                logger.info("[Cloak注册][页面机] 邮箱页:填写并提交(第 %s 次)", state_tries[st])
                 try:
-                    body_head = str(driver.execute_script(
-                        "return (document.body.innerText||'').slice(0,3000)") or "").lower()
-                except Exception:
-                    body_head = ""
-                if "account_deactivated" in body_head or "deleted or deactivated" in body_head:
-                    raise RuntimeError(
-                        "账号已被 OpenAI 停用/封禁(account_deactivated),该邮箱为废号,"
-                        "请从邮箱池移除后换新邮箱重试"
-                    )
+                    _submit_email_and_wait_next(driver, email, attempts=1)
+                except Exception as exc:
+                    logger.warning("[Cloak注册][页面机] 邮箱提交异常: %s", str(exc)[:140])
+                human_delay("form")
+                continue
 
-            # ChatGPT 首页已到达:注册/恢复完成,直接收尾
-            # (实测 2026-09-22:部分存量号恢复登录后 _has_access_token 的页内
-            #  session fetch 返回 False,机器在首页空转到全局超时——首页即完成)
-            if low.rstrip("/") in ("https://chatgpt.com", "http://chatgpt.com"):
-                logger.info("[Cloak注册][页面机] 已到达 ChatGPT 首页,注册/恢复完成")
-                create_acknowledged = True
-                break
-
-            # 登录态已建立 → 注册/恢复完成
-            try:
-                logged_in = bool(driver.execute_script(
-                    "try { var x=new XMLHttpRequest();"
-                    " x.open('GET','/api/auth/session',false);"
-                    " x.send(null);"
-                    " if(x.status!==200) return false;"
-                    " var j=JSON.parse(x.responseText);"
-                    " return !!(j&&j.accessToken);} catch(e){ return false; }"))
-            except Exception:
-                logged_in = False
-            if logged_in:
-                if not login_logged:
-                    login_logged = True
-                    logger.info("[Cloak注册][页面机] 已检测到登录态(accessToken),流程完成")
-                if not profile_done:
-                    create_acknowledged = True
-                break
-
-            # 重置密码页:老账号密码未知 → 取邮件码 + 设置新密码完成恢复
-            if "/reset-password" in low:
-                if reset_code_ts is None:
-                    reset_code_ts = time.time()
-                    otp_after_ts = reset_code_ts
-                    reset_code_filled = False
-                    reset_email_sent = False
-                    logger.info("[Cloak注册][页面机] 重置密码页:老账号恢复流程,取码基准已重置")
-                # 重置页第一步是提交邮箱(OpenAI 提交后才发码), 否则永远等不到码
-                if not reset_email_sent:
-                    has_email = False
-                    try:
-                        has_email = bool(driver.execute_script(
-                            "const v=el=>!!(el&&(el.offsetWidth||el.offsetHeight||el.getClientRects().length));"
-                            "return [...document.querySelectorAll('input')].some(el=>v(el)&&"
-                            "(el.type==='email'||el.name==='email'||el.id==='email'||el.autocomplete==='email'))"))
-                    except Exception:
-                        pass
-                    if has_email:
-                        try:
-                            _human_type_text(driver, driver.find_element(
-                                "xpath", "//input[@type='email' or @name='email' or @id='email' or @autocomplete='email']"),
-                                email)
-                            _click_submit_button()
-                            reset_email_sent = True
-                            logger.info("[Cloak注册][页面机] 重置页已提交邮箱,等待重置码")
-                            human_delay("form")
-                            continue
-                        except Exception as exc:
-                            logger.warning("[Cloak注册][页面机] 重置页邮箱提交失败: %s", str(exc)[:120])
-                    else:
-                        reset_email_sent = True  # 无邮箱框(已预填) → 直接等码
-                if not reset_code_filled:
-                    try:
-                        reset_otp = otp_code if (otp_code and not otp_used) else wait_for_otp(email, after_ts=reset_code_ts)
-                    except Exception as exc:
-                        logger.warning("[Cloak注册][页面机] 重置码未收到,继续等待: %s", str(exc)[:120])
-                        time.sleep(1.0)
-                        continue
-                    otp_used.add(str(reset_otp))
-                    reset_code_filled = True
-                    logger.info("[Cloak注册][页面机] 重置码收到:%s,填入", reset_otp)
-                    code_xps = ["//input[contains(@autocomplete,'one-time-code')]",
-                                "//input[contains(@id,'code') or contains(@name,'code')]",
-                                "//input[@inputmode='numeric' or @type='tel']"]
-                    filled = False
-                    for xp in code_xps:
-                        try:
-                            els = [e for e in driver.find_elements("xpath", xp) if e.is_displayed()]
-                        except Exception:
-                            continue
-                        if els:
-                            _human_type_text(driver, els[0], str(reset_otp))
-                            filled = True
-                            break
-                    if not filled:
-                        reset_code_filled = False
-                    human_delay("otp_input")
+            if st == "code":
+                # 新号+密码开关: 首次进验证码页先切"使用密码继续"
+                if (password_enabled and not switch_tried and not stored_password
+                        and not openai_password and "email-verification" in p["url"]):
+                    switch_tried = True
+                    sw = _click_continue_with_password_if_present(driver)
+                    logger.info("[Cloak注册][页面机] 密码切换结果: %s", sw.get("reason"))
+                    human_delay("form")
                     continue
+                tries = state_tries[st]
+                if tries > 1:
+                    otp_after_ts = time.time()
+                    _click_resend_email_otp(driver, timeout=15)
+                logger.info("[Cloak注册][页面机] 验证码页:取码填入(第 %s 次)", tries)
+                code = None
+                if otp_code and not otp_used:
+                    code = otp_code
+                else:
+                    try:
+                        code = wait_for_otp(email, after_ts=otp_after_ts)
+                    except Exception as exc:
+                        # 取码失败: 缩短同页宽限到 5s 后即可重试
+                        state_ts = time.time() - (wait_nav - 5.0)
+                        if tries >= 3:
+                            raise RuntimeError("多轮未收到验证码,邮箱疑似死号")
+                        logger.warning("[Cloak注册][页面机] 未收到验证码: %s", str(exc)[:120])
+                        continue
+                otp_used.add(str(code))
+                logger.info("[Cloak注册][页面机] 收到验证码: %s", code)
+                _clear_otp_inputs(driver)
+                _type_otp(driver, code)
+                human_delay("otp_input")
+                try:
+                    _click_continue(driver)
+                except Exception:
+                    pass
+                _wait_after_email_otp_submit(driver, timeout=10)
+                continue
+
+            if st == "pw_new":
                 if not reset_password:
                     reset_password = _gen_password()
-                    logger.info("[Cloak注册][页面机] 填入新密码并提交")
+                if not openai_password:
+                    openai_password = reset_password
+                logger.info("[Cloak注册][页面机] 密码页:生成并填入新密码(第 %s 次)", state_tries[st])
                 try:
                     pw_els = [e for e in driver.find_elements("css selector", "input[type='password']") if e.is_displayed()]
                 except Exception:
                     pw_els = []
                 for el in pw_els[:2]:
                     try:
-                        _human_type_text(driver, el, reset_password)
+                        _human_type_text(driver, el, openai_password)
                     except Exception as exc:
-                        logger.warning("[Cloak注册][页面机] 新密码填入失败: %s", str(exc)[:100])
+                        logger.warning("[Cloak注册][页面机] 密码填入失败: %s", str(exc)[:100])
                 _click_submit_button()
-                human_delay("navigate")
+                human_delay("form")
                 continue
 
-            # 登录密码页:老账号(密码已知)直接登录
-            # (/log-in 页也会内嵌密码框,不能只认 _is_login_password_page 的路径判定)
-            if _is_login_password_page(driver) or ("/log-in" in low and _has_visible_password_input()):
-                pwd = stored_password or (reset_password if reset_code_filled else None) or openai_password
+            if st == "pw_login":
+                pwd = stored_password or reset_password or openai_password
                 if pwd:
-                    logger.info("[Cloak注册][页面机] 登录密码页:使用已知密码登录")
+                    logger.info("[Cloak注册][页面机] 登录密码页:使用已知密码登录(第 %s 次)", state_tries[st])
                     try:
                         pw_els = [e for e in driver.find_elements("css selector", "input[type='password']") if e.is_displayed()]
                         if pw_els:
@@ -411,10 +372,11 @@ def _run_cloak_registration_impl(
                     except Exception as exc:
                         logger.warning("[Cloak注册][页面机] 密码登录失败: %s", str(exc)[:120])
                     continue
-                logger.info("[Cloak注册][页面机] 登录密码页:无已知密码,点击忘记密码走重置")
+                logger.info("[Cloak注册][页面机] 登录密码页:无已知密码,点忘记密码走重置")
                 forgot = False
                 for xp in ("//a[contains(@href,'reset')]", "//button[contains(., 'Forgot')]",
-                           "//a[contains(., 'Forgot')]", "//button[contains(., '忘记')]"):
+                           "//a[contains(., 'Forgot')]", "//button[contains(., '忘记')]",
+                           "//a[contains(., '忘记')]"):
                     try:
                         els = [e for e in driver.find_elements("xpath", xp) if e.is_displayed()]
                     except Exception:
@@ -428,100 +390,23 @@ def _run_cloak_registration_impl(
                 human_delay("navigate")
                 continue
 
-            # 创建密码页(新号+密码开关):生成并写入密码
-            if "/create-account/password" in low:
-                got = _fill_password_page_if_present(driver, email, timeout=20)
-                if got:
-                    openai_password = got
-                    otp_after_ts = time.time()
-                    logger.info("[Cloak注册][页面机] 已创建账号密码,OTP 取码基准重置")
-                human_delay("navigate")
-                continue
-
-            # 验证码页
-            if _is_email_verification_page(driver):
-                if password_enabled and not switch_tried and not stored_password and not openai_password:
-                    switch_tried = True
-                    switch = _click_continue_with_password_if_present(driver)
-                    logger.info("[Cloak注册][页面机] 密码切换结果: %s", switch.get("reason"))
-                    human_delay("form")
-                    continue
-                if otp_attempts >= 3:
-                    raise RuntimeError("邮箱验证码连续错误/过期(账号疑似封禁或风控),已达最大重试次数,该邮箱作废")
-                otp_attempts += 1
-                logger.info("[Cloak注册][页面机][OTP] 等待验证码(第 %s/3 次)", otp_attempts)
-                code = None
-                if otp_code and not otp_used:
-                    code = otp_code
-                else:
-                    try:
-                        code = wait_for_otp(email, after_ts=otp_after_ts)
-                    except Exception as exc:
-                        if otp_attempts >= 3:
-                            raise RuntimeError(
-                                "多轮未收到验证码,邮箱疑似死号,该邮箱作废"
-                            )
-                        logger.warning("[Cloak注册][页面机][OTP] 未收到验证码,点重发后继续: %s", str(exc)[:150])
-                        otp_after_ts = time.time()
-                        _click_resend_email_otp(driver, timeout=25)
-                        human_delay("api")
-                        continue
-                otp_used.add(str(code))
-                logger.info("[Cloak注册][页面机][OTP] 收到验证码:%s", code)
-                _clear_otp_inputs(driver)
-                _type_otp(driver, code)
-                human_delay("otp_input")
+            if st == "profile":
+                logger.info("[Cloak注册][页面机] 资料页:填写并提交(第 %s 次)", state_tries[st])
                 try:
-                    _click_continue(driver)
-                except Exception:
-                    pass
-                outcome = _wait_after_email_otp_submit(driver, timeout=10)
-                logger.info("[Cloak注册][页面机][OTP] 提交后状态:%s", outcome)
-                if outcome != "accepted":
-                    # 页面可能已跳走(实测: 提交后进重置密码页, 再点"重发"会误点别的按钮
-                    # 并反复取同一封旧码)。只有确认仍在验证码页才重发。
-                    if _is_email_verification_page(driver):
-                        otp_after_ts = time.time()
-                        _click_resend_email_otp(driver, timeout=25)
-                        human_delay("api")
+                    if _complete_profile_page(driver, name, birthday, timeout=15):
+                        profile_done = True
+                        create_acknowledged = True
+                except Exception as exc:
+                    logger.warning("[Cloak注册][页面机] 资料页处理异常: %s", str(exc)[:120])
+                human_delay("post_auth")
                 continue
 
-            # 邮箱输入页再现(登录流重启):重填邮箱(最多再填 2 次)
-            try:
-                has_email_input = driver.execute_script(
-                    "const v=el=>!!(el&&(el.offsetWidth||el.offsetHeight||el.getClientRects().length));"
-                    "return [...document.querySelectorAll('input')].some(el=>v(el)&&"
-                    "(el.type==='email'||el.name==='email'||el.id==='email'||el.autocomplete==='email'))")
-            except Exception:
-                has_email_input = False
-            if has_email_input and email_submit_count < 3:
-                email_submit_count += 1
-                logger.info("[Cloak注册][页面机] 邮箱输入页再现,重填并提交(第 %s 次)", email_submit_count)
-                _submit_email_and_wait_next(driver, email, attempts=1)
-                human_delay("form")
-                continue
-            if has_email_input and email_submit_count >= 3:
-                raise RuntimeError(
-                    "邮箱多轮验证码无效且流程反复重启(账号状态异常),该邮箱作废"
-                )
+            time.sleep(0.8)
+        else:
+            if not _has_access_token_sync(driver):
+                raise RuntimeError(f"注册超时(300s),最后状态: {last_state} url={last_url[:140]}")
 
-            # 资料页(about-you):仅在页面上出现时才进入(避免在其它页误等 5s+刷日志)
-            if "about-you" in low:
-                if not profile_done:
-                    try:
-                        if _complete_profile_page(driver, name, birthday, timeout=15):
-                            profile_done = True
-                            create_acknowledged = True
-                            logger.info("[Cloak注册][页面机] 资料页已提交,等待跳转")
-                            human_delay("post_auth")
-                    except Exception as exc:
-                        logger.warning("[Cloak注册][页面机] 资料页处理异常(继续观察): %s", str(exc)[:120])
-                continue
-
-        if time.time() >= deadline and not _has_access_token(driver):
-            raise RuntimeError(f"页面状态机超时(300s),最后页面: {last_url[:160]}")
-
-        session_info = _fetch_chatgpt_session(driver, timeout=120)
+        session_info = _fetch_chatgpt_session(driver, timeout=30)
         access_token = session_info["accessToken"]
         logger.info("[Cloak注册] 已拿到 accessToken：%s", email)
 
