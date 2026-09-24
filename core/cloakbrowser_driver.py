@@ -754,6 +754,18 @@ def _ensure_sweeper() -> None:
                 sweep_orphan_browsers()
             except Exception:
                 pass
+            # 回收僵尸: 被 SIGKILL 的 node driver 是 playwright Popen 起的,
+            # 杀完没人 wait → 僵尸堆积(实测 16h/275 任务积 51 个)+其 pipe fd
+            # 泄漏(329 fd)。waitpid(WNOHANG) 只收已死子进程, 活跃的不受影响。
+            try:
+                while True:
+                    pid, _ = os.waitpid(-1, os.WNOHANG)
+                    if pid == 0:
+                        break
+            except ChildProcessError:
+                pass
+            except Exception:
+                pass
 
     threading.Thread(target=_loop, daemon=True, name="cloak-browser-sweeper").start()
 
