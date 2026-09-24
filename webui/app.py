@@ -1715,6 +1715,15 @@ def create_app(auth_code: str | None = None) -> Flask:
             "skipped": skipped,
         })
 
+    @app.post("/api/outlook/restore-failed")
+    def api_outlook_restore_failed():
+        """把所有 failed 状态邮箱批量恢复为 available(失败计数清零)。"""
+        try:
+            n = db.restore_failed_outlook()
+            return jsonify({"ok": True, "restored": n})
+        except Exception as exc:
+            return jsonify({"ok": False, "error": f"{type(exc).__name__}: {exc}"}), 500
+
     @app.post("/api/outlook/delete")
     def api_outlook_delete():
         """从邮箱池彻底删除一个邮箱：body {email, source?}。"""
@@ -2389,6 +2398,23 @@ def create_app(auth_code: str | None = None) -> Flask:
     # ----------------------------------------------------------
     # 注册任务
     # ----------------------------------------------------------
+    def _retry_snapshots() -> dict:
+        """整页共享一次快照, 消除每行 N+1 全量加载(此前 50 行=50 次全表 JSON 解析)。"""
+        try:
+            jobs_all = db.load_jobs_snapshot()
+            accounts_all = db.load_accounts_snapshot()
+        except Exception:
+            return {}
+        acc_by_id = {}
+        acc_by_email = {}
+        for a in accounts_all:
+            try:
+                acc_by_id[int(a.get("id") or 0)] = a
+            except (TypeError, ValueError):
+                pass
+            acc_by_email[str(a.get("email") or "")] = a
+        return {"jobs_all": jobs_all, "acc_by_id": acc_by_id, "acc_by_email": acc_by_email}
+
     @app.get("/api/jobs")
     def api_jobs():
         limit = request.args.get("limit", default=100, type=int)
@@ -2406,7 +2432,7 @@ def create_app(auth_code: str | None = None) -> Flask:
             rows = result.get("items") or []
             for row in rows:
                 row["manual_otp_required"] = manual_otp_required
-                row.update(svc.get_retry_info(row))
+                row.update(svc.get_retry_info(row, **_retry_snapshots()))
             result.update({"ok": True, "page": page, "page_size": page_size})
             result["items"] = [_compact_job_for_list(r) for r in rows]
             result["status_counts"] = db.job_status_counts()
@@ -2415,7 +2441,7 @@ def create_app(auth_code: str | None = None) -> Flask:
         rows = db.list_jobs(limit=max(1, int(limit or 1)))
         for row in rows:
             row["manual_otp_required"] = manual_otp_required
-            row.update(svc.get_retry_info(row))
+            row.update(svc.get_retry_info(row, **_retry_snapshots()))
         return jsonify(rows)
 
     @app.post("/api/jobs")

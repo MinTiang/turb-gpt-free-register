@@ -693,6 +693,13 @@
       <div class="toolbar">
         <div class="search">
           <div class="row" style="gap:8px;align-items:center;">
+            <select id="outlookStatusFilter" style="flex:0 0 120px;margin-top:0;" title="按状态筛选邮箱池">
+              <option value="">全部状态</option>
+              <option value="available">可用</option>
+              <option value="used">已用</option>
+              <option value="failed">失败</option>
+              <option value="disabled">停用</option>
+            </select>
             <select id="poolSource" style="flex:0 0 180px;margin-top:0;">
               <option value="all">全部邮箱池</option>
               <option value="outlook">Outlook 邮箱池</option>
@@ -702,6 +709,7 @@
         </div>
         <div class="buttons">
           <span class="muted" id="outlookSelectedHint" style="font-size:12px;align-self:center;margin-right:4px;">已选 0</span>
+          <button class="btn good" id="btnRestoreFailedOutlook" title="把所有『失败』状态的邮箱批量恢复为可用(失败计数清零)">恢复所有失败</button>
           <button class="btn good" id="btnMarkSelectedOutlookAvailable" disabled title="把选中的邮箱批量标记为未使用/可用">标记未使用</button>
           <button class="btn" id="btnDisableSelectedOutlook" disabled title="批量停用选中的邮箱；停用后不会被注册任务领取">停用选中</button>
           <button class="btn" id="btnFailSelectedOutlook" disabled title="批量标记选中的邮箱为失败">标失败</button>
@@ -2803,12 +2811,28 @@ function poolKey(r) { return `${r.source || $('#poolSource')?.value || 'all'}|${
 function poolLabel(src) {
   return ({outlook:'Outlook'})[src] || src || '-';
 }
+document.addEventListener('DOMContentLoaded', () => {
+  const sf = document.getElementById('outlookStatusFilter');
+  if (sf) sf.addEventListener('change', () => { PAGERS.outlook.page = 1; loadOutlook(); });
+  const rb = document.getElementById('btnRestoreFailedOutlook');
+  if (rb) rb.addEventListener('click', async () => {
+    if (!confirm('把所有『失败』状态的邮箱恢复为可用？失败计数将清零。')) return;
+    try {
+      rb.disabled = true;
+      const r = await api('/api/outlook/restore-failed', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      alert(r.ok ? `已恢复 ${r.restored} 个邮箱为可用` : `失败: ${r.error || '未知错误'}`);
+      loadOutlook(); loadSummary();
+    } catch (e) { alert('恢复失败: ' + e.message); }
+    finally { rb.disabled = false; }
+  });
+});
 async function loadOutlook() {
   try {
     const source = $('#poolSource')?.value || 'outlook';
     const q = $('#qOutlook') ? $('#qOutlook').value.trim() : '';
+    const st = $('#outlookStatusFilter') ? $('#outlookStatusFilter').value : '';
     const p = PAGERS.outlook;
-    const res = await api(`/api/outlook?paged=1&page=${encodeURIComponent(p.page)}&page_size=${encodeURIComponent(p.size)}&source=${encodeURIComponent(source)}&q=${encodeURIComponent(q)}`);
+    const res = await api(`/api/outlook?paged=1&page=${encodeURIComponent(p.page)}&page_size=${encodeURIComponent(p.size)}&source=${encodeURIComponent(source)}&q=${encodeURIComponent(q)}&status=${encodeURIComponent(st)}`);
     OUTLOOK = res.items || [];
     OUTLOOK_TOTAL = Number(res.total || OUTLOOK.length || 0);
     const totalPages = Math.max(1, Math.ceil(OUTLOOK_TOTAL / p.size));

@@ -573,9 +573,11 @@ def submit_registration(count: int = 1, email_source: str | None = None, workers
     return jobs
 
 
-def _account_for_job(job: dict) -> dict | None:
+def _account_for_job(job: dict, acc_by_id: dict | None = None, acc_by_email: dict | None = None) -> dict | None:
     account_id = job.get("account_id")
     if account_id is not None:
+        if acc_by_id is not None:
+            return acc_by_id.get(int(account_id))
         try:
             account = db.get_account(int(account_id))
             if account is not None:
@@ -583,11 +585,19 @@ def _account_for_job(job: dict) -> dict | None:
         except (TypeError, ValueError):
             pass
     email = str(job.get("email") or "").strip()
-    return db.get_account_by_email(email) if email else None
+    if not email:
+        return None
+    if acc_by_email is not None:
+        return acc_by_email.get(email)
+    return db.get_account_by_email(email)
 
 
-def get_retry_info(job: dict) -> dict:
-    """返回给 API/UI 的重试能力描述，不依赖前端猜测错误阶段。"""
+def get_retry_info(job: dict, *, jobs_all: list[dict] | None = None,
+                   acc_by_id: dict | None = None, acc_by_email: dict | None = None) -> dict:
+    """返回给 API/UI 的重试能力描述，不依赖前端猜测错误阶段。
+
+    列表页传 jobs_all/acc_by_* 快照可避免每行 N+1 全量加载。
+    """
     status = str(job.get("status") or "")
     info = {
         "retryable": False,
@@ -599,13 +609,13 @@ def get_retry_info(job: dict) -> dict:
     if status not in ("failed", "stopped", "cancelled"):
         return info
 
-    successful_retry = db.get_successful_retry_for_job(int(job.get("id") or 0))
+    successful_retry = db.get_successful_retry_for_job(int(job.get("id") or 0), jobs_all=jobs_all)
     if successful_retry is not None:
         info["retry_reason"] = f"后续重试任务 #{successful_retry.get('id')} 已成功"
         info["successful_retry_job_id"] = successful_retry.get("id")
         return info
 
-    account = _account_for_job(job)
+    account = _account_for_job(job, acc_by_id, acc_by_email)
     if account and job.get("account_id") is not None and status in ("failed", "stopped"):
         info["display_status"] = "success" if (account.get("codex_status") or "") == "success" else "partial_success"
 

@@ -2344,6 +2344,22 @@ def claim_next_outlook() -> dict | None:
         return _decorate_outlook(row)
 
 
+def restore_failed_outlook() -> int:
+    """把所有 failed 状态的 Outlook 邮箱批量恢复为 available(清零失败计数)。"""
+    with _LOCK:
+        rows = _load_outlook()
+        n = 0
+        for row in rows:
+            if row.get("status") == "failed":
+                row["status"] = "available"
+                row["fail_streak"] = 0
+                row["used_at"] = None
+                n += 1
+        if n:
+            _save_outlook(rows)
+        return n
+
+
 def release_outlook(email: str, status: str = "available", note: str | None = None) -> None:
     """把账号状态改回 available，或标记为 used/failed/disabled。"""
     with _LOCK:
@@ -3074,10 +3090,28 @@ def get_job(job_id: int) -> dict | None:
         return dict(row) if row else None
 
 
-def get_successful_retry_for_job(job_id: int) -> dict | None:
-    """返回同一任务链中已成功的其他重试任务，用于保留原任务历史状态并阻止重复重试。"""
+def load_jobs_snapshot() -> list[dict]:
+    """公开的任务全量快照(WebUI 列表页整页共享一次, 避免每行 N+1 全量加载)。"""
     with _LOCK:
-        rows = _load_jobs()
+        return _load_jobs()
+
+
+def load_accounts_snapshot() -> list[dict]:
+    """公开的账号全量快照(同上, 列表页批量化用)。"""
+    with _LOCK:
+        return _load_accounts()
+
+
+def get_successful_retry_for_job(job_id: int, jobs_all: list[dict] | None = None) -> dict | None:
+    """返回同一任务链中已成功的其他重试任务，用于保留原任务历史状态并阻止重复重试。
+
+    jobs_all: 调用方可传入预加载快照, 避免列表页每行全量加载。
+    """
+    if jobs_all is not None:
+        rows = jobs_all
+    else:
+        with _LOCK:
+            rows = _load_jobs()
         source = next((r for r in rows if int(r.get("id") or 0) == int(job_id)), None)
         if source is None:
             return None

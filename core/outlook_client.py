@@ -791,7 +791,17 @@ def _fetch_outlook_rest_messages(http: CurlSession, token: str) -> list[dict]:
     return out
 
 
+# IMAP 直连连续失败熔断(进程级): Graph 模式下轮询双路并跑, 部分 OAuth
+# 素材的 IMAP 认证永远失败(AUTHENTICATE failed), 每 3s 白烧一次 TLS 握手
+# 并刷屏告警。连续 3 次失败后本进程内停用 IMAP 支路, 仅保留 Graph。
+_IMAP_FAIL_STREAK = 0
+_IMAP_DISABLED = False
+
+
 def _fetch_imap_direct_messages(account: OutlookAccount) -> list[dict]:
+    global _IMAP_FAIL_STREAK
+    if _IMAP_DISABLED:
+        return []
     """本地 IMAP XOAUTH2 读取 Outlook Inbox 最新邮件。"""
     http = _ms_http()
     mail: imaplib.IMAP4_SSL | None = None
@@ -839,7 +849,17 @@ def _fetch_imap_direct_messages(account: OutlookAccount) -> list[dict]:
             logger.info("[Outlook] 本地 IMAP 直连拿到 %s 封邮件 token_source=%s", len(out), token_source)
         return out
     except Exception as exc:
-        logger.warning("[Outlook] 本地 IMAP 直连失败: %s: %s", type(exc).__name__, exc)
+        import core.outlook_client as _self
+        _self._IMAP_FAIL_STREAK += 1
+        if _self._IMAP_FAIL_STREAK >= 3:
+            if not _self._IMAP_DISABLED:
+                _self._IMAP_DISABLED = True
+                logger.warning(
+                    "[Outlook] IMAP 直连连续失败 %d 次, 本进程内停用 IMAP 支路(Graph 正常取件): %s",
+                    _self._IMAP_FAIL_STREAK, str(exc)[:80],
+                )
+        else:
+            logger.warning("[Outlook] 本地 IMAP 直连失败(%d/3): %s", _self._IMAP_FAIL_STREAK, str(exc)[:80])
         return []
     finally:
         try:
