@@ -12,6 +12,7 @@ WebUI 启动入口。
 """
 import argparse
 import logging
+from datetime import datetime
 import os
 import tempfile
 import webbrowser
@@ -94,6 +95,26 @@ def main() -> None:
         raise SystemExit(2) from exc
 
     app = create_app(auth_code=args.auth_code)
+    # 启动时清理上次进程残留的 running 任务: 容器重启会杀掉 worker 线程,
+    # 数据库里 running 行永远挂着(且其邮箱标 used 不回池), 用户视角就是
+    # "重启后所有注册任务都停了"。标 failed 后邮箱可由收尾/手动恢复。
+    try:
+        from core import db as _db
+        _stale = _db.load_jobs_snapshot()
+        _n = sum(1 for j in _stale if j.get("status") == "running")
+        if _n:
+            _now = datetime.now().isoformat(timespec="seconds")
+            with _db._LOCK:
+                _rows = _db._load_jobs()
+                for j in _rows:
+                    if j.get("status") == "running":
+                        j["status"] = "failed"
+                        j["error"] = "容器/进程重启, 任务中断(邮箱可能仍标 used, 需要时在邮箱库恢复)"
+                        j["completed_at"] = _now
+                _db._save_jobs(_rows)
+            logger.warning("启动清理: %d 个残留 running 任务已标 failed", _n)
+    except Exception as _exc:
+        logger.warning("启动清理 running 任务失败: %s", _exc)
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '::') else args.host}:{args.port}"
     logger.info(f"WebUI 已启动：{url}")
     if is_generated_code():
