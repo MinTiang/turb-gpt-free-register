@@ -10,6 +10,7 @@ cloudflare / gptmail / mailnest / cloudmail / remail）对应的客户端已删�
 旧 .env 里残留的来源名会被忽略并记一条 warning，最终按 outlook 处理。
 """
 import logging
+import time
 from typing import Iterable
 
 logger = logging.getLogger(__name__)
