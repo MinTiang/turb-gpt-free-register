@@ -223,6 +223,22 @@ EDITABLE_FIELDS = [
         "label": "邮箱来源", "help": "精简版只支持 outlook（外购 Outlook 账号池 + mail.chatai.codes 远端取信）",
     },
     {
+        "key": "EMAIL_MANAGER_BASE_URL", "file": "email.py", "type": "str", "group": "邮箱库",
+        "label": "邮箱管理端地址", "help": "assast/outlookEmail 地址(如 http://x.x.x.x:5000)。配置后 EMAIL_SOURCE=manager 从其项目系统领取邮箱, 本项目不持有 refresh_token",
+    },
+    {
+        "key": "EMAIL_MANAGER_PASSWORD", "file": "email.py", "type": "str", "group": "邮箱库",
+        "label": "管理端登录密码", "help": "outlookEmail 的 Web 登录密码",
+    },
+    {
+        "key": "EMAIL_MANAGER_PROJECT_KEY", "file": "email.py", "type": "str", "group": "邮箱库",
+        "label": "管理端项目标识", "help": "项目系统 project_key(如 gpt), 领取/成功/失败都记在该项目下",
+    },
+    {
+        "key": "EMAIL_MANAGER_LEASE_SECONDS", "file": "email.py", "type": "int", "group": "邮箱库",
+        "label": "领取租期(秒)", "help": "claim 租期, 超时未回写自动释放; 需覆盖单次注册最长耗时(默认 900)",
+    },
+    {
         "key": "OUTLOOK_FETCH_MODE", "file": "email.py", "type": "str", "group": "邮箱 / OTP",
         "label": "Outlook取件模式", "help": "auto=远端优先，远端 402/DEPLOYMENT_DISABLED 自动切 Graph 直连；direct=只用 Microsoft Graph 直连；remote=只用远端服务",
     },

@@ -378,6 +378,12 @@ def _run_one_job(job_id: int, log_file: str) -> None:
                 )
                 _ok = isinstance(result, dict) and result.get("success")
                 _err = str((result or {}).get("error") or "") if isinstance(result, dict) else "unknown"
+                if _ok and email:
+                    try:
+                        from core.email_provider import manager_finish
+                        manager_finish(email, success=True, detail="注册成功")
+                    except Exception:
+                        pass
                 if _ok or is_stop_requested(job_id):
                     break
                 category = _classify_registration_failure(_err)

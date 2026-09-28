@@ -14,7 +14,7 @@ from typing import Iterable
 
 logger = logging.getLogger(__name__)
 
-_VALID_SOURCES = ("outlook",)
+_VALID_SOURCES = ("outlook", "manager")
 
 
 def parse_email_sources(value=None) -> list[str]:
@@ -47,6 +47,8 @@ def parse_email_sources(value=None) -> list[str]:
 
 
 def _pick_from_source(source: str) -> str:
+    if source == "manager":
+        return acquire_email_from_manager()
     from core.outlook_client import pick_account
     return pick_account().email
 
@@ -65,6 +67,52 @@ def acquire_email() -> str:
             logger.warning(f"[EmailProvider] 来源 {source} 领取邮箱失败: {type(exc).__name__}: {exc}")
             continue
     raise RuntimeError(f"所有邮箱来源均领取失败: {sources}; last={last_exc}")
+
+
+_MANAGER_CLAIMS: dict[str, dict] = {}
+
+
+def acquire_email_from_manager() -> str:
+    """从邮箱管理端项目领取一个 toClaim 邮箱(服务端自带领取锁)。"""
+    import uuid
+    from core.email_manager_client import get_client
+    client = get_client()
+    info = client.claim_email(caller_id="turb", task_id=uuid.uuid4().hex[:12])
+    email = str(info.get("email") or "")
+    _MANAGER_CLAIMS[email] = {
+        "account_id": int(info.get("account_id") or 0),
+        "claim_token": str(info.get("claim_token") or ""),
+        "claimed_at": time.time(),
+    }
+    logger.info("[EmailProvider] 管理端领取: %s (account_id=%s)", email, info.get("account_id"))
+    return email
+
+
+def manager_finish(email: str, *, success: bool, transient: bool = False, detail: str = "") -> bool:
+    """把注册结果回写管理端: 成功→done; 临时失败→释放回池; 死号/封禁→failed。
+
+    返回是否命中 manager 邮箱(本地池邮箱返回 False, 走原有 release 逻辑)。
+    """
+    claim = _MANAGER_CLAIMS.pop(email, None)
+    if not claim:
+        return False
+    try:
+        from core.email_manager_client import get_client
+        client = get_client()
+        if success:
+            client.complete_success(claim["account_id"], claim["claim_token"], detail or "注册成功")
+            logger.info("[EmailProvider] 管理端已标记成功: %s", email)
+        elif transient:
+            client.release(claim["account_id"], claim["claim_token"], detail or "临时失败回池")
+            logger.info("[EmailProvider] 管理端已释放回池: %s", email)
+        else:
+            client.complete_failed(claim["account_id"], claim["claim_token"], detail or "注册失败")
+            logger.warning("[EmailProvider] 管理端已标记失败: %s", email)
+    except Exception as exc:
+        logger.warning("[EmailProvider] 管理端回写失败(租期到会自动释放): %s: %s", email, str(exc)[:120])
+        _MANAGER_CLAIMS[email] = claim  # 回写失败放回, 避免泄漏; 租期兜底
+        return True
+    return True
 
 
 def acquire_email_from_source(source: str) -> str:
@@ -161,6 +209,43 @@ def wait_for_otp(
     USE_EMAIL_SERVICE=False 时走手动验证码通道（WebUI 提交 / CLI 输入），
     不再强制要求 Outlook clientId/refreshToken。
     """
+
+    # manager 来源: 通过邮箱管理端读邮件(本项目不持有 refresh_token)
+    if email in _MANAGER_CLAIMS:
+        from core.email_manager_client import get_client
+        from core.outlook_client import looks_like_openai_email, extract_otp
+        client = get_client()
+        deadline_m = time.time() + (max_wait or _email_cfg.OTP_MAX_WAIT)
+        best: str | None = None
+        best_ts = 0.0
+        last_err = ""
+        while time.time() < deadline_m:
+            try:
+                items = client.fetch_emails(email)
+                for item in items:
+                    if not looks_like_openai_email(item):
+                        continue
+                    otp = extract_otp(item)
+                    if not otp:
+                        continue
+                    ts = item.get("date") or ""
+                    import datetime as _dt
+                    try:
+                        tts = _dt.datetime.fromisoformat(str(ts).replace("Z", "+00:00")).timestamp()
+                    except Exception:
+                        tts = time.time()
+                    if after_ts and tts < after_ts - 60:
+                        continue
+                    if tts > best_ts:
+                        best_ts, best = tts, otp
+                if best:
+                    logger.info("[Outlook] (manager) 锁定 OTP=%s", best)
+                    time.sleep(3)
+                    return best
+            except Exception as exc:
+                last_err = f"{type(exc).__name__}: {str(exc)[:100]}"
+            time.sleep(_email_cfg.OTP_POLL_INTERVAL or 3)
+        raise RuntimeError(f"(manager) 等待 {email} OTP 超时: {last_err or '未收到符合条件的邮件'}")
     try:
         from config import email as _email_cfg
         use_service = bool(getattr(_email_cfg, "USE_EMAIL_SERVICE", True))
@@ -204,6 +289,14 @@ def email_material_line(email: str, source: str | None = None) -> str:
 
 def release_email(email: str, status: str = "available", note: str | None = None) -> str:
     """按邮箱实际来源回收状态，返回来源名。"""
+    if email in _MANAGER_CLAIMS:
+        manager_finish(
+            email,
+            success=False,
+            transient=(status == "available"),
+            detail=note or "",
+        )
+        return "manager"
     source = resolve_email_source(email)
     from core.outlook_client import release_account
     release_account(email, status=status, note=note)

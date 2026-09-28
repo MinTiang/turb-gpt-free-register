@@ -49,7 +49,16 @@ OTP_SETTLE_SECONDS = 5
 
 
 # ---- .env overrides for WebUI editable fields ----
-apply_env_overrides(globals(), {
+apply_env_overrides(globals(), {'EMAIL_MANAGER_BASE_URL': 'str', 'EMAIL_MANAGER_PASSWORD': 'str', 'EMAIL_MANAGER_PROJECT_KEY': 'str', 'EMAIL_MANAGER_LEASE_SECONDS': 'int', 
     'USE_EMAIL_SERVICE': 'bool', 'OTP_MAX_WAIT': 'int', 'OTP_POLL_INTERVAL': 'int',
     'EMAIL_SOURCE': 'str', 'OUTLOOK_FETCH_MODE': 'str',
 })
+
+
+# ---- 邮箱管理端对接(assast/outlookEmail, 可选) ----
+# 配置 BASE_URL 后 EMAIL_SOURCE=manager 生效: 领取/取码/结果回写全部走
+# 管理端项目系统, 本项目不再持有 refresh_token(根治双份 token 轮换互踢)。
+EMAIL_MANAGER_BASE_URL: str = ""
+EMAIL_MANAGER_PASSWORD: str = ""
+EMAIL_MANAGER_PROJECT_KEY: str = "gpt"
+EMAIL_MANAGER_LEASE_SECONDS: int = 900
