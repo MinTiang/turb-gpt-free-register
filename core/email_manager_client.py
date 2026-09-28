@@ -83,12 +83,23 @@ class ManagerClient:
     def claim_email(self, caller_id: str, task_id: str) -> dict:
         """随机领取一个 toClaim 邮箱。返回 {email, account_id, claim_token, ...}。
 
-        池空时抛 LookupError。
+        池空时抛 LookupError; 5xx/网络错误自动重试(管理端偶发 500, 实测
+        隔几秒重试即成功)。
         """
-        data = self._post(
-            f"/api/projects/{self.project_key}/claim-random",
-            {"caller_id": caller_id, "task_id": task_id, "lease_seconds": self.lease_seconds},
-        )
+        last_exc: Exception | None = None
+        for attempt in range(4):
+            try:
+                data = self._post(
+                    f"/api/projects/{self.project_key}/claim-random",
+                    {"caller_id": caller_id, "task_id": task_id, "lease_seconds": self.lease_seconds},
+                )
+                break
+            except Exception as exc:
+                last_exc = exc
+                logger.warning("[邮箱管理端] claim 第 %s 次失败: %s", attempt + 1, str(exc)[:120])
+                time.sleep(3 + attempt * 3)
+        else:
+            raise RuntimeError(f"claim 重试 4 次仍失败: {last_exc}")
         if not data.get("success"):
             raise LookupError(str(data.get("error") or data.get("message") or "claim 失败"))
         d = data.get("data") or {}
