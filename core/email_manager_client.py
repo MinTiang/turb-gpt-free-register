@@ -206,9 +206,23 @@ class ManagerClient:
             return None
         pw = ""
         try:
-            sec = self._post(f"/api/accounts/{acc_id}/secrets",
-                             {"password": self.password, "field": "password"})
-            pw = str(((sec.get("secrets") or {}).get("password")) or "")
+            rv = self._post("/api/export/verify", {"password": self.password})
+            token = rv.get("verify_token") or (rv.get("data") or {}).get("verify_token")
+            if token:
+                r2 = self._sess.post(
+                    f"{self.base_url}/api/accounts/export-selected",
+                    json={"account_ids": [acc_id], "verify_token": token},
+                    headers={"X-CSRFToken": self._csrf} if self._csrf else {},
+                    timeout=60)
+                for line in r2.text.splitlines():
+                    line = line.strip()
+                    if not line or line.startswith("#") or "@" not in line:
+                        continue
+                    parts = line.split("----") if "----" in line else line.split("====")
+                    parts = [x.strip() for x in parts]
+                    if len(parts) >= 2 and parts[0].lower() == exact:
+                        pw = parts[1]
+                        break
         except Exception:
             pw = ""
         return {
