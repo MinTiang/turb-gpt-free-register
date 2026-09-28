@@ -183,6 +183,41 @@ class ManagerClient:
         self._rsm_map = result
         return result
 
+    def get_account_credentials(self, email: str) -> dict | None:
+        """按邮箱取账号四件套(email/password/client_id/refresh_token)。
+
+        密码走二次验证接口(Web 登录密码)。找不到账号返回 None。
+        """
+        r = self._get("/api/accounts/search", {"q": email, "limit": 20})
+        d = r.get("data") or {}
+        accs = d.get("accounts") or d.get("items") or r.get("accounts") or []
+        acc_id = None
+        exact = str(email).lower()
+        for a in accs if isinstance(accs, list) else []:
+            if str(a.get("email") or "").lower() == exact:
+                acc_id = a.get("id")
+                break
+        if not acc_id:
+            return None
+        detail = self._get(f"/api/accounts/{acc_id}")
+        d = detail.get("data") if isinstance(detail.get("data"), dict) else {}
+        a = detail.get("account") or d.get("account") or {}
+        if not a:
+            return None
+        pw = ""
+        try:
+            sec = self._post(f"/api/accounts/{acc_id}/secrets",
+                             {"password": self.password, "field": "password"})
+            pw = str(((sec.get("secrets") or {}).get("password")) or "")
+        except Exception:
+            pw = ""
+        return {
+            "email": str(a.get("email") or email),
+            "password": pw,
+            "client_id": str(a.get("client_id") or ""),
+            "refresh_token": str(a.get("refresh_token") or ""),
+        }
+
     def fetch_emails(self, email: str, top: int = 15) -> list[dict]:
         """读指定邮箱最新邮件(inbox+junk 合并), 返回统一结构的列表。"""
         data = self._get(f"/api/emails/{email}", {"folder": "all", "top": top}) or {}

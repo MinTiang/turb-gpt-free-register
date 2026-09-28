@@ -80,9 +80,26 @@ def build_hub_payload(email: str) -> dict:
             "refresh_token": str(outlook.get("refresh_token") or ""),
         }
     if not mailbox or not all(mailbox.values()):
+        # manager 来源账号的凭据只在邮箱管理端: 推送时现取四件套
+        # (mailbox password 允许为空: 部分部署版本无 secrets 接口取不到,
+        #  hub 端续期走 client_id+refresh_token, 密码仅备份用途)
+        try:
+            from core.email_manager_client import get_client, manager_enabled
+            if manager_enabled():
+                remote = get_client().get_account_credentials(email)
+                if remote and all(str(remote.get(k) or "") for k in
+                                  ("email", "client_id", "refresh_token")):
+                    mailbox = remote
+                    logger.info("[HubPush] 邮箱四件套取自邮箱管理端: %s (password=%s)",
+                                email, "有" if remote.get("password") else "空")
+        except Exception as exc:
+            logger.warning("[HubPush] 管理端取四件套失败: %s: %s", email, str(exc)[:120])
+    # hub 续期实际依赖 client_id+refresh_token; mailbox password 允许为空
+    if not mailbox or not all(str(mailbox.get(k) or "") for k in
+                              ("email", "client_id", "refresh_token")):
         raise RuntimeError(
-            f"邮箱四件套不完整(hub 必填): {email};"
-            "仅 outlook 池来源账号可推送"
+            f"邮箱凭据不完整(hub 必填: email/client_id/refresh_token): {email};"
+            "仅 outlook 池或邮箱管理端来源账号可推送"
         )
 
     # 注册密码 / totp / 注册通道 从 extra_json 恢复
