@@ -213,6 +213,7 @@ def wait_for_otp(
 
     # manager 来源: 通过邮箱管理端读邮件(本项目不持有 refresh_token)
     if email in _MANAGER_CLAIMS:
+        from config import email as _email_cfg
         from core.email_manager_client import get_client
         from core.outlook_client import looks_like_openai_email, extract_otp
         client = get_client()
