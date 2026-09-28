@@ -128,6 +128,21 @@ class ManagerClient:
              "caller_id": "turb", "detail": (detail or "")[:180]},
         )
 
+    def ensure_tag(self, name: str, color: str = "#563d7c") -> int:
+        """按名字取标签 id, 不存在则创建。"""
+        raw = self._get("/api/tags")
+        tag_list = raw.get("tags") or (raw.get("data") or {}).get("tags") or []
+        for t in tag_list:
+            if str(t.get("name") or "") == name:
+                return int(t.get("id"))
+        r = self._post("/api/tags", {"name": name, "color": color})
+        d = r.get("data") or r.get("tag") or r
+        return int(d.get("id") or d.get("tag_id"))
+
+    def account_tag(self, account_id: int, tag_id: int, action: str = "add") -> None:
+        self._post("/api/accounts/tags",
+                   {"account_ids": [account_id], "tag_id": tag_id, "action": action})
+
     def fetch_emails(self, email: str, top: int = 15) -> list[dict]:
         """读指定邮箱最新邮件(inbox+junk 合并), 返回统一结构的列表。"""
         data = self._get(f"/api/emails/{email}", {"folder": "all", "top": top}) or {}

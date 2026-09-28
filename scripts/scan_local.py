@@ -95,7 +95,7 @@ def work(a):
             cnt["fail"] += 1
             cnt["done"] += 1
         log.info("FAIL %s %s", email, str(exc)[:60])
-        time.sleep(20)
+        time.sleep(45)   # 管理端 500 = 过载, 退避久一点
         return
     if used:
         try:

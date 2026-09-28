@@ -100,6 +100,16 @@ def manager_finish(email: str, *, success: bool, transient: bool = False, detail
     try:
         from core.email_manager_client import get_client
         client = get_client()
+        # 标签同步: gpt可用 → gpt成功 / gpt失败(管理端前端按标签一目了然)
+        _tags = {}
+        try:
+            _tags = {
+                "ok": client.ensure_tag("gpt成功", "#3700ff"),
+                "bad": client.ensure_tag("gpt失败", "#ff0000"),
+                "ok_bad": client.ensure_tag("gpt可用", "#00bcf2"),
+            }
+        except Exception:
+            _tags = {}
         if success:
             client.complete_success(claim["account_id"], claim["claim_token"], detail or "注册成功")
             logger.info("[EmailProvider] 管理端已标记成功: %s", email)
@@ -109,6 +119,17 @@ def manager_finish(email: str, *, success: bool, transient: bool = False, detail
         else:
             client.complete_failed(claim["account_id"], claim["claim_token"], detail or "注册失败")
             logger.warning("[EmailProvider] 管理端已标记失败: %s", email)
+        try:
+            if _tags.get("ok") and success:
+                client.account_tag(claim["account_id"], _tags["ok"], "add")
+                if _tags.get("ok_bad"):
+                    client.account_tag(claim["account_id"], _tags["ok_bad"], "remove")
+            elif _tags.get("bad") and not success and not transient:
+                client.account_tag(claim["account_id"], _tags["bad"], "add")
+                if _tags.get("ok_bad"):
+                    client.account_tag(claim["account_id"], _tags["ok_bad"], "remove")
+        except Exception:
+            pass
     except Exception as exc:
         logger.warning("[EmailProvider] 管理端回写失败(租期到会自动释放): %s: %s", email, str(exc)[:120])
         _MANAGER_CLAIMS[email] = claim  # 回写失败放回, 避免泄漏; 租期兜底
