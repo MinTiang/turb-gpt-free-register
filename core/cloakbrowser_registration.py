@@ -239,6 +239,7 @@ def _run_cloak_registration_impl(
         deadline = time.time() + 300.0
         last_log = 0.0
         probe_session: dict = {}   # 探针带回的完整 session(免二次读取)
+        unknown_login_reloaded = False
         last_state = None          # 上一个执行过动作的状态
         state_ts = 0.0             # 该状态最近一次动作时间
         state_tries: dict = {}     # 每状态已执行动作次数
@@ -281,6 +282,25 @@ def _run_cloak_registration_impl(
                     pass
 
             if st == "unknown":
+                # 登录页渲染空白(出口地区不支持/CF 静默拦截)不能干等:
+                # 90s 重载一次, 200s 判临时失败回池(换出口重试)
+                if "chatgpt.com/auth/login" in low:
+                    unk_login_since = state_first.get("unknown_login")
+                    if unk_login_since is None:
+                        state_first["unknown_login"] = now
+                    elif now - unk_login_since > 200:
+                        raise RuntimeError(
+                            "登录页超过 200s 未渲染出可用元素(出口地区可能不支持或网络异常),"
+                            "临时失败回池")
+                    elif now - unk_login_since > 90 and not unknown_login_reloaded:
+                        unknown_login_reloaded = True
+                        logger.warning("[Cloak注册][页面机] 登录页 90s 未渲染,重载一次")
+                        try:
+                            driver.get("https://chatgpt.com/auth/login")
+                            human_delay("navigate")
+                        except Exception:
+                            pass
+                        continue
                 time.sleep(0.8)
                 continue
 
