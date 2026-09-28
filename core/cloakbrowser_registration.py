@@ -284,7 +284,7 @@ def _run_cloak_registration_impl(
             if st == "unknown":
                 # 登录页渲染空白(出口地区不支持/CF 静默拦截)不能干等:
                 # 90s 重载一次, 200s 判临时失败回池(换出口重试)
-                if "chatgpt.com/auth/login" in low:
+                if "chatgpt.com/auth/login" in last_url.lower():
                     unk_login_since = state_first.get("unknown_login")
                     if unk_login_since is None:
                         state_first["unknown_login"] = now
