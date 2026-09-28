@@ -78,15 +78,27 @@ def acquire_email_from_manager() -> str:
     import uuid
     from core.email_manager_client import get_client
     client = get_client()
-    info = client.claim_email(caller_id="turb", task_id=uuid.uuid4().hex[:12])
-    email = str(info.get("email") or "")
-    _MANAGER_CLAIMS[email] = {
-        "account_id": int(info.get("account_id") or 0),
-        "claim_token": str(info.get("claim_token") or ""),
-        "claimed_at": time.time(),
-    }
-    logger.info("[EmailProvider] 管理端领取: %s (account_id=%s)", email, info.get("account_id"))
-    return email
+    # 死号秒判: 领取后先看管理端记录的 token 刷新状态, 失败的直接
+    # complete-failed 换下一个(否则要在注册流程里白等 90s×3 轮取码超时)
+    for attempt in range(4):
+        info = client.claim_email(caller_id="turb", task_id=uuid.uuid4().hex[:12])
+        email = str(info.get("email") or "")
+        _MANAGER_CLAIMS[email] = {
+            "account_id": int(info.get("account_id") or 0),
+            "claim_token": str(info.get("claim_token") or ""),
+            "claimed_at": time.time(),
+        }
+        try:
+            st, err = client.refresh_status_map().get(email.lower(), ("", ""))
+        except Exception:
+            st, err = "", ""
+        if st != "failed":
+            logger.info("[EmailProvider] 管理端领取: %s (account_id=%s)", email, info.get("account_id"))
+            return email
+        # 刷新状态 failed = token 已死, 秒标失败换下一个
+        logger.warning("[EmailProvider] 领取到 token 已失效账号(%s), 秒标失败换下一个: %s", (err or st)[:80], email)
+        manager_finish(email, success=False, transient=False, detail=f"管理端 token 刷新失败: {(err or st)[:120]}")
+    raise LookupError("连续领取到多个 token 失效账号, 请在管理端处理失败邮箱后重试")
 
 
 def manager_finish(email: str, *, success: bool, transient: bool = False, detail: str = "") -> bool:

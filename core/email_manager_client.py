@@ -143,6 +143,46 @@ class ManagerClient:
         self._post("/api/accounts/tags",
                    {"account_ids": [account_id], "tag_id": tag_id, "action": action})
 
+    def refresh_status_map(self, ttl: float = 600.0) -> dict[str, tuple[str, str]]:
+        """全量账号的 token 刷新状态映射: email -> (status, error)。缓存 10 分钟。
+
+        兼容多种响应结构(refresh-status-list / external accounts)。
+        """
+        now = time.time()
+        if now - getattr(self, "_rsm_ts", 0) < ttl and getattr(self, "_rsm_map", None):
+            return self._rsm_map
+        result: dict[str, tuple[str, str]] = {}
+        for path in ("/api/accounts/refresh-status-list", "/api/external/accounts?limit=10000"):
+            try:
+                raw = self._get(path) or {}
+            except Exception:
+                continue
+            buckets = []
+            data = raw.get("data")
+            if isinstance(data, dict):
+                buckets = [data]
+            elif isinstance(data, list):
+                buckets = data
+            for b in buckets if buckets else [raw]:
+                if not isinstance(b, dict):
+                    continue
+                for lst_key in ("accounts", "items", "list", "rows"):
+                    for a in (b.get(lst_key) or []):
+                        if not isinstance(a, dict):
+                            continue
+                        em = str(a.get("email") or "").lower()
+                        st = str(a.get("last_refresh_status") or a.get("refresh_status") or "")
+                        er = str(a.get("last_refresh_error") or a.get("refresh_error") or "")
+                        if em and st:
+                            result[em] = (st, er)
+                if result:
+                    break
+            if result:
+                break
+        self._rsm_ts = now
+        self._rsm_map = result
+        return result
+
     def fetch_emails(self, email: str, top: int = 15) -> list[dict]:
         """读指定邮箱最新邮件(inbox+junk 合并), 返回统一结构的列表。"""
         data = self._get(f"/api/emails/{email}", {"folder": "all", "top": top}) or {}

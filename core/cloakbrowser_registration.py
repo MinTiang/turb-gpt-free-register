@@ -139,8 +139,13 @@ def _run_cloak_registration_impl(
             "const vis=el=>!!(el&&(el.offsetWidth||el.offsetHeight||el.getClientRects().length));"
             "const ins=[...document.querySelectorAll('input')].filter(vis);"
             "const body=(document.body&&document.body.innerText||'').slice(0,2500).toLowerCase();"
+            "const sess=(location.hostname==='chatgpt.com')?function(){"
+            " try{var x=new XMLHttpRequest();x.open('GET','/api/auth/session',false);x.send(null);"
+            " if(x.status!==200)return null;var j=JSON.parse(x.responseText);"
+            " return (j&&j.accessToken)?j:null;}catch(e){return null;}}():null;"
             "return {"
             " url: location.href,"
+            " sess: sess,"
             " email: ins.some(el=>el.type==='email'||el.autocomplete==='email'||el.name==='email'||el.id==='email'),"
             " pw: ins.some(el=>el.type==='password'),"
             " code: ins.some(el=>String(el.autocomplete||'').includes('one-time-code')||el.inputmode==='numeric'),"
@@ -158,6 +163,7 @@ def _run_cloak_registration_impl(
                 r = {}
             return {
                 "url": str(r.get("url") or ""),
+                "session": r.get("sess") if isinstance(r.get("sess"), dict) else None,
                 "email": bool(r.get("email")),
                 "pw": bool(r.get("pw")),
                 "code": bool(r.get("code")),
@@ -232,6 +238,7 @@ def _run_cloak_registration_impl(
 
         deadline = time.time() + 300.0
         last_log = 0.0
+        probe_session: dict = {}   # 探针带回的完整 session(免二次读取)
         last_state = None          # 上一个执行过动作的状态
         state_ts = 0.0             # 该状态最近一次动作时间
         state_tries: dict = {}     # 每状态已执行动作次数
@@ -260,6 +267,9 @@ def _run_cloak_registration_impl(
             if st == "home":
                 logger.info("[Cloak注册][页面机] 已到达 ChatGPT, 注册/恢复完成")
                 create_acknowledged = True
+                if p.get("session") and p["session"].get("accessToken"):
+                    probe_session.clear()
+                    probe_session.update(p["session"])
                 break
 
             # Turnstile 质询独立处理: 检测到就点, 不占用状态动作次数
@@ -441,7 +451,11 @@ def _run_cloak_registration_impl(
             if not _has_access_token_sync(driver):
                 raise RuntimeError(f"注册超时(300s),最后状态: {last_state} url={last_url[:140]}")
 
-        session_info = _fetch_chatgpt_session(driver, timeout=30)
+        if probe_session and probe_session.get("accessToken"):
+            session_info = probe_session
+            logger.info("[Cloak注册] 复用探针 session(省一次读取)：%s", email)
+        else:
+            session_info = _fetch_chatgpt_session(driver, timeout=30)
         access_token = session_info["accessToken"]
         logger.info("[Cloak注册] 已拿到 accessToken：%s", email)
 

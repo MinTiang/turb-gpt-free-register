@@ -115,6 +115,15 @@ def main() -> None:
             logger.warning("启动清理: %d 个残留 running 任务已标 failed", _n)
     except Exception as _exc:
         logger.warning("启动清理 running 任务失败: %s", _exc)
+    # 自动续跑上次残留的 pending 注册队列(容器重启后不再需要手动重新提交)
+    try:
+        from core.registration_service import resume_pending_jobs
+        _n = resume_pending_jobs()
+        if _n:
+            logger.warning("已自动续跑 %d 个 pending 注册任务", _n)
+    except Exception as _exc:
+        logger.warning("续跑 pending 注册任务失败: %s", _exc)
+
     url = f"http://{'127.0.0.1' if args.host in ('0.0.0.0', '::') else args.host}:{args.port}"
     logger.info(f"WebUI 已启动：{url}")
     if is_generated_code():

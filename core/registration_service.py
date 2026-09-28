@@ -544,6 +544,31 @@ def _run_codex_retry_job(job_id: int, log_file: str, email: str, account_id: int
 # 公共接口
 # ============================================================
 
+def resume_pending_jobs(max_resume: int = 200) -> int:
+    """WebUI 启动时调用: 把上次进程残留的 pending 任务重新提交执行。
+
+    容器重启会杀掉 worker 线程, pending 队列随之停摆(用户需手动重新提交)。
+    启动时自动续跑, 领取锁保证不会重复消费邮箱。
+    """
+    with _executor_lock:
+        executor = get_executor()
+        resumed = []
+        for job in db.load_jobs_snapshot():
+            if job.get("status") != "pending":
+                continue
+            if len(resumed) >= max_resume:
+                break
+            jid = int(job.get("id") or 0)
+            try:
+                executor.submit(_run_one_job, jid, job.get("log_file"))
+                resumed.append(jid)
+            except Exception as exc:
+                logger.warning("[Service] 续跑 pending 任务 #%s 失败: %s", jid, exc)
+    if resumed:
+        logger.warning("[Service] 已自动续跑 %d 个 pending 任务: %s", len(resumed), resumed[:20])
+    return len(resumed)
+
+
 def submit_registration(count: int = 1, email_source: str | None = None, workers: int | None = None) -> list[dict]:
     """
     创建 N 个注册任务并提交到线程池。
