@@ -167,6 +167,8 @@ _BROWSER_RETRY_BUDGET = 1
 _NODE_FAILURE_SIGS = (
     "403", "已熔断冷却", "cf 质询", "cloudflare", "challenge", "cf-mitigated",
     "err_connection_reset", "connection reset",
+    # 登录页空白/超时 = 出口地区不支持或网络异常, 换粘性出口会话重试
+    "未渲染出可用元素", "登录页超过",
 )
 # 浏览器本地崩溃签名:出口与邮箱都无辜,原地重试即可。
 _BROWSER_FAILURE_SIGS = (
