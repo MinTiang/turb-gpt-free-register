@@ -143,6 +143,10 @@ class ManagerClient:
         self._post("/api/accounts/tags",
                    {"account_ids": [account_id], "tag_id": tag_id, "action": action})
 
+    def resync_project(self) -> dict:
+        """重新启动项目: 把管理端新导入的邮箱补进项目待领池(只补新增)。"""
+        return self._post("/api/projects/start", {"project_key": self.project_key})
+
     def refresh_status_map(self, ttl: float = 600.0) -> dict[str, tuple[str, str]]:
         """全量账号的 token 刷新状态映射: email -> (status, error)。缓存 10 分钟。
 

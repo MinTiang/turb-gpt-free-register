@@ -80,8 +80,24 @@ def acquire_email_from_manager() -> str:
     client = get_client()
     # 死号秒判: 领取后先看管理端记录的 token 刷新状态, 失败的直接
     # complete-failed 换下一个(否则要在注册流程里白等 90s×3 轮取码超时)
+    last_empty = False
     for attempt in range(4):
-        info = client.claim_email(caller_id="turb", task_id=uuid.uuid4().hex[:12])
+        if last_empty and attempt == 1:
+            # 池子领空: 自动同步项目范围(把管理端新导入的邮箱补进待领)再试一次
+            try:
+                d = client.resync_project().get("data") or {}
+                logger.warning("[EmailProvider] 管理端池空,已自动同步项目范围: 补入 %s 个",
+                               d.get("added_count"))
+            except Exception as exc:
+                logger.warning("[EmailProvider] 项目范围同步失败: %s", str(exc)[:120])
+        try:
+            info = client.claim_email(caller_id="turb", task_id=uuid.uuid4().hex[:12])
+            last_empty = False
+        except LookupError:
+            last_empty = True
+            if attempt >= 3:
+                raise
+            continue
         email = str(info.get("email") or "")
         _MANAGER_CLAIMS[email] = {
             "account_id": int(info.get("account_id") or 0),
