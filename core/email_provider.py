@@ -325,10 +325,16 @@ def email_material_line(email: str, source: str | None = None) -> str:
 def release_email(email: str, status: str = "available", note: str | None = None) -> str:
     """按邮箱实际来源回收状态，返回来源名。"""
     if email in _MANAGER_CLAIMS:
+        # 临时失败(available): 领取记录保留不弹 —— 同任务重试还要继续用这个
+        # 邮箱取码; 弹掉会导致后续 OTP 走本地池老路径(未找到上下文)。
+        # 若任务最终放弃, 领取租期(900s)到期后管理端自动释放, 不会泄漏。
+        if status == "available":
+            logger.info("[EmailProvider] 管理端邮箱临时失败,保留领取(租期兜底): %s", email)
+            return "manager"
         manager_finish(
             email,
             success=False,
-            transient=(status == "available"),
+            transient=False,
             detail=note or "",
         )
         return "manager"
