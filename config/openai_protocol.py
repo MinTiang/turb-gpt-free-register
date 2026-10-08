@@ -28,10 +28,10 @@ OPENAI_REDIRECT_URI = "https://chatgpt.com/api/auth/callback/openai"
 SENTINEL_SV = "20260810913b"
 
 # ChatGPT 页面 build 标识（用于 Sentinel p[6] / documentElement data-build 模拟）
-OPENAI_BUILD_ID = "prod-d4e40d432de549a66bf9feb61d43c262b258386f"
+OPENAI_BUILD_ID = "prod-d612c313aa0b8c7fe931d265fad42e6b6b0a1ee6"
 
 # ChatGPT 前端 CES / API 上报头，来自 2026-07-19 抓包。
-OAI_CLIENT_BUILD_NUMBER = "10762726"
+OAI_CLIENT_BUILD_NUMBER = "11955554"
 OAI_CLIENT_VERSION = OPENAI_BUILD_ID
 
 # Statsig / Analytics SDK 版本，纯协议补齐前端同形态链路时使用。
