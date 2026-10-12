@@ -329,6 +329,13 @@ def _run_cloak_registration_impl(
                     time.sleep(0.8)
                     continue
                 if state_tries.get(st, 0) >= max_tries.get(st, 2):
+                    if st in ("pw_new", "email"):
+                        # 密码页/邮箱页填了不动 = 页面内隐形 CF 质询阻塞表单
+                        # (实测烂出口单任务 13 次质询), 判出口类让上层立即换粘性出口,
+                        # 不烧完整 5 分钟。
+                        raise RuntimeError(
+                            f"页面[{st}]处理 {state_tries.get(st, 0)} 次后仍未前进,"
+                            "未渲染出可用元素,登录页超过阻塞: 换出口重试")
                     raise RuntimeError(
                         f"页面[{st}]处理 {state_tries.get(st, 0)} 次后仍未前进,任务失败(邮箱回池,由连续失败机制退役)")
             else:
